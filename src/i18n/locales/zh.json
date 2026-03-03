@@ -941,6 +941,10 @@
     "hoursActual": "实际工时",
     "otHoursActual": "实际加班工时",
     "otManpowerActual": "实际加班人力",
+    "outputPerHour": "每小时产量",
+    "hours": "工时",
+    "otHours": "加班工时",
+    "otManpower": "加班人力",
 
     "dailyActuals": "每日实际",
     "actualDailyOutput": "实际日产量",
