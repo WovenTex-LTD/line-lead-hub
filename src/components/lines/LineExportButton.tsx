@@ -22,16 +22,17 @@ type RGB = [number, number, number];
 // ── Shared helpers ──
 
 function computeSummary(lines: LinePerformanceData[]) {
-  const totalTarget = lines.reduce((s, l) => s + l.totalTarget, 0);
-  const totalOutput = lines.reduce((s, l) => s + l.totalOutput, 0);
+  // Only include lines with EOD submitted so target-only submissions don't skew achievement/variance
+  const linesWithEOD = lines.filter((l) => l.dataState === "eod-submitted");
+  const totalTarget = linesWithEOD.reduce((s, l) => s + l.totalTarget, 0);
+  const totalOutput = linesWithEOD.reduce((s, l) => s + l.totalOutput, 0);
   const overallAchievement = totalTarget > 0 ? Math.round((totalOutput / totalTarget) * 100) : 0;
   const activeLines = lines.filter((l) => l.isActive).length;
-  const linesOnTarget = lines.filter((l) => l.isActive && l.totalTarget > 0 && l.achievementPct >= 85).length;
+  const linesOnTarget = linesWithEOD.filter((l) => l.isActive && l.achievementPct >= 85).length;
   const totalBlockers = lines.reduce((s, l) => s + l.totalBlockers, 0);
   const avgManpower =
     lines.length > 0 ? Math.round(lines.reduce((s, l) => s + l.avgManpower, 0) / lines.length) : 0;
-  const activeLinesWithTarget = lines.filter((l) => l.isActive && l.totalTarget > 0);
-  const sorted = [...activeLinesWithTarget].sort((a, b) => b.achievementPct - a.achievementPct);
+  const sorted = [...linesWithEOD.filter((l) => l.isActive)].sort((a, b) => b.achievementPct - a.achievementPct);
   const bestLine = sorted[0] ?? null;
   const worstLine = sorted.length > 1 ? sorted[sorted.length - 1] : null;
   const targetSubmitted = lines.filter((l) => l.targetSubmitted).length;

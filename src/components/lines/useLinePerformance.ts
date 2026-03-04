@@ -218,9 +218,21 @@ export function useLinePerformance() {
 
   // Compute line performance data
   const lines = useMemo((): LinePerformanceData[] => {
-    // Group targets by line_id + work_order_id
+    // Build a set of (line_id, date) pairs that have actuals submitted
+    // so we can exclude target-only dates from achievement/variance stats
+    const datesWithActuals = new Map<string, Set<string>>();
+    rawActuals.forEach((a: any) => {
+      if (!datesWithActuals.has(a.line_id)) datesWithActuals.set(a.line_id, new Set());
+      datesWithActuals.get(a.line_id)!.add(a.production_date);
+    });
+
+    // Group targets by line_id + work_order_id, only for dates with actuals
     const targetsByLine = new Map<string, Map<string, { total: number; manpower: number; dates: Set<string> }>>();
     rawTargets.forEach((t: any) => {
+      // Skip target-only dates (no actuals submitted for this line on this date)
+      const lineDates = datesWithActuals.get(t.line_id);
+      if (!lineDates || !lineDates.has(t.production_date)) return;
+
       if (!targetsByLine.has(t.line_id)) targetsByLine.set(t.line_id, new Map());
       const lineTargets = targetsByLine.get(t.line_id)!;
       if (!lineTargets.has(t.work_order_id)) {
@@ -247,6 +259,13 @@ export function useLinePerformance() {
       entry.dates.add(a.production_date);
     });
 
+    // Also track all target dates (including target-only) for dataState detection
+    const allTargetsByLine = new Map<string, Set<string>>();
+    rawTargets.forEach((t: any) => {
+      if (!allTargetsByLine.has(t.line_id)) allTargetsByLine.set(t.line_id, new Set());
+      allTargetsByLine.get(t.line_id)!.add(t.work_order_id);
+    });
+
     const result: LinePerformanceData[] = rawLines.map((line: any) => {
       const lineTargetMap = targetsByLine.get(line.id);
       const lineActualMap = actualsByLine.get(line.id);
@@ -260,7 +279,7 @@ export function useLinePerformance() {
 
       const poBreakdown: POBreakdown[] = [];
 
-      // Collect all WO IDs that have data (targets or actuals)
+      // Collect all WO IDs that have data (targets with actuals, or actuals alone)
       const allWoIds = new Set<string>();
       lineTargetMap?.forEach((_, woId) => allWoIds.add(woId));
       lineActualMap?.forEach((_, woId) => allWoIds.add(woId));
@@ -310,7 +329,8 @@ export function useLinePerformance() {
       const achievementPct = totalTarget > 0 ? Math.round((totalOutput / totalTarget) * 100) : 0;
       const avgManpower = dayCount > 0 ? Math.round(totalManpower / dayCount) : totalManpower;
 
-      const targetSubmitted = (lineTargetMap?.size || 0) > 0;
+      // Use allTargetsByLine (unfiltered) for dataState so target-only lines still show "awaiting-eod"
+      const targetSubmitted = (allTargetsByLine.get(line.id)?.size || 0) > 0;
       const eodSubmitted = (lineActualMap?.size || 0) > 0;
       const dataState: DataState =
         targetSubmitted && eodSubmitted ? "eod-submitted" :
@@ -477,12 +497,14 @@ export function useLinePerformance() {
   // Factory summary
   const factorySummary = useMemo((): FactorySummary => {
     const activeLines = filteredLines;
-    const totalTarget = activeLines.reduce((s, l) => s + l.totalTarget, 0);
-    const totalOutput = activeLines.reduce((s, l) => s + l.totalOutput, 0);
-    const overallAchievement = totalTarget > 0 ? Math.round((totalOutput / totalTarget) * 100) : 0;
 
-    // Only count lines where EOD has been submitted — awaiting-eod lines have unknown actual output
+    // Only count lines where EOD has been submitted — awaiting-eod (target-only) lines have unknown actual output
     const linesWithEOD = activeLines.filter((l) => l.dataState === "eod-submitted");
+
+    // Compute totals from EOD-submitted lines only so target-only submissions don't skew stats
+    const totalTarget = linesWithEOD.reduce((s, l) => s + l.totalTarget, 0);
+    const totalOutput = linesWithEOD.reduce((s, l) => s + l.totalOutput, 0);
+    const overallAchievement = totalTarget > 0 ? Math.round((totalOutput / totalTarget) * 100) : 0;
     const linesOnTarget = linesWithEOD.filter((l) => l.achievementPct >= 90).length;
     const linesBelowTarget = linesWithEOD.filter((l) => l.achievementPct < 90).length;
 
