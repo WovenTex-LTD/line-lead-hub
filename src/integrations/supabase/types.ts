@@ -502,6 +502,7 @@ export type Database = {
           buyer: string | null
           colour: string | null
           created_at: string | null
+          custom_data: Json | null
           cutting_capacity: number
           cutting_section_id: string | null
           day_cutting: number
@@ -544,6 +545,7 @@ export type Database = {
           buyer?: string | null
           colour?: string | null
           created_at?: string | null
+          custom_data?: Json | null
           cutting_capacity?: number
           cutting_section_id?: string | null
           day_cutting?: number
@@ -586,6 +588,7 @@ export type Database = {
           buyer?: string | null
           colour?: string | null
           created_at?: string | null
+          custom_data?: Json | null
           cutting_capacity?: number
           cutting_section_id?: string | null
           day_cutting?: number
@@ -1021,6 +1024,7 @@ export type Database = {
           trial_end_date: string | null
           trial_start_date: string | null
           updated_at: string | null
+          use_dynamic_forms: boolean | null
         }
         Insert: {
           created_at?: string | null
@@ -1048,6 +1052,7 @@ export type Database = {
           trial_end_date?: string | null
           trial_start_date?: string | null
           updated_at?: string | null
+          use_dynamic_forms?: boolean | null
         }
         Update: {
           created_at?: string | null
@@ -1075,6 +1080,7 @@ export type Database = {
           trial_end_date?: string | null
           trial_start_date?: string | null
           updated_at?: string | null
+          use_dynamic_forms?: boolean | null
         }
         Relationships: []
       }
@@ -1089,6 +1095,7 @@ export type Database = {
           blocker_type_id: string | null
           buyer_name: string | null
           created_at: string | null
+          custom_data: Json | null
           day_carton: number
           day_hour_actual: number
           day_over_time_actual: number
@@ -1127,6 +1134,7 @@ export type Database = {
           blocker_type_id?: string | null
           buyer_name?: string | null
           created_at?: string | null
+          custom_data?: Json | null
           day_carton?: number
           day_hour_actual?: number
           day_over_time_actual?: number
@@ -1165,6 +1173,7 @@ export type Database = {
           blocker_type_id?: string | null
           buyer_name?: string | null
           created_at?: string | null
+          custom_data?: Json | null
           day_carton?: number
           day_hour_actual?: number
           day_over_time_actual?: number
@@ -1561,6 +1570,7 @@ export type Database = {
         Row: {
           buyer_name: string | null
           created_at: string | null
+          custom_data: Json | null
           day_hour_planned: number
           day_over_time_planned: number
           factory_id: string
@@ -1584,6 +1594,7 @@ export type Database = {
         Insert: {
           buyer_name?: string | null
           created_at?: string | null
+          custom_data?: Json | null
           day_hour_planned?: number
           day_over_time_planned?: number
           factory_id: string
@@ -1607,6 +1618,7 @@ export type Database = {
         Update: {
           buyer_name?: string | null
           created_at?: string | null
+          custom_data?: Json | null
           day_hour_planned?: number
           day_over_time_planned?: number
           factory_id?: string
@@ -1695,6 +1707,201 @@ export type Database = {
             columns: ["unit_id"]
             isOneToOne: false
             referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_fields: {
+        Row: {
+          auto_fill_from: Json | null
+          compute_expression: string | null
+          data_source: Json | null
+          db_column: string | null
+          default_value: string | null
+          field_type: string
+          id: string
+          is_active: boolean | null
+          is_custom: boolean | null
+          is_required: boolean | null
+          key: string
+          label_key: string
+          placeholder: string | null
+          section_id: string
+          sort_order: number
+          template_id: string
+          validation: Json | null
+          visible_when: Json | null
+        }
+        Insert: {
+          auto_fill_from?: Json | null
+          compute_expression?: string | null
+          data_source?: Json | null
+          db_column?: string | null
+          default_value?: string | null
+          field_type: string
+          id?: string
+          is_active?: boolean | null
+          is_custom?: boolean | null
+          is_required?: boolean | null
+          key: string
+          label_key: string
+          placeholder?: string | null
+          section_id: string
+          sort_order?: number
+          template_id: string
+          validation?: Json | null
+          visible_when?: Json | null
+        }
+        Update: {
+          auto_fill_from?: Json | null
+          compute_expression?: string | null
+          data_source?: Json | null
+          db_column?: string | null
+          default_value?: string | null
+          field_type?: string
+          id?: string
+          is_active?: boolean | null
+          is_custom?: boolean | null
+          is_required?: boolean | null
+          key?: string
+          label_key?: string
+          placeholder?: string | null
+          section_id?: string
+          sort_order?: number
+          template_id?: string
+          validation?: Json | null
+          visible_when?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_fields_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "form_sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_fields_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "form_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_role_overrides: {
+        Row: {
+          hidden_field_ids: string[] | null
+          hidden_section_ids: string[] | null
+          id: string
+          required_overrides: Json | null
+          role: string
+          template_id: string
+        }
+        Insert: {
+          hidden_field_ids?: string[] | null
+          hidden_section_ids?: string[] | null
+          id?: string
+          required_overrides?: Json | null
+          role: string
+          template_id: string
+        }
+        Update: {
+          hidden_field_ids?: string[] | null
+          hidden_section_ids?: string[] | null
+          id?: string
+          required_overrides?: Json | null
+          role?: string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_role_overrides_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "form_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_sections: {
+        Row: {
+          description: string | null
+          id: string
+          is_active: boolean | null
+          is_collapsible: boolean | null
+          key: string
+          sort_order: number
+          template_id: string
+          title_key: string
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_collapsible?: boolean | null
+          key: string
+          sort_order?: number
+          template_id: string
+          title_key: string
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_collapsible?: boolean | null
+          key?: string
+          sort_order?: number
+          template_id?: string
+          title_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_sections_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "form_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_templates: {
+        Row: {
+          created_at: string | null
+          factory_id: string | null
+          form_type: string
+          id: string
+          is_active: boolean | null
+          name: string
+          target_table: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          factory_id?: string | null
+          form_type: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          target_table: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          factory_id?: string | null
+          form_type?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          target_table?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_templates_factory_id_fkey"
+            columns: ["factory_id"]
+            isOneToOne: false
+            referencedRelation: "factory_accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -2180,6 +2387,7 @@ export type Database = {
           color: string | null
           created_at: string | null
           cumulative_good_total: number | null
+          custom_data: Json | null
           estimated_ex_factory: string | null
           factory_id: string
           factory_name: string | null
@@ -2224,6 +2432,7 @@ export type Database = {
           color?: string | null
           created_at?: string | null
           cumulative_good_total?: number | null
+          custom_data?: Json | null
           estimated_ex_factory?: string | null
           factory_id: string
           factory_name?: string | null
@@ -2268,6 +2477,7 @@ export type Database = {
           color?: string | null
           created_at?: string | null
           cumulative_good_total?: number | null
+          custom_data?: Json | null
           estimated_ex_factory?: string | null
           factory_id?: string
           factory_name?: string | null
@@ -2495,6 +2705,7 @@ export type Database = {
           buyer_name: string | null
           created_at: string | null
           cumulative_good_total: number
+          custom_data: Json | null
           factory_id: string
           floor_name: string | null
           good_today: number
@@ -2531,6 +2742,7 @@ export type Database = {
           buyer_name?: string | null
           created_at?: string | null
           cumulative_good_total?: number
+          custom_data?: Json | null
           factory_id: string
           floor_name?: string | null
           good_today?: number
@@ -2567,6 +2779,7 @@ export type Database = {
           buyer_name?: string | null
           created_at?: string | null
           cumulative_good_total?: number
+          custom_data?: Json | null
           factory_id?: string
           floor_name?: string | null
           good_today?: number
@@ -2632,6 +2845,7 @@ export type Database = {
         Row: {
           buyer_name: string | null
           created_at: string | null
+          custom_data: Json | null
           estimated_ex_factory: string | null
           factory_id: string
           floor_name: string | null
@@ -2659,6 +2873,7 @@ export type Database = {
         Insert: {
           buyer_name?: string | null
           created_at?: string | null
+          custom_data?: Json | null
           estimated_ex_factory?: string | null
           factory_id: string
           floor_name?: string | null
@@ -2686,6 +2901,7 @@ export type Database = {
         Update: {
           buyer_name?: string | null
           created_at?: string | null
+          custom_data?: Json | null
           estimated_ex_factory?: string | null
           factory_id?: string
           floor_name?: string | null
