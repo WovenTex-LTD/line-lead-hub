@@ -188,8 +188,8 @@ function AppRoutes() {
         <Route path="/my-submissions" element={<SubscriptionGate><LegacyMySubmissionsRedirect /></SubscriptionGate>} />
 
         <Route path="/preferences" element={<SubscriptionGate><Preferences /></SubscriptionGate>} />
-        <Route path="/billing" element={<SubscriptionGate><ProtectedRoute adminOnly><Billing /></ProtectedRoute></SubscriptionGate>} />
-        <Route path="/billing-plan" element={<SubscriptionGate><ProtectedRoute adminOnly><BillingPlan /></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/billing" element={<ProtectedRoute adminOnly><Billing /></ProtectedRoute>} />
+        <Route path="/billing-plan" element={<ProtectedRoute adminOnly><BillingPlan /></ProtectedRoute>} />
         {/* Storage module routes */}
         <Route path="/storage" element={<SubscriptionGate><ProtectedRoute allowedRoles={['storage']}><StorageBinCard /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/storage/history" element={<SubscriptionGate><ProtectedRoute allowedRoles={['storage']}><StorageHistory /></ProtectedRoute></SubscriptionGate>} />
