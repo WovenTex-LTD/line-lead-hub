@@ -492,6 +492,95 @@ export type Database = {
           },
         ]
       }
+      custom_dropdown_lists: {
+        Row: {
+          created_at: string
+          description: string | null
+          factory_id: string
+          id: string
+          is_active: boolean
+          key: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          factory_id: string
+          id?: string
+          is_active?: boolean
+          key: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          factory_id?: string
+          id?: string
+          is_active?: boolean
+          key?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_dropdown_lists_factory_id_fkey"
+            columns: ["factory_id"]
+            isOneToOne: false
+            referencedRelation: "factory_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_dropdown_options: {
+        Row: {
+          created_at: string
+          factory_id: string
+          id: string
+          is_active: boolean
+          label: string
+          list_id: string
+          sort_order: number
+          value: string | null
+        }
+        Insert: {
+          created_at?: string
+          factory_id: string
+          id?: string
+          is_active?: boolean
+          label: string
+          list_id: string
+          sort_order?: number
+          value?: string | null
+        }
+        Update: {
+          created_at?: string
+          factory_id?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          list_id?: string
+          sort_order?: number
+          value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_dropdown_options_factory_id_fkey"
+            columns: ["factory_id"]
+            isOneToOne: false
+            referencedRelation: "factory_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_dropdown_options_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "custom_dropdown_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cutting_actuals: {
         Row: {
           acknowledged: boolean | null
