@@ -5,11 +5,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { getTodayInTimezone, getCurrentTimeInTimezone } from "@/lib/date-utils";
 import { format } from "date-fns";
 import { useBuyerPOAccess } from "@/hooks/useBuyerPOAccess";
-import { KPICard } from "@/components/ui/kpi-card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { CompactPOCard } from "@/components/buyer/CompactPOCard";
 import { Card, CardContent } from "@/components/ui/card";
-import { Package, TrendingUp, Archive, PackageCheck } from "lucide-react";
+import { Package, TrendingUp, Archive, CirclePercent, Boxes } from "lucide-react";
 import { StatsCardsSkeleton } from "@/components/ui/table-skeleton";
 import { POAggregates, computeHealth, EMPTY_AGGREGATES } from "@/lib/buyer-health";
 import { motion } from "framer-motion";
@@ -222,40 +221,62 @@ export default function BuyerDashboard() {
   const kpis = useMemo(() => {
     let totalQty = 0;
     let totalSewed = 0;
-    let totalPacked = 0;
+    let weightedCompletionSum = 0;
 
     for (const wo of workOrders) {
-      totalQty += wo.order_qty || 0;
+      const qty = wo.order_qty || 0;
+      totalQty += qty;
       const agg = aggregates.get(wo.id);
       if (agg) {
         totalSewed += agg.cumulativeGood;
-        totalPacked += agg.finishingPoly;
+        if (qty > 0) {
+          const sewPct = Math.min(100, (agg.cumulativeGood / qty) * 100);
+          const finPct = Math.min(100, (agg.finishingCarton / qty) * 100);
+          weightedCompletionSum += ((sewPct + finPct) / 2) * qty;
+        }
       }
     }
+
+    const completionPct = totalQty > 0 ? Math.round(weightedCompletionSum / totalQty) : 0;
 
     return {
       totalPOs: workOrders.length,
       totalQty,
       totalSewed,
-      totalPacked,
+      completionPct,
     };
   }, [workOrders, aggregates]);
 
   const loading = accessLoading || dataLoading;
 
+  const heroBanner = (
+    <motion.div
+      className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 p-6 md:p-8 text-white"
+      initial={{ opacity: 0, y: -12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+    >
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDJ2LTJoMzR6TTAgMzR2Mkgydi0ySDB6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-50" />
+      <div className="relative z-10">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">PO Overview</h1>
+        <p className="text-blue-100 mt-1 text-sm md:text-base">
+          Track the production status of your purchase orders
+        </p>
+      </div>
+      <div className="absolute -right-6 -bottom-6 opacity-10">
+        <Boxes className="h-40 w-40" />
+      </div>
+    </motion.div>
+  );
+
   if (loading) {
     return (
       <div className="py-4 lg:py-6 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">PO Overview</h1>
-          <p className="text-sm text-muted-foreground">
-            Track the production status of your purchase orders
-          </p>
-        </div>
+        {heroBanner}
         <StatsCardsSkeleton count={4} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {[1, 2].map((i) => (
-            <div key={i} className="h-64 rounded-lg bg-muted animate-pulse" />
+            <div key={i} className="h-64 rounded-xl bg-muted animate-pulse" />
           ))}
         </div>
       </div>
@@ -265,15 +286,12 @@ export default function BuyerDashboard() {
   if (workOrders.length === 0) {
     return (
       <div className="py-4 lg:py-6 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">PO Overview</h1>
-          <p className="text-sm text-muted-foreground">
-            Track the production status of your purchase orders
-          </p>
-        </div>
-        <Card>
+        {heroBanner}
+        <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16">
-            <Package className="h-12 w-12 text-muted-foreground/50 mb-4" />
+            <div className="h-16 w-16 rounded-full bg-blue-50 flex items-center justify-center mb-4">
+              <Package className="h-8 w-8 text-blue-400" />
+            </div>
             <h3 className="text-lg font-medium mb-2">No POs Assigned</h3>
             <p className="text-sm text-muted-foreground text-center max-w-md">
               You don't have any purchase orders assigned to your account yet.
@@ -285,15 +303,49 @@ export default function BuyerDashboard() {
     );
   }
 
+  const kpiCards = [
+    {
+      title: "Active POs",
+      value: kpis.totalPOs,
+      icon: Package,
+      gradient: "from-blue-500 to-blue-600",
+      bg: "bg-blue-50 dark:bg-blue-950/30",
+      iconBg: "bg-blue-500/10",
+      iconColor: "text-blue-600 dark:text-blue-400",
+    },
+    {
+      title: "Total Order Qty",
+      value: kpis.totalQty,
+      icon: Archive,
+      gradient: "from-violet-500 to-purple-600",
+      bg: "bg-violet-50 dark:bg-violet-950/30",
+      iconBg: "bg-violet-500/10",
+      iconColor: "text-violet-600 dark:text-violet-400",
+    },
+    {
+      title: "Total Sewn",
+      value: kpis.totalSewed,
+      icon: TrendingUp,
+      gradient: "from-emerald-500 to-green-600",
+      bg: "bg-emerald-50 dark:bg-emerald-950/30",
+      iconBg: "bg-emerald-500/10",
+      iconColor: "text-emerald-600 dark:text-emerald-400",
+    },
+    {
+      title: "Completion",
+      value: kpis.completionPct,
+      suffix: "%",
+      icon: CirclePercent,
+      gradient: "from-amber-500 to-orange-600",
+      bg: "bg-amber-50 dark:bg-amber-950/30",
+      iconBg: "bg-amber-500/10",
+      iconColor: "text-amber-600 dark:text-amber-400",
+    },
+  ];
+
   return (
     <div className="py-4 lg:py-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold">PO Overview</h1>
-        <p className="text-sm text-muted-foreground">
-          Track the production status of your purchase orders
-        </p>
-      </div>
+      {heroBanner}
 
       {/* KPI Cards */}
       <motion.div
@@ -302,64 +354,65 @@ export default function BuyerDashboard() {
         initial="hidden"
         animate="show"
       >
-        <motion.div variants={fadeUp}>
-          <KPICard
-            title="Active POs"
-            value={<AnimatedNumber value={kpis.totalPOs} />}
-            icon={Package}
-          />
-        </motion.div>
-        <motion.div variants={fadeUp}>
-          <KPICard
-            title="Total Order Qty"
-            value={<AnimatedNumber value={kpis.totalQty} />}
-            icon={Archive}
-          />
-        </motion.div>
-        <motion.div variants={fadeUp}>
-          <KPICard
-            title="Total Sewn"
-            value={<AnimatedNumber value={kpis.totalSewed} />}
-            icon={TrendingUp}
-          />
-        </motion.div>
-        <motion.div variants={fadeUp}>
-          <KPICard
-            title="Total Packed"
-            value={<AnimatedNumber value={kpis.totalPacked} />}
-            icon={PackageCheck}
-          />
-        </motion.div>
+        {kpiCards.map((kpi) => (
+          <motion.div key={kpi.title} variants={fadeUp}>
+            <div className={`relative overflow-hidden rounded-xl border ${kpi.bg} p-4 md:p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5`}>
+              <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${kpi.gradient}`} />
+              <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                  <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    {kpi.title}
+                  </p>
+                  <p className="font-mono text-2xl md:text-3xl font-bold tracking-tight">
+                    <AnimatedNumber value={kpi.value} />
+                    {kpi.suffix && <span>{kpi.suffix}</span>}
+                  </p>
+                </div>
+                <div className={`rounded-xl ${kpi.iconBg} p-2.5`}>
+                  <kpi.icon className={`h-5 w-5 ${kpi.iconColor}`} />
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        ))}
       </motion.div>
 
-      {/* PO Cards — Uniform Grid */}
-      <motion.div
-        className="grid grid-cols-1 lg:grid-cols-2 gap-4"
-        variants={stagger}
-        initial="hidden"
-        animate="show"
-      >
-        {workOrders.map((wo) => {
-          const agg = aggregates.get(wo.id) || EMPTY_AGGREGATES;
-          const health = computeHealth(wo, agg);
-          const tAgg = meta.todayAgg.get(wo.id);
-          const yAgg = meta.yesterdayAgg.get(wo.id);
-          return (
-            <motion.div key={wo.id} variants={fadeUp}>
-              <CompactPOCard
-                wo={wo}
-                agg={agg}
-                health={health}
-                todaySewing={tAgg?.sewing ?? 0}
-                todayFinishing={tAgg?.finishing ?? 0}
-                yesterdaySewing={yAgg?.sewing}
-                yesterdayFinishing={yAgg?.finishing}
-                onClick={() => navigate(`/buyer/po/${wo.id}`)}
-              />
-            </motion.div>
-          );
-        })}
-      </motion.div>
+      {/* PO Cards section */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <h2 className="text-lg font-semibold">Purchase Orders</h2>
+          <span className="text-xs font-medium bg-muted text-muted-foreground rounded-full px-2.5 py-0.5">
+            {workOrders.length}
+          </span>
+        </div>
+        <motion.div
+          className="grid grid-cols-1 lg:grid-cols-2 gap-4"
+          variants={stagger}
+          initial="hidden"
+          animate="show"
+        >
+          {workOrders.map((wo) => {
+            const agg = aggregates.get(wo.id) || EMPTY_AGGREGATES;
+            const health = computeHealth(wo, agg);
+            const tAgg = meta.todayAgg.get(wo.id);
+            const yAgg = meta.yesterdayAgg.get(wo.id);
+            return (
+              <motion.div key={wo.id} variants={fadeUp}>
+                <CompactPOCard
+                  wo={wo}
+                  agg={agg}
+                  health={health}
+                  todaySewing={tAgg?.sewing ?? 0}
+                  todayFinishing={tAgg?.finishing ?? 0}
+                  yesterdaySewing={yAgg?.sewing}
+                  yesterdayFinishing={yAgg?.finishing}
+                  onClick={() => navigate(`/buyer/po/${wo.id}`)}
+                />
+              </motion.div>
+            );
+          })}
+        </motion.div>
+      </div>
     </div>
   );
 }

@@ -93,7 +93,7 @@ export function BuyerLayout() {
           <div className="flex flex-1 min-w-0 flex-col overflow-x-hidden">
             {/* Header */}
             <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6">
-              <SidebarTrigger className="lg:hidden" />
+              <SidebarTrigger />
 
               <div className="flex-1" />
 
@@ -160,7 +160,7 @@ export function BuyerLayout() {
             </header>
 
             {/* Main content */}
-            <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden bg-background">
+            <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden bg-gradient-to-br from-slate-50 via-background to-blue-50/30 dark:from-background dark:via-background dark:to-background">
               <div className="w-full px-4 md:px-6 pb-6">
                 <ErrorBoundary
                   key={location.pathname}
