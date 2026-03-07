@@ -270,7 +270,7 @@ export default function BuyerPODetails() {
               </div>
               <div className="text-xl font-bold tabular-nums">
                 {stage.value > 0 ? (
-                  <>{stage.prefix || ""}<AnimatedNumber value={stage.value} /></>
+                  <>{"prefix" in stage ? (stage as any).prefix : ""}<AnimatedNumber value={stage.value} /></>
                 ) : "\u2014"}
               </div>
               <div className="text-xs text-muted-foreground mt-1">{stage.sub}</div>
