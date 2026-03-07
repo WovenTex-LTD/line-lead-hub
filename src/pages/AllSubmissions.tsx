@@ -593,7 +593,7 @@ export default function AllSubmissions() {
       <div className="grid grid-cols-4 gap-3">
         <Button
           variant={department === 'storage' ? 'default' : 'outline'}
-          className={`h-14 flex flex-col gap-0.5 ${department === 'storage' ? 'bg-orange-600 hover:bg-orange-700 border-orange-600' : 'hover:bg-orange-50 hover:border-orange-300 dark:hover:bg-orange-950/30'}`}
+          className={`h-14 flex flex-col gap-0.5 ${department === 'storage' ? 'bg-orange-600 hover:bg-orange-700 border-orange-600' : 'hover:bg-orange-50 hover:border-orange-300 hover:text-orange-700 dark:hover:bg-orange-950/30 dark:hover:text-orange-300'}`}
           onClick={() => setDepartment('storage')}
         >
           <Warehouse className="h-4 w-4" />
@@ -601,7 +601,7 @@ export default function AllSubmissions() {
         </Button>
         <Button
           variant={department === 'cutting' ? 'default' : 'outline'}
-          className={`h-14 flex flex-col gap-0.5 ${department === 'cutting' ? 'bg-emerald-600 hover:bg-emerald-700 border-emerald-600' : 'hover:bg-emerald-50 hover:border-emerald-300 dark:hover:bg-emerald-950/30'}`}
+          className={`h-14 flex flex-col gap-0.5 ${department === 'cutting' ? 'bg-emerald-600 hover:bg-emerald-700 border-emerald-600' : 'hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-300'}`}
           onClick={() => setDepartment('cutting')}
         >
           <Scissors className="h-4 w-4" />
@@ -609,7 +609,7 @@ export default function AllSubmissions() {
         </Button>
         <Button
           variant={department === 'sewing' ? 'default' : 'outline'}
-          className={`h-14 flex flex-col gap-0.5 ${department === 'sewing' ? 'bg-blue-600 hover:bg-blue-700 border-blue-600' : 'hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-950/30'}`}
+          className={`h-14 flex flex-col gap-0.5 ${department === 'sewing' ? 'bg-blue-600 hover:bg-blue-700 border-blue-600' : 'hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 dark:hover:bg-blue-950/30 dark:hover:text-blue-300'}`}
           onClick={() => setDepartment('sewing')}
         >
           <SewingMachine className="h-4 w-4" />
@@ -617,7 +617,7 @@ export default function AllSubmissions() {
         </Button>
         <Button
           variant={department === 'finishing' ? 'default' : 'outline'}
-          className={`h-14 flex flex-col gap-0.5 ${department === 'finishing' ? 'bg-violet-600 hover:bg-violet-700 border-violet-600' : 'hover:bg-violet-50 hover:border-violet-300 dark:hover:bg-violet-950/30'}`}
+          className={`h-14 flex flex-col gap-0.5 ${department === 'finishing' ? 'bg-violet-600 hover:bg-violet-700 border-violet-600' : 'hover:bg-violet-50 hover:border-violet-300 hover:text-violet-700 dark:hover:bg-violet-950/30 dark:hover:text-violet-300'}`}
           onClick={() => setDepartment('finishing')}
         >
           <Package className="h-4 w-4" />
