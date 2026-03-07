@@ -2277,6 +2277,117 @@ export type Database = {
           },
         ]
       }
+      production_note_comments: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string
+          id: string
+          note_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by: string
+          id?: string
+          note_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          note_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_note_comments_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "production_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_notes: {
+        Row: {
+          action_taken: string | null
+          body: string
+          created_at: string
+          created_by: string
+          department: string | null
+          factory_id: string
+          id: string
+          impact: string | null
+          line_id: string | null
+          resolution_summary: string | null
+          resolved_at: string | null
+          status: string
+          tag: string
+          title: string
+          updated_at: string
+          work_order_id: string | null
+        }
+        Insert: {
+          action_taken?: string | null
+          body: string
+          created_at?: string
+          created_by: string
+          department?: string | null
+          factory_id: string
+          id?: string
+          impact?: string | null
+          line_id?: string | null
+          resolution_summary?: string | null
+          resolved_at?: string | null
+          status?: string
+          tag?: string
+          title: string
+          updated_at?: string
+          work_order_id?: string | null
+        }
+        Update: {
+          action_taken?: string | null
+          body?: string
+          created_at?: string
+          created_by?: string
+          department?: string | null
+          factory_id?: string
+          id?: string
+          impact?: string | null
+          line_id?: string | null
+          resolution_summary?: string | null
+          resolved_at?: string | null
+          status?: string
+          tag?: string
+          title?: string
+          updated_at?: string
+          work_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_notes_factory_id_fkey"
+            columns: ["factory_id"]
+            isOneToOne: false
+            referencedRelation: "factory_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_notes_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_notes_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       production_updates_finishing: {
         Row: {
           average_production: number | null
