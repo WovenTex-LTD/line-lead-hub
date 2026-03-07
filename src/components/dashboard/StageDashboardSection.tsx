@@ -60,6 +60,8 @@ interface StageConfig {
   eodIconBg: string;
   /** When true, target values are day totals (not per-hour rates) */
   targetIsDaily: boolean;
+  /** Gradient for top accent bar on cards */
+  cardAccent: string;
 }
 
 const STAGE_CONFIGS: Record<"sewing" | "finishing", StageConfig> = {
@@ -70,11 +72,12 @@ const STAGE_CONFIGS: Record<"sewing" | "finishing", StageConfig> = {
     viewAllEodLink: "/today?tab=sewing",
     eodMetricLabel: "output",
     targetMetricLabel: "per hour",
-    targetIconColor: "text-primary",
-    targetIconBg: "bg-primary/10",
-    eodIconColor: "text-info",
-    eodIconBg: "bg-info/10",
+    targetIconColor: "text-blue-600 dark:text-blue-400",
+    targetIconBg: "bg-blue-500/10",
+    eodIconColor: "text-blue-600 dark:text-blue-400",
+    eodIconBg: "bg-blue-500/10",
     targetIsDaily: false,
+    cardAccent: "from-blue-500 to-indigo-500",
   },
   finishing: {
     addTargetLink: "/finishing/daily-target",
@@ -83,11 +86,12 @@ const STAGE_CONFIGS: Record<"sewing" | "finishing", StageConfig> = {
     viewAllEodLink: "/today?tab=finishing",
     eodMetricLabel: "poly",
     targetMetricLabel: "poly",
-    targetIconColor: "text-violet-600",
-    targetIconBg: "bg-violet-600/10",
-    eodIconColor: "text-emerald-600",
-    eodIconBg: "bg-emerald-600/10",
+    targetIconColor: "text-violet-600 dark:text-violet-400",
+    targetIconBg: "bg-violet-500/10",
+    eodIconColor: "text-violet-600 dark:text-violet-400",
+    eodIconBg: "bg-violet-500/10",
     targetIsDaily: true,
+    cardAccent: "from-violet-500 to-purple-500",
   },
 };
 
@@ -139,7 +143,8 @@ export function StageDashboardSection<
     <>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Morning Targets Card */}
-        <Card>
+        <Card className="relative overflow-hidden">
+          <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${config.cardAccent}`} />
           <CardHeader className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 pb-2">
             <CardTitle className="text-base sm:text-lg flex items-center gap-2">
               <TargetIcon className={`h-4 w-4 sm:h-5 sm:w-5 ${config.targetIconColor}`} />
@@ -233,7 +238,8 @@ export function StageDashboardSection<
         </Card>
 
         {/* End of Day Card */}
-        <Card>
+        <Card className="relative overflow-hidden">
+          <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${config.cardAccent}`} />
           <CardHeader className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 pb-2">
             <CardTitle className="text-base sm:text-lg flex items-center gap-2">
               <ClipboardCheck className={`h-4 w-4 sm:h-5 sm:w-5 ${config.eodIconColor}`} />

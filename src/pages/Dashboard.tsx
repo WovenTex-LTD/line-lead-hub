@@ -5,11 +5,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatTimeInTimezone, getTodayInTimezone } from "@/lib/date-utils";
 import { useMidnightRefresh } from "@/hooks/useMidnightRefresh";
 import { supabase } from "@/integrations/supabase/client";
-import { KPICard } from "@/components/ui/kpi-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { AnimatedNumber } from "@/components/ui/animated-number";
 import {
   Tooltip,
   TooltipContent,
@@ -37,8 +37,23 @@ import {
   Scissors,
   Target,
   Layers,
+  LayoutDashboard,
 } from "lucide-react";
 import { SewingMachine } from "@/components/icons/SewingMachine";
+import { NotesPanel } from "@/components/production-notes/NotesPanel";
+import { NoteFormDialog } from "@/components/production-notes/NoteFormDialog";
+import type { NoteDepartment } from "@/hooks/useProductionNotes";
+import { motion } from "framer-motion";
+
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.06 } },
+};
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0 },
+};
 
 interface DashboardStats {
   updatesToday: number;
@@ -268,6 +283,9 @@ export default function Dashboard() {
       transactions: StorageTransaction[];
     }[];
   } | null>(null);
+
+  const [kpiNoteOpen, setKpiNoteOpen] = useState(false);
+  const [kpiNoteDept, setKpiNoteDept] = useState<NoteDepartment | null>(null);
 
   const canViewDashboard = isAdminOrHigher();
   const onboarding = useOnboarding();
@@ -853,22 +871,7 @@ export default function Dashboard() {
   }, [storageBinCards]);
 
   return (
-    <div className="py-3 md:py-4 lg:py-6 space-y-4 md:space-y-6 overflow-x-hidden">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">{t('dashboard.title')}</h1>
-          <p className="text-muted-foreground">
-            {new Date(getTodayInTimezone(factory?.timezone || "Asia/Dhaka") + "T00:00:00").toLocaleDateString(i18n.language === 'bn' ? 'bn-BD' : 'en-US', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            })}
-          </p>
-        </div>
-      </div>
-
+    <div className="py-3 md:py-4 lg:py-6 space-y-5 md:space-y-6 overflow-x-hidden">
       {/* Onboarding Checklist */}
       {onboarding.visible && (
         <OnboardingChecklist
@@ -880,55 +883,129 @@ export default function Dashboard() {
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4" data-tour="dashboard-kpis">
-        <KPICard
-          title={t('dashboard.updatesToday')}
-          value={stats.updatesToday}
-          icon={TrendingUp}
-          variant="neutral"
-          subtitle={`${stats.totalLines} ${t('dashboard.linesTracked')}`}
-          href="/today"
-        />
-        <KPICard
-          title={t('dashboard.blockersToday')}
-          value={stats.blockersToday}
-          icon={AlertTriangle}
-          variant={stats.blockersToday > 0 ? "warning" : "positive"}
-          subtitle={stats.blockersToday > 0 ? t('dashboard.requiresAttention') : t('dashboard.allClear')}
-          href="/blockers"
-        />
-        <KPICard
-          title={t('dashboard.daySewingOutput')}
-          value={stats.daySewingOutput.toLocaleString()}
-          icon={SewingMachine}
-          variant="neutral"
-          subtitle={t('dashboard.pcsProduced')}
-        />
-        <KPICard
-          title={t('dashboard.dayFinishingOutput')}
-          value={stats.dayFinishingOutput.toLocaleString()}
-          icon={Package}
-          variant="neutral"
-          subtitle={t('dashboard.pcsFinished')}
-        />
-      </div>
+      <motion.div
+        className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4"
+        data-tour="dashboard-kpis"
+        variants={stagger}
+        initial="hidden"
+        animate="show"
+      >
+        {/* Updates Today */}
+        <motion.div variants={fadeUp}>
+          <Link to="/today" className="block">
+            <div className="relative overflow-hidden rounded-xl border bg-emerald-50 dark:bg-emerald-950/30 p-4 md:p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-600" />
+              <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                  <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground">{t('dashboard.updatesToday')}</p>
+                  <p className="font-mono text-2xl md:text-3xl font-bold tracking-tight">
+                    <AnimatedNumber value={stats.updatesToday} />
+                  </p>
+                  <p className="text-[10px] md:text-xs text-muted-foreground">{stats.totalLines} {t('dashboard.linesTracked')}</p>
+                </div>
+                <div className="rounded-xl bg-emerald-500/10 p-2.5">
+                  <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+              </div>
+            </div>
+          </Link>
+        </motion.div>
+
+        {/* Day Sewing Output */}
+        <motion.div variants={fadeUp}>
+          <div className="relative overflow-hidden rounded-xl border bg-blue-50 dark:bg-blue-950/30 p-4 md:p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 group">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-600" />
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground">{t('dashboard.daySewingOutput')}</p>
+                <p className="font-mono text-2xl md:text-3xl font-bold tracking-tight">
+                  <AnimatedNumber value={stats.daySewingOutput} />
+                </p>
+                <p className="text-[10px] md:text-xs text-muted-foreground">{t('dashboard.pcsProduced')}</p>
+              </div>
+              <div className="rounded-xl bg-blue-500/10 p-2.5">
+                <SewingMachine className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+            <button
+              onClick={() => { setKpiNoteDept('sewing'); setKpiNoteOpen(true); }}
+              className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-muted-foreground hover:text-foreground bg-background/80 backdrop-blur-sm border rounded px-1.5 py-0.5"
+            >
+              + Note
+            </button>
+          </div>
+        </motion.div>
+
+        {/* Day Finishing Output */}
+        <motion.div variants={fadeUp}>
+          <div className="relative overflow-hidden rounded-xl border bg-violet-50 dark:bg-violet-950/30 p-4 md:p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 group">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-500 to-purple-600" />
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground">{t('dashboard.dayFinishingOutput')}</p>
+                <p className="font-mono text-2xl md:text-3xl font-bold tracking-tight">
+                  <AnimatedNumber value={stats.dayFinishingOutput} />
+                </p>
+                <p className="text-[10px] md:text-xs text-muted-foreground">{t('dashboard.pcsFinished')}</p>
+              </div>
+              <div className="rounded-xl bg-violet-500/10 p-2.5">
+                <Package className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+              </div>
+            </div>
+            <button
+              onClick={() => { setKpiNoteDept('finishing'); setKpiNoteOpen(true); }}
+              className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-muted-foreground hover:text-foreground bg-background/80 backdrop-blur-sm border rounded px-1.5 py-0.5"
+            >
+              + Note
+            </button>
+          </div>
+        </motion.div>
+
+        {/* Blockers Today */}
+        <motion.div variants={fadeUp}>
+          <Link to="/blockers" className="block">
+            <div className="relative overflow-hidden rounded-xl border bg-red-50 dark:bg-red-950/30 p-4 md:p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 to-rose-600" />
+              <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                  <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground">{t('dashboard.blockersToday')}</p>
+                  <p className="font-mono text-2xl md:text-3xl font-bold tracking-tight">
+                    <AnimatedNumber value={stats.blockersToday} />
+                  </p>
+                  <p className="text-[10px] md:text-xs text-muted-foreground">{stats.blockersToday > 0 ? t('dashboard.requiresAttention') : t('dashboard.allClear')}</p>
+                </div>
+                <div className="rounded-xl bg-red-500/10 p-2.5">
+                  <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                </div>
+              </div>
+            </div>
+          </Link>
+        </motion.div>
+      </motion.div>
+
+      {/* Production Notes Panel */}
+      <motion.div variants={fadeUp} initial="hidden" animate="show">
+        <NotesPanel />
+      </motion.div>
 
       {/* Department Tabs */}
+      <motion.div variants={fadeUp} initial="hidden" animate="show">
+      <h2 className="text-lg font-semibold mb-4">Departments</h2>
       <Tabs value={departmentTab} onValueChange={(v) => setDepartmentTab(v as 'sewing' | 'finishing' | 'cutting' | 'storage')} className="space-y-4">
-        <TabsList className="w-full grid grid-cols-4 h-auto p-1">
-          <TabsTrigger value="storage" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm px-2 py-2">
+        <TabsList className="w-full grid grid-cols-4 h-auto p-1 rounded-xl bg-muted/60 border border-border/50">
+          <TabsTrigger value="storage" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm px-2 py-2.5 rounded-lg data-[state=active]:shadow-sm data-[state=active]:bg-orange-50 data-[state=active]:text-orange-700 dark:data-[state=active]:bg-orange-950/40 dark:data-[state=active]:text-orange-300">
             <Warehouse className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
             <span className="hidden xs:inline">Storage</span>
           </TabsTrigger>
-          <TabsTrigger value="cutting" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm px-2 py-2">
+          <TabsTrigger value="cutting" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm px-2 py-2.5 rounded-lg data-[state=active]:shadow-sm data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700 dark:data-[state=active]:bg-emerald-950/40 dark:data-[state=active]:text-emerald-300">
             <Scissors className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
             <span className="hidden xs:inline">Cutting</span>
           </TabsTrigger>
-          <TabsTrigger value="sewing" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm px-2 py-2">
+          <TabsTrigger value="sewing" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm px-2 py-2.5 rounded-lg data-[state=active]:shadow-sm data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 dark:data-[state=active]:bg-blue-950/40 dark:data-[state=active]:text-blue-300">
             <SewingMachine className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
             <span className="hidden xs:inline">Sewing</span>
           </TabsTrigger>
-          <TabsTrigger value="finishing" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm px-2 py-2">
+          <TabsTrigger value="finishing" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm px-2 py-2.5 rounded-lg data-[state=active]:shadow-sm data-[state=active]:bg-violet-50 data-[state=active]:text-violet-700 dark:data-[state=active]:bg-violet-950/40 dark:data-[state=active]:text-violet-300">
             <Package className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
             <span className="hidden xs:inline">Finishing</span>
           </TabsTrigger>
@@ -1016,10 +1093,11 @@ export default function Dashboard() {
         <TabsContent value="cutting" className="space-y-4 md:space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
             {/* Cutting Morning Targets Card */}
-            <Card>
+            <Card className="relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-green-500" />
               <CardHeader className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 pb-2">
                 <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                  <Target className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                  <Target className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 dark:text-emerald-400" />
                   Morning Targets
                 </CardTitle>
                 <div className="flex gap-1 sm:gap-2">
@@ -1091,10 +1169,11 @@ export default function Dashboard() {
             </Card>
 
             {/* Cutting End of Day Card */}
-            <Card>
+            <Card className="relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-green-500" />
               <CardHeader className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 pb-2">
                 <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                  <ClipboardCheck className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
+                  <ClipboardCheck className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 dark:text-emerald-400" />
                   End of Day
                 </CardTitle>
                 <div className="flex gap-1 sm:gap-2">
@@ -1173,10 +1252,11 @@ export default function Dashboard() {
         </TabsContent>
 
         <TabsContent value="storage" className="space-y-4 md:space-y-6">
-          <Card>
+          <Card className="relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-amber-500" />
             <CardHeader className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 pb-2">
               <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                <Warehouse className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                <Warehouse className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 dark:text-orange-400" />
                 Bin Cards
               </CardTitle>
               <Link to="/today?tab=storage">
@@ -1301,18 +1381,28 @@ export default function Dashboard() {
           </Card>
         </TabsContent>
       </Tabs>
+      </motion.div>
 
       {/* Active Blockers */}
-      <Card>
+      <motion.div variants={fadeUp} initial="hidden" animate="show">
+      <div className="flex items-center gap-2 mb-4">
+        <h2 className="text-lg font-semibold">Active Blockers</h2>
+        {activeBlockers.length > 0 && (
+          <span className="text-xs font-medium bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400 rounded-full px-2.5 py-0.5">{activeBlockers.length}</span>
+        )}
+      </div>
+      <Card className="border-border/50 shadow-sm rounded-xl overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-warning" />
-            Active Blockers
+          <CardTitle className="text-base flex items-center gap-2">
+            <div className="rounded-lg bg-orange-500/10 p-1.5">
+              <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+            </div>
+            Blockers
           </CardTitle>
           <Link to="/blockers">
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" className="text-xs">
               View All
-              <ChevronRight className="h-4 w-4 ml-1" />
+              <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
             </Button>
           </Link>
         </CardHeader>
@@ -1365,6 +1455,7 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
+      </motion.div>
 
       <SubmissionDetailModal
         submission={selectedSubmission}
@@ -1732,6 +1823,13 @@ export default function Dashboard() {
           if (!open) setSelectedGroupedCards(null);
         }}
         groupedCards={selectedGroupedCards}
+      />
+
+      {/* KPI-triggered note form */}
+      <NoteFormDialog
+        open={kpiNoteOpen}
+        onOpenChange={(open) => { setKpiNoteOpen(open); if (!open) setKpiNoteDept(null); }}
+        defaultDepartment={kpiNoteDept}
       />
     </div>
   );

@@ -869,14 +869,14 @@ export default function TodayUpdates() {
       {/* Summary Cards - Grouped Layout */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {/* Storage */}
-        <Card className="relative overflow-hidden border-teal-500/20">
-          <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-teal-500/0" />
+        <Card className="relative overflow-hidden border-orange-500/20">
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-orange-500/0" />
           <CardContent className="p-4 relative">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-9 w-9 rounded-xl bg-teal-500/10 flex items-center justify-center">
-                <Warehouse className="h-4.5 w-4.5 text-teal-600" />
+              <div className="h-9 w-9 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                <Warehouse className="h-4.5 w-4.5 text-orange-600" />
               </div>
-              <span className="text-xs font-medium text-teal-600 bg-teal-500/10 px-2 py-0.5 rounded-full">
+              <span className="text-xs font-medium text-orange-600 bg-orange-500/10 px-2 py-0.5 rounded-full">
                 {(storageTransactions || []).length} txns
               </span>
             </div>
@@ -886,14 +886,14 @@ export default function TodayUpdates() {
         </Card>
 
         {/* Cutting */}
-        <Card className="relative overflow-hidden border-amber-500/20">
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-amber-500/0" />
+        <Card className="relative overflow-hidden border-emerald-500/20">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-emerald-500/0" />
           <CardContent className="p-4 relative">
             <div className="flex items-center justify-between mb-3">
-              <div className="h-9 w-9 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                <Scissors className="h-4.5 w-4.5 text-amber-600" />
+              <div className="h-9 w-9 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                <Scissors className="h-4.5 w-4.5 text-emerald-600" />
               </div>
-              <span className="text-xs font-medium text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full">
+              <span className="text-xs font-medium text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full">
                 {cuttingTargets.length + cuttingActuals.length} updates
               </span>
             </div>
