@@ -113,7 +113,7 @@ export function CompactPOCard({
       : 0;
   const completionPct = Math.round((sewPct + packedPct) / 2);
   const balance = Math.max(0, wo.order_qty - agg.cumulativeGood);
-  const accent = healthAccent[health.status] || healthAccent.no_update;
+  const accent = healthAccent[health.status] || healthAccent.no_deadline;
 
   return (
     <Card
