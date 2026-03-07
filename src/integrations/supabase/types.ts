@@ -2279,25 +2279,25 @@ export type Database = {
       }
       production_note_comments: {
         Row: {
-          body: string
-          created_at: string
-          created_by: string
           id: string
           note_id: string
+          body: string
+          created_by: string
+          created_at: string
         }
         Insert: {
-          body: string
-          created_at?: string
-          created_by: string
           id?: string
           note_id: string
+          body: string
+          created_by: string
+          created_at?: string
         }
         Update: {
-          body?: string
-          created_at?: string
-          created_by?: string
           id?: string
           note_id?: string
+          body?: string
+          created_by?: string
+          created_at?: string
         }
         Relationships: [
           {
@@ -2307,62 +2307,69 @@ export type Database = {
             referencedRelation: "production_notes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "production_note_comments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       production_notes: {
         Row: {
-          action_taken: string | null
-          body: string
-          created_at: string
-          created_by: string
-          department: string | null
-          factory_id: string
           id: string
-          impact: string | null
-          line_id: string | null
-          resolution_summary: string | null
-          resolved_at: string | null
-          status: string
-          tag: string
+          factory_id: string
           title: string
-          updated_at: string
+          body: string
+          line_id: string | null
+          department: string | null
           work_order_id: string | null
+          tag: string
+          impact: string | null
+          status: string
+          resolution_summary: string | null
+          action_taken: string | null
+          resolved_at: string | null
+          created_by: string
+          created_at: string
+          updated_at: string
         }
         Insert: {
-          action_taken?: string | null
-          body: string
-          created_at?: string
-          created_by: string
-          department?: string | null
-          factory_id: string
           id?: string
-          impact?: string | null
-          line_id?: string | null
-          resolution_summary?: string | null
-          resolved_at?: string | null
-          status?: string
-          tag?: string
+          factory_id: string
           title: string
-          updated_at?: string
+          body: string
+          line_id?: string | null
+          department?: string | null
           work_order_id?: string | null
+          tag?: string
+          impact?: string | null
+          status?: string
+          resolution_summary?: string | null
+          action_taken?: string | null
+          resolved_at?: string | null
+          created_by: string
+          created_at?: string
+          updated_at?: string
         }
         Update: {
-          action_taken?: string | null
-          body?: string
-          created_at?: string
-          created_by?: string
-          department?: string | null
-          factory_id?: string
           id?: string
-          impact?: string | null
-          line_id?: string | null
-          resolution_summary?: string | null
-          resolved_at?: string | null
-          status?: string
-          tag?: string
+          factory_id?: string
           title?: string
-          updated_at?: string
+          body?: string
+          line_id?: string | null
+          department?: string | null
           work_order_id?: string | null
+          tag?: string
+          impact?: string | null
+          status?: string
+          resolution_summary?: string | null
+          action_taken?: string | null
+          resolved_at?: string | null
+          created_by?: string
+          created_at?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -2384,6 +2391,13 @@ export type Database = {
             columns: ["work_order_id"]
             isOneToOne: false
             referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_notes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
