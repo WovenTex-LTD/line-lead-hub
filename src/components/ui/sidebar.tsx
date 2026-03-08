@@ -15,7 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 const SIDEBAR_COOKIE_NAME = "sidebar:state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = "16rem";
-const SIDEBAR_WIDTH_MOBILE = "18rem";
+const SIDEBAR_WIDTH_MOBILE = "15rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 
@@ -105,6 +105,57 @@ const SidebarProvider = React.forwardRef<
     [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar],
   );
 
+  // Edge swipe to open sidebar on mobile
+  const edgeTouchStartX = React.useRef(0);
+  const edgeTouchStartY = React.useRef(0);
+  const edgeSwipeActive = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!isMobile) return;
+
+    const EDGE_ZONE = 24; // px from left edge to start detecting
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (openMobile) return; // sidebar already open
+      const x = e.touches[0].clientX;
+      const y = e.touches[0].clientY;
+      if (x <= EDGE_ZONE) {
+        edgeTouchStartX.current = x;
+        edgeTouchStartY.current = y;
+        edgeSwipeActive.current = true;
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!edgeSwipeActive.current) return;
+      const deltaX = e.touches[0].clientX - edgeTouchStartX.current;
+      const deltaY = Math.abs(e.touches[0].clientY - edgeTouchStartY.current);
+      // Cancel if scrolling vertically
+      if (deltaY > 30 && deltaY > Math.abs(deltaX)) {
+        edgeSwipeActive.current = false;
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!edgeSwipeActive.current) return;
+      const endX = e.changedTouches[0].clientX;
+      const deltaX = endX - edgeTouchStartX.current;
+      if (deltaX > 50) {
+        setOpenMobile(true);
+      }
+      edgeSwipeActive.current = false;
+    };
+
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
+    document.addEventListener("touchmove", onTouchMove, { passive: true });
+    document.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchmove", onTouchMove);
+      document.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [isMobile, openMobile, setOpenMobile]);
+
   return (
     <SidebarContext.Provider value={contextValue}>
       <TooltipProvider delayDuration={0}>
@@ -139,28 +190,43 @@ function MobileSheetContent({
   onSwipeClose: () => void;
 }) {
   const touchStartX = React.useRef(0);
+  const touchStartY = React.useRef(0);
   const touchCurrentX = React.useRef(0);
-  const contentRef = React.useRef<HTMLDivElement>(null);
+  const panelRef = React.useRef<HTMLDivElement>(null);
   const isDragging = React.useRef(false);
+  const isVerticalScroll = React.useRef(false);
 
   const handleTouchStart = React.useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
     touchCurrentX.current = e.touches[0].clientX;
     isDragging.current = false;
+    isVerticalScroll.current = false;
+    // Remove transition during drag for instant feedback
+    if (panelRef.current) {
+      panelRef.current.style.transition = "none";
+    }
   }, []);
 
   const handleTouchMove = React.useCallback((e: React.TouchEvent) => {
     touchCurrentX.current = e.touches[0].clientX;
     const deltaX = touchCurrentX.current - touchStartX.current;
+    const deltaY = Math.abs(e.touches[0].clientY - touchStartY.current);
+
+    // If scrolling vertically, don't interfere
+    if (!isDragging.current && deltaY > 15 && deltaY > Math.abs(deltaX)) {
+      isVerticalScroll.current = true;
+      return;
+    }
+    if (isVerticalScroll.current) return;
 
     // Only track leftward swipes for left-side sidebar
-    if (side === "left" && deltaX < -10) {
+    if (side === "left" && deltaX < -5) {
       isDragging.current = true;
-      // Apply transform for visual feedback
-      const offset = Math.max(deltaX, -200);
-      if (contentRef.current) {
-        contentRef.current.style.transform = `translateX(${offset}px)`;
-        contentRef.current.style.transition = "none";
+      // Clamp: can only drag left (negative), not right
+      const offset = Math.min(0, deltaX);
+      if (panelRef.current) {
+        panelRef.current.style.transform = `translateX(${offset}px)`;
       }
     }
   }, [side]);
@@ -168,24 +234,26 @@ function MobileSheetContent({
   const handleTouchEnd = React.useCallback(() => {
     const deltaX = touchCurrentX.current - touchStartX.current;
 
-    if (contentRef.current) {
-      contentRef.current.style.transform = "";
-      contentRef.current.style.transition = "";
+    if (panelRef.current) {
+      // Restore smooth transition for snap-back or close
+      panelRef.current.style.transition = "transform 0.25s cubic-bezier(0.2, 0, 0, 1)";
+      panelRef.current.style.transform = "";
     }
 
-    // Close if swiped more than 80px to the left
-    if (side === "left" && deltaX < -80) {
+    // Close if swiped more than 60px or fast flick (velocity check via distance)
+    if (side === "left" && isDragging.current && deltaX < -60) {
       onSwipeClose();
     }
 
     isDragging.current = false;
+    isVerticalScroll.current = false;
   }, [side, onSwipeClose]);
 
   return (
     <SheetContent
       data-sidebar="sidebar"
       data-mobile="true"
-      className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+      className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground border-r-0 [&>button]:hidden"
       style={
         {
           "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -194,8 +262,8 @@ function MobileSheetContent({
       side={side}
     >
       <div
-        ref={contentRef}
-        className="flex h-full w-full flex-col"
+        ref={panelRef}
+        className="flex h-full w-full flex-col will-change-transform"
         style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}

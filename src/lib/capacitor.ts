@@ -107,10 +107,10 @@ export async function initializeCapacitor() {
       // otherwise the native window background can show through as black during overscroll.
       await StatusBar.setOverlaysWebView({ overlay: platform === 'ios' });
 
-      // Light UI -> dark content (dark icons/text) for readability
-      // If the app is in dark mode, flip to light content.
+      // Style.Dark = dark icons/text (for light backgrounds)
+      // Style.Light = light icons/text (for dark backgrounds)
       const isDarkMode = document.documentElement.classList.contains('dark');
-      await StatusBar.setStyle({ style: isDarkMode ? Style.Light : Style.Dark });
+      await StatusBar.setStyle({ style: isDarkMode ? Style.Dark : Style.Light });
 
       // Android only: set an explicit status bar background color.
       // (iOS ignores setBackgroundColor; it uses the WebView behind it.)
