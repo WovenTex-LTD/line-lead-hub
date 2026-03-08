@@ -3,10 +3,11 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { invokeEdgeFn } from '@/lib/network-utils';
-import { openExternalUrl } from '@/lib/capacitor';
+import { openExternalUrl, isNative } from '@/lib/capacitor';
 import { Loader2, AlertCircle, AlertTriangle, Lock, LogOut, CreditCard, ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { AccountNotActive } from '@/components/AccountNotActive';
 
 interface SubscriptionGateProps {
   children: React.ReactNode;
@@ -70,6 +71,9 @@ export function SubscriptionGate({ children }: SubscriptionGateProps) {
   if (isInvitedUser) {
     // Check if the factory has access
     if (!hasAccess) {
+      // On native mobile, show generic "Account Not Active" (Apple compliance)
+      if (isNative) return <AccountNotActive />;
+
       return (
         <div className="flex min-h-[50vh] items-center justify-center p-4">
           <Card className="max-w-md">
@@ -77,7 +81,7 @@ export function SubscriptionGate({ children }: SubscriptionGateProps) {
               <Lock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <CardTitle>Account Suspended</CardTitle>
               <CardDescription>
-                Your factory's subscription has expired. Please contact your factory administrator 
+                Your factory's subscription has expired. Please contact your factory administrator
                 to reactivate the subscription.
               </CardDescription>
             </CardHeader>
@@ -126,6 +130,8 @@ export function SubscriptionGate({ children }: SubscriptionGateProps) {
 
   // Admin/Owner who needs to subscribe first (no active subscription and no factory)
   if (needsFactory && !hasAccess) {
+    if (isNative) return <AccountNotActive />;
+
     return (
       <div className="flex min-h-[50vh] items-center justify-center p-4">
         <Card className="max-w-md">
@@ -152,6 +158,8 @@ export function SubscriptionGate({ children }: SubscriptionGateProps) {
 
   // No access - past due (payment failed, grace period expired)
   if (!hasAccess && isPastDue) {
+    if (isNative) return <AccountNotActive />;
+
     return (
       <div className="flex min-h-[50vh] items-center justify-center p-4">
         <Card className="max-w-md">
@@ -186,6 +194,8 @@ export function SubscriptionGate({ children }: SubscriptionGateProps) {
 
   // No access - needs payment (expired/canceled)
   if (!hasAccess && needsPayment) {
+    if (isNative) return <AccountNotActive />;
+
     return (
       <div className="flex min-h-[50vh] items-center justify-center p-4">
         <Card className="max-w-md">
@@ -211,7 +221,7 @@ export function SubscriptionGate({ children }: SubscriptionGateProps) {
     );
   }
 
-  // Has access but payment failed - show warning banner
+  // Has access but payment failed - show warning banner (hide billing CTA on native mobile)
   if (hasAccess && isPastDue) {
     return (
       <>
@@ -219,22 +229,28 @@ export function SubscriptionGate({ children }: SubscriptionGateProps) {
           <div className="flex items-center justify-between gap-4 max-w-5xl mx-auto">
             <div className="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-200">
               <AlertTriangle className="h-4 w-4 shrink-0" />
-              <span>Payment failed. Please update your payment method to avoid losing access.</span>
+              <span>
+                {isNative
+                  ? 'Your account has a billing issue. Please contact productionportal.co for help.'
+                  : 'Payment failed. Please update your payment method to avoid losing access.'}
+              </span>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleUpdatePaymentMethod}
-              disabled={portalLoading}
-              className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900"
-            >
-              {portalLoading ? (
-                <Loader2 className="h-3 w-3 animate-spin mr-1" />
-              ) : (
-                <ExternalLink className="h-3 w-3 mr-1" />
-              )}
-              Update Payment
-            </Button>
+            {!isNative && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleUpdatePaymentMethod}
+                disabled={portalLoading}
+                className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900"
+              >
+                {portalLoading ? (
+                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                ) : (
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                )}
+                Update Payment
+              </Button>
+            )}
           </div>
         </div>
         {children}

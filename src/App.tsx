@@ -11,6 +11,7 @@ import { SubscriptionGate } from "@/components/SubscriptionGate";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { isNative } from "@/lib/capacitor";
 import i18n from "@/i18n/config";
 import { useVersionCheck } from "@/hooks/useVersionCheck";
 
@@ -150,7 +151,7 @@ function AppRoutes() {
       <Route path="/" element={<Index />} />
       <Route path="/auth" element={<Auth />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/subscription" element={<Subscription />} />
+      <Route path="/subscription" element={isNative ? <Navigate to="/dashboard" replace /> : <Subscription />} />
 
       {/* Protected routes with subscription gate */}
       <Route element={<AppLayout />}>
@@ -188,8 +189,8 @@ function AppRoutes() {
         <Route path="/my-submissions" element={<SubscriptionGate><LegacyMySubmissionsRedirect /></SubscriptionGate>} />
 
         <Route path="/preferences" element={<SubscriptionGate><Preferences /></SubscriptionGate>} />
-        <Route path="/billing" element={<ProtectedRoute adminOnly><Billing /></ProtectedRoute>} />
-        <Route path="/billing-plan" element={<ProtectedRoute adminOnly><BillingPlan /></ProtectedRoute>} />
+        <Route path="/billing" element={isNative ? <Navigate to="/dashboard" replace /> : <ProtectedRoute adminOnly><Billing /></ProtectedRoute>} />
+        <Route path="/billing-plan" element={isNative ? <Navigate to="/dashboard" replace /> : <ProtectedRoute adminOnly><BillingPlan /></ProtectedRoute>} />
         {/* Storage module routes */}
         <Route path="/storage" element={<SubscriptionGate><ProtectedRoute allowedRoles={['storage']}><StorageBinCard /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/storage/history" element={<SubscriptionGate><ProtectedRoute allowedRoles={['storage']}><StorageHistory /></ProtectedRoute></SubscriptionGate>} />

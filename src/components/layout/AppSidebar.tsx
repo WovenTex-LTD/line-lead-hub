@@ -53,7 +53,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { NAV_ITEMS, DEV_FACTORY_ID_PREFIX } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import { openExternalUrl, isTauri } from "@/lib/capacitor";
+import { openExternalUrl, isTauri, isNative } from "@/lib/capacitor";
 import { isRunningFromDMG } from "@/lib/dmg-detection";
 import { DMGWarningModal } from "@/components/DMGWarningModal";
 import { useOnboardingChecklist } from "@/hooks/useOnboardingChecklist";
@@ -324,6 +324,12 @@ export function AppSidebar() {
   if (!isDevFactory) {
     const devOnlyPaths = ['/setup/knowledge-base', '/setup/chat-analytics', '/setup/error-logs'];
     navItems = navItems.filter(item => !devOnlyPaths.includes(item.path));
+  }
+
+  // Apple compliance: hide billing/subscription nav items on native mobile
+  if (isNative) {
+    const billingPaths = ['/billing', '/billing-plan', '/subscription'];
+    navItems = navItems.filter(item => !billingPaths.includes(item.path));
   }
 
   const isActive = (path: string) => location.pathname === path;

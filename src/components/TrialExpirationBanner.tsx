@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { AlertTriangle, X, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSubscription } from "@/hooks/useSubscription";
+import { isNative } from "@/lib/capacitor";
 
 export function TrialExpirationBanner() {
   const navigate = useNavigate();
@@ -37,19 +38,24 @@ export function TrialExpirationBanner() {
       <div className="flex items-center gap-3">
         <AlertTriangle className="h-5 w-5 flex-shrink-0" />
         <span className="text-sm font-medium">
-          {message} Subscribe now to continue using ProductionPortal.
+          {message}{' '}
+          {isNative
+            ? 'Contact productionportal.co to continue using the app.'
+            : 'Subscribe now to continue using ProductionPortal.'}
         </span>
       </div>
       <div className="flex items-center gap-2">
-        <Button
-          size="sm"
-          variant={isUrgent ? "secondary" : "default"}
-          className={isUrgent ? "" : "bg-white text-amber-700 hover:bg-white/90"}
-          onClick={() => navigate('/subscription')}
-        >
-          <CreditCard className="h-4 w-4 mr-1" />
-          Subscribe
-        </Button>
+        {!isNative && (
+          <Button
+            size="sm"
+            variant={isUrgent ? "secondary" : "default"}
+            className={isUrgent ? "" : "bg-white text-amber-700 hover:bg-white/90"}
+            onClick={() => navigate('/subscription')}
+          >
+            <CreditCard className="h-4 w-4 mr-1" />
+            Subscribe
+          </Button>
+        )}
         <Button
           size="sm"
           variant="ghost"

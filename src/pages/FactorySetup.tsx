@@ -35,6 +35,7 @@ import {
 import { BLOCKER_IMPACTS, BLOCKER_IMPACT_LABELS, DEFAULT_STAGES, DEFAULT_BLOCKER_TYPES } from "@/lib/constants";
 import { ActiveLinesMeter } from "@/components/ActiveLinesMeter";
 import { useActiveLines } from "@/hooks/useActiveLines";
+import { isNative } from "@/lib/capacitor";
 import { EmailScheduleSettings } from "@/components/insights/EmailScheduleSettings";
 import { EmptyState } from "@/components/EmptyState";
 
@@ -944,7 +945,7 @@ export default function FactorySetup() {
         <TabsContent value="lines">
           {/* Active Lines Meter */}
           <div className="mb-4">
-            <ActiveLinesMeter />
+            <ActiveLinesMeter showUpgrade={!isNative} />
           </div>
 
           <Card>
