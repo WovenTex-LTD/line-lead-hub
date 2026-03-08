@@ -61,7 +61,7 @@ import { useTourContext } from "@/contexts/TourContext";
 import logoSvg from "@/assets/logo.svg";
 
 // Web fallback version (desktop uses the runtime version from the installed app)
-const WEB_APP_VERSION = "1.0.32";
+const WEB_APP_VERSION = "2.0.2";
 import {
   Collapsible,
   CollapsibleContent,

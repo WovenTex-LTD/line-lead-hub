@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-const CACHE_NAME = 'production-portal-v4';
+const CACHE_NAME = 'production-portal-v5';
 const OFFLINE_QUEUE_KEY = 'offline_submission_queue';
 const SYNC_TAG = 'sync-submissions';
 
@@ -88,34 +88,21 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: cache-first with background update
+  // Static assets: network-first with cache fallback
+  // This ensures users always get the latest assets when online
   event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Return cached version and update cache in background
-        event.waitUntil(
-          fetch(request).then((response) => {
-            if (response.ok) {
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(request, response);
-              });
-            }
-          }).catch(() => {/* Network error, ignore */})
-        );
-        return cachedResponse;
+    fetch(request).then((response) => {
+      if (response.ok && response.type === 'basic' && !shouldNotCache(url)) {
+        const responseClone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(request, responseClone);
+        });
       }
-
-      // Not cached - fetch from network
-      return fetch(request).then((response) => {
-        if (response.ok && response.type === 'basic' && !shouldNotCache(url)) {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseClone);
-          });
-        }
-        return response;
-      }).catch(() => {
-        return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
+      return response;
+    }).catch(() => {
+      // Offline fallback: serve from cache
+      return caches.match(request).then((cached) => {
+        return cached || new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
       });
     })
   );

@@ -86,7 +86,7 @@ export function useVersionCheck() {
     document.addEventListener("visibilitychange", onVisibilityChange);
 
     // First check shortly after mount (give the page time to settle)
-    const initial = setTimeout(check, 10_000);
+    const initial = setTimeout(check, 3_000);
     // Then periodically
     timer = setInterval(check, POLL_INTERVAL_MS);
 
