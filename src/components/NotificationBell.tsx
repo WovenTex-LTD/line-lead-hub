@@ -174,6 +174,8 @@ export function NotificationBell() {
       case "blocker_resolved":
       case "target_achieved":
         return <CheckCircle2 className="h-4 w-4 text-success" />;
+      case "production_notes":
+        return <Info className="h-4 w-4 text-primary" />;
       case "reminder":
       case "shift_reminder":
         return <Clock className="h-4 w-4 text-info" />;
