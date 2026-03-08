@@ -9,6 +9,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { BuyerLayout } from "@/components/layout/BuyerLayout";
 import { SubscriptionGate } from "@/components/SubscriptionGate";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AccountNotActive } from "@/components/AccountNotActive";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { isNative } from "@/lib/capacitor";
@@ -151,7 +152,7 @@ function AppRoutes() {
       <Route path="/" element={<Index />} />
       <Route path="/auth" element={<Auth />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/subscription" element={isNative ? <Navigate to="/dashboard" replace /> : <Subscription />} />
+      <Route path="/subscription" element={isNative ? <AccountNotActive /> : <Subscription />} />
 
       {/* Protected routes with subscription gate */}
       <Route element={<AppLayout />}>

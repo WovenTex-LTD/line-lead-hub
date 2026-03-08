@@ -27,7 +27,7 @@ export function AccountNotActive() {
   };
 
   return (
-    <div className="flex min-h-[50vh] items-center justify-center p-4">
+    <div className="flex min-h-screen items-center justify-center p-4 bg-background">
       <Card className="max-w-md">
         <CardHeader className="text-center">
           <Lock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />

@@ -31,7 +31,7 @@ export default function Index() {
     }
 
     if (!profile.factory_id) {
-      return <Navigate to="/setup/factory" replace />;
+      return <Navigate to="/subscription" replace />;
     }
 
     // Check for cutting role first
