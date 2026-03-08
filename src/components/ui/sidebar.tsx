@@ -128,6 +128,85 @@ const SidebarProvider = React.forwardRef<
 });
 SidebarProvider.displayName = "SidebarProvider";
 
+// Mobile sidebar wrapper with safe-area padding and swipe-to-dismiss
+function MobileSheetContent({
+  children,
+  side,
+  onSwipeClose,
+}: {
+  children: React.ReactNode;
+  side: "left" | "right";
+  onSwipeClose: () => void;
+}) {
+  const touchStartX = React.useRef(0);
+  const touchCurrentX = React.useRef(0);
+  const contentRef = React.useRef<HTMLDivElement>(null);
+  const isDragging = React.useRef(false);
+
+  const handleTouchStart = React.useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchCurrentX.current = e.touches[0].clientX;
+    isDragging.current = false;
+  }, []);
+
+  const handleTouchMove = React.useCallback((e: React.TouchEvent) => {
+    touchCurrentX.current = e.touches[0].clientX;
+    const deltaX = touchCurrentX.current - touchStartX.current;
+
+    // Only track leftward swipes for left-side sidebar
+    if (side === "left" && deltaX < -10) {
+      isDragging.current = true;
+      // Apply transform for visual feedback
+      const offset = Math.max(deltaX, -200);
+      if (contentRef.current) {
+        contentRef.current.style.transform = `translateX(${offset}px)`;
+        contentRef.current.style.transition = "none";
+      }
+    }
+  }, [side]);
+
+  const handleTouchEnd = React.useCallback(() => {
+    const deltaX = touchCurrentX.current - touchStartX.current;
+
+    if (contentRef.current) {
+      contentRef.current.style.transform = "";
+      contentRef.current.style.transition = "";
+    }
+
+    // Close if swiped more than 80px to the left
+    if (side === "left" && deltaX < -80) {
+      onSwipeClose();
+    }
+
+    isDragging.current = false;
+  }, [side, onSwipeClose]);
+
+  return (
+    <SheetContent
+      data-sidebar="sidebar"
+      data-mobile="true"
+      className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+      style={
+        {
+          "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
+        } as React.CSSProperties
+      }
+      side={side}
+    >
+      <div
+        ref={contentRef}
+        className="flex h-full w-full flex-col"
+        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {children}
+      </div>
+    </SheetContent>
+  );
+}
+
 const Sidebar = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
@@ -153,19 +232,12 @@ const Sidebar = React.forwardRef<
   if (isMobile) {
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
-        <SheetContent
-          data-sidebar="sidebar"
-          data-mobile="true"
-          className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
-          style={
-            {
-              "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
-            } as React.CSSProperties
-          }
+        <MobileSheetContent
           side={side}
+          onSwipeClose={() => setOpenMobile(false)}
         >
-          <div className="flex h-full w-full flex-col">{children}</div>
-        </SheetContent>
+          {children}
+        </MobileSheetContent>
       </Sheet>
     );
   }

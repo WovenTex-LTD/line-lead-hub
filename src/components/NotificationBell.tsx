@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Check, AlertTriangle, Info, CheckCircle2, Clock, Trash2, Settings, Scissors } from "lucide-react";
+import { Bell, Check, AlertTriangle, Info, CheckCircle2, Clock, Trash2, Settings, Scissors, FileText, Target } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 
@@ -39,43 +39,66 @@ export function NotificationBell() {
     const data = notification.data as Record<string, unknown> | null;
 
     switch (notification.type) {
-      // Blocker notifications
+      // Blocker notifications → Blockers page
       case "blocker":
       case "blocker_reported":
-        return "/blockers";
-
-      // Efficiency alerts (current data uses type="warning" and data.line_id)
-      case "efficiency_alert":
-      case "warning": {
-        const lineId = (data?.lineId as string | undefined) ?? (data?.line_id as string | undefined);
-        if (lineId) {
-          return `/insights?line=${lineId}`;
-        }
-        return "/insights";
-      }
-
+      case "critical_blocker":
       case "blocker_on_my_line":
+      case "blocker_resolved":
         return "/blockers";
 
-      case "late_submission":
-        return "/today-updates";
+      // Efficiency alerts → Lines page (to see the specific line)
+      case "low_efficiency":
+      case "efficiency_alert":
+      case "warning":
+        return "/lines";
 
+      // Target achieved → Lines page
+      case "target_achieved":
+        return "/lines";
+
+      // Production notes → Today page (where submissions/notes live)
+      case "production_notes":
+        return "/today";
+
+      // Late submission → Today page (to see what's missing)
+      case "late_submission":
+        return "/today";
+
+      // Daily summary → Insights page (overview analytics)
       case "daily_summary":
         return "/insights";
 
+      // Cutting handoff → Cutting handoffs page for sewing workers, today for admins
       case "cutting_handoff":
-        return "/today-updates";
+        return "/today";
 
+      // Work order updates → Work orders page
+      case "work_order_updates":
+        return "/work-orders";
+
+      // Shift reminders → Dashboard (home/overview)
+      case "shift_reminder":
+        return "/dashboard";
+
+      // Target/submission reminders → respective form pages
       case "target_reminder":
         return "/morning-targets";
       case "submission_reminder":
         return "/end-of-day";
-      case "target_achieved":
-        return "/insights";
-      case "blocker_resolved":
-        return "/blockers";
-      case "production_notes":
-        return "/today-updates";
+
+      // Buyer-specific notifications
+      case "po_production_update":
+      case "po_milestone":
+      case "po_status_change": {
+        const poId = data?.po_id as string | undefined;
+        if (poId) return `/buyer/po/${poId}`;
+        return "/buyer/dashboard";
+      }
+
+      // General / fallback
+      case "general":
+        return "/dashboard";
       default:
         return null;
     }
@@ -178,7 +201,6 @@ export function NotificationBell() {
         return <AlertTriangle className="h-4 w-4 text-warning" />;
       case "success":
       case "blocker_resolved":
-      case "target_achieved":
         return <CheckCircle2 className="h-4 w-4 text-success" />;
       case "production_notes":
         return <Info className="h-4 w-4 text-primary" />;
@@ -193,6 +215,14 @@ export function NotificationBell() {
         return <Info className="h-4 w-4 text-primary" />;
       case "cutting_handoff":
         return <Scissors className="h-4 w-4 text-primary" />;
+      case "work_order_updates":
+        return <FileText className="h-4 w-4 text-primary" />;
+      case "target_achieved":
+        return <Target className="h-4 w-4 text-success" />;
+      case "po_production_update":
+      case "po_milestone":
+      case "po_status_change":
+        return <FileText className="h-4 w-4 text-primary" />;
       default:
         return <Info className="h-4 w-4 text-muted-foreground" />;
     }
