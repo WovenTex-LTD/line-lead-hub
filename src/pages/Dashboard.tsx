@@ -325,12 +325,15 @@ export default function Dashboard() {
     const rate = headcountCost.value;
     let total = 0;
 
+    // Only include POs with CM price in financial calculations
     sewingEndOfDay.forEach((s) => {
+      if (!s.cm_per_dozen) return;
       if (s.manpower && s.hours_actual) total += rate * s.manpower * s.hours_actual;
       if (s.ot_manpower && s.ot_hours) total += rate * s.ot_manpower * s.ot_hours;
     });
 
     cuttingSubmissions.forEach((c) => {
+      if (!c.cm_per_dozen) return;
       if (c.man_power && c.hours_actual) total += rate * c.man_power * c.hours_actual;
       if (c.ot_manpower_actual && c.ot_hours_actual) total += rate * c.ot_manpower_actual * c.ot_hours_actual;
     });
@@ -338,6 +341,7 @@ export default function Dashboard() {
     finishingDailyLogs
       .filter((log: any) => log.log_type === 'OUTPUT')
       .forEach((log: any) => {
+        if (!log.work_orders?.cm_per_dozen) return;
         if (log.m_power_actual && log.actual_hours) total += rate * log.m_power_actual * log.actual_hours;
         if (log.ot_manpower_actual && log.ot_hours_actual) total += rate * log.ot_manpower_actual * log.ot_hours_actual;
       });

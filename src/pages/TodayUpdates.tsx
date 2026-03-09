@@ -720,20 +720,23 @@ export default function TodayUpdates() {
     let finishingCost = 0;
 
     if (rate > 0) {
-      // Sewing
+      // Sewing (only POs with CM price)
       sewingActuals.forEach((s) => {
+        if (!s.work_orders?.cm_per_dozen) return;
         if (s.manpower_actual && s.hours_actual) sewingCost += rate * s.manpower_actual * s.hours_actual;
         if (s.ot_manpower_actual && s.ot_hours_actual) sewingCost += rate * s.ot_manpower_actual * s.ot_hours_actual;
       });
 
-      // Cutting
+      // Cutting (only POs with CM price)
       cuttingActuals.forEach((c) => {
+        if (!c.work_orders?.cm_per_dozen) return;
         if (c.man_power && c.hours_actual) cuttingCost += rate * c.man_power * c.hours_actual;
         if (c.ot_manpower_actual && c.ot_hours_actual) cuttingCost += rate * c.ot_manpower_actual * c.ot_hours_actual;
       });
 
-      // Finishing
+      // Finishing (only POs with CM price)
       finishingOutputLogs.forEach((log) => {
+        if (!log.work_orders?.cm_per_dozen) return;
         if (log.m_power_actual && log.actual_hours) finishingCost += rate * log.m_power_actual * log.actual_hours;
         if (log.ot_manpower_actual && log.ot_hours_actual) finishingCost += rate * log.ot_manpower_actual * log.ot_hours_actual;
       });
