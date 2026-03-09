@@ -86,6 +86,18 @@ export interface DailyReportFinancials {
   revenueByPo: { po: string; buyer: string; output: number; cmDz: number; revenue: number }[];
 }
 
+export interface DailyReportNote {
+  title: string;
+  body: string;
+  department: string | null;
+  lineName: string | null;
+  poNumber: string | null;
+  tag: string;
+  impact: string | null;
+  status: string;
+  authorName: string | null;
+}
+
 export interface DailyReportData {
   factoryName: string;
   reportDate: string; // YYYY-MM-DD
@@ -96,6 +108,7 @@ export interface DailyReportData {
   generatedBy: string | null;
   headcountCostRate: number | null; // cost per person per hour
   headcountCostCurrency: string; // "BDT" or "USD"
+  notes: DailyReportNote[];
 }
 
 // ── PDF Generation — Landscape Ledger ──────────────────────────────────
@@ -381,23 +394,35 @@ export function downloadDailyProductionReport(d: DailyReportData) {
 
   y = Math.max(y1, y2, y3) + 4;
 
-  // ── Totals row spanning full width ──
-  doc.setDrawColor(black);
-  doc.setLineWidth(0.3);
-  doc.setFillColor(230, 230, 230);
-  doc.rect(m, y, cw, 7, "FD");
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(black);
-  doc.text("TOTAL ALL DEPARTMENTS", m + 4, y + 5);
-  doc.text(`Manpower: ${totalManpower}`, m + cw * 0.3, y + 5);
-  doc.text(`OT: ${totalOTAll} hrs`, m + cw * 0.48, y + 5);
-  doc.text(`Reject: ${sewingTotalRejects}`, m + cw * 0.62, y + 5);
-  doc.text(`Rework: ${sewingTotalRework}`, m + cw * 0.75, y + 5);
-  if (d.financials) {
-    doc.text(`Cost: ${fUsd(d.financials.totalCostUsd)}  |  Revenue: ${fUsd(d.financials.totalRevenue)}  |  P/L: ${d.financials.profit >= 0 ? "+" : ""}${fUsd(d.financials.profit)}`, pw - m - 4, y + 5, { align: "right" });
+  // ── Totals row spanning full width — proper table ──
+  {
+    const totCols: { label: string; w: number; align?: "left" | "right" | "center" }[] = [
+      { label: "Item", w: 46 },
+      { label: "Manpower", w: 26, align: "right" },
+      { label: "OT Hours", w: 26, align: "right" },
+      { label: "Reject", w: 22, align: "right" },
+      { label: "Rework", w: 22, align: "right" },
+    ];
+    const totVals = [
+      "ALL DEPARTMENTS",
+      totalManpower.toLocaleString(),
+      totalOTAll.toLocaleString(),
+      sewingTotalRejects.toLocaleString(),
+      sewingTotalRework.toLocaleString(),
+    ];
+
+    if (d.financials) {
+      totCols.push({ label: "Cost (USD)", w: 32, align: "right" });
+      totCols.push({ label: "Revenue (USD)", w: 34, align: "right" });
+      totCols.push({ label: "Profit / Loss", w: cw - 208 > 0 ? cw - 208 : 30, align: "right" });
+      totVals.push(fUsd(d.financials.totalCostUsd));
+      totVals.push(fUsd(d.financials.totalRevenue));
+      totVals.push((d.financials.profit >= 0 ? "+" : "") + fUsd(d.financials.profit));
+    }
+
+    y = drawTable(totCols, [totVals], y, { boldLastRow: true, fs: 7.5, rh: 7 });
   }
-  y += 10;
+  y += 4;
 
   // ── Attention Today ──
   y = secHead("ATTENTION TODAY", y);
@@ -429,6 +454,51 @@ export function downloadDailyProductionReport(d: DailyReportData) {
     doc.text(`${i + 1}. ${item}`, m + 2, y + 4);
     y += 5;
   });
+  y += 2;
+
+  // ── Production Notes (all, on front page) ──
+  const drawNotes = (notes: DailyReportNote[], atY: number, pgTitle: string): number => {
+    if (notes.length === 0) return atY;
+    if (atY + 14 > ph - 16) {
+      doc.addPage();
+      atY = pageHead(pgTitle);
+    }
+    atY = secHead("PRODUCTION NOTES", atY);
+
+    const noteCols = [
+      { label: "Sl", w: 8, align: "center" as const },
+      { label: "Tag", w: 22 },
+      { label: "Impact", w: 16 },
+      { label: "Status", w: 18 },
+      { label: "Line / Dept", w: 30 },
+      { label: "PO", w: 28 },
+      { label: "Title", w: 50 },
+      { label: "Detail", w: cw - 172 > 0 ? cw - 172 : 40 },
+    ];
+
+    const tagLabel = (t: string) => {
+      const map: Record<string, string> = { output: "Output", delay: "Delay", quality: "Quality", material: "Material", machine: "Machine", staffing: "Staffing", buyer_change: "Buyer Chg", other: "Other" };
+      return map[t] || t;
+    };
+
+    const noteRows = notes.map((n, i) => [
+      String(i + 1),
+      tagLabel(n.tag),
+      n.impact ? n.impact.toUpperCase() : "-",
+      n.status.toUpperCase(),
+      n.lineName || (n.department ? n.department.charAt(0).toUpperCase() + n.department.slice(1) : "-"),
+      (n.poNumber || "-").substring(0, 15),
+      n.title.substring(0, 28),
+      n.body.substring(0, 40),
+    ]);
+
+    atY = drawTable(noteCols, noteRows, atY, { fs: 6.5, rh: 6, pgTitle });
+    return atY + 4;
+  };
+
+  if (d.notes.length > 0) {
+    y = drawNotes(d.notes, y, "DAILY PRODUCTION REPORT");
+  }
 
   // ========== SEWING DETAIL ==========
   if (d.sewing.length > 0) {
@@ -509,8 +579,14 @@ export function downloadDailyProductionReport(d: DailyReportData) {
     doc.text("* Eff% = (Actual / Target) x 100  |  Cost = Rate x MP x Hrs (regular + OT)", m, y + 2);
     y += 5;
 
-    // Manager notes
-    if (y + 16 < ph - 16) {
+    // Sewing-specific production notes
+    const sewingNotes = d.notes.filter(n => n.department === "sewing");
+    if (sewingNotes.length > 0) {
+      y = drawNotes(sewingNotes, y, "SEWING — NOTES");
+    }
+
+    // Blank manager notes lines
+    if (y + 14 < ph - 16) {
       doc.setFontSize(7);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(black);
@@ -607,7 +683,13 @@ export function downloadDailyProductionReport(d: DailyReportData) {
       });
     }
 
-    // Manager notes
+    // Cutting-specific production notes
+    const cuttingNotes = d.notes.filter(n => n.department === "cutting");
+    if (cuttingNotes.length > 0) {
+      y = drawNotes(cuttingNotes, y, "CUTTING — NOTES");
+    }
+
+    // Blank manager notes lines
     if (y + 12 < ph - 16) {
       y += 3;
       doc.setFontSize(7);
@@ -698,7 +780,13 @@ export function downloadDailyProductionReport(d: DailyReportData) {
     doc.text("* Revenue = (CM/Dozen / 12) x Poly output  |  Cost = Rate x MP x Hrs (regular + OT)", m, y + 2);
     y += 5;
 
-    // Manager notes
+    // Finishing-specific production notes
+    const finishingNotes = d.notes.filter(n => n.department === "finishing");
+    if (finishingNotes.length > 0) {
+      y = drawNotes(finishingNotes, y, "FINISHING — NOTES");
+    }
+
+    // Blank manager notes lines
     if (y + 12 < ph - 16) {
       doc.setFontSize(7);
       doc.setFont("helvetica", "bold");

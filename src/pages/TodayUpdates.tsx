@@ -29,7 +29,7 @@ import { FinishingSubmissionView, FinishingTargetData, FinishingActualData } fro
 import { ExportSubmissionsDialog } from "@/components/ExportSubmissionsDialog";
 import { useHeadcountCost } from "@/hooks/useHeadcountCost";
 import { DollarSign, TrendingUp as TrendingUpIcon, TrendingDown } from "lucide-react";
-import { DailyReportButton, DailyReportData, DailyReportSewingLine, DailyReportCuttingLine, DailyReportFinishingLine } from "@/components/DailyProductionReport";
+import { DailyReportButton, DailyReportData, DailyReportSewingLine, DailyReportCuttingLine, DailyReportFinishingLine, DailyReportNote } from "@/components/DailyProductionReport";
 
 interface SewingUpdate {
   id: string;
@@ -263,6 +263,7 @@ export default function TodayUpdates() {
   const [cuttingActuals, setCuttingActuals] = useState<CuttingActual[]>([]);
   const [cuttingTargets, setCuttingTargets] = useState<CuttingTargetFull[]>([]);
   const [storageTransactions, setStorageTransactions] = useState<StorageTransaction[]>([]);
+  const [productionNotes, setProductionNotes] = useState<DailyReportNote[]>([]);
   const [selectedCuttingTarget, setSelectedCuttingTarget] = useState<CuttingTargetFull | null>(null);
   const [cuttingTargetModalOpen, setCuttingTargetModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -332,7 +333,7 @@ export default function TodayUpdates() {
     const today = selectedDateStr;
 
     try {
-      const [sewingRes, sewingTargetsRes, sewingActualsRes, finishingRes, cuttingRes, cuttingTargetsRes, storageRes] = await Promise.all([
+      const [sewingRes, sewingTargetsRes, sewingActualsRes, finishingRes, cuttingRes, cuttingTargetsRes, storageRes, notesRes] = await Promise.all([
         supabase
           .from('production_updates_sewing')
           .select('*, lines(line_id, name), work_orders(po_number, buyer, style)')
@@ -375,6 +376,13 @@ export default function TodayUpdates() {
           .eq('factory_id', profile.factory_id)
           .eq('transaction_date', today)
           .order('created_at', { ascending: false }),
+        supabase
+          .from('production_notes')
+          .select('*, lines(line_id, name), work_orders(po_number, buyer, style)')
+          .eq('factory_id', profile.factory_id)
+          .gte('created_at', `${today}T00:00:00`)
+          .lte('created_at', `${today}T23:59:59`)
+          .order('created_at', { ascending: false }),
       ]);
 
       setSewingUpdates(sewingRes.data || []);
@@ -384,6 +392,17 @@ export default function TodayUpdates() {
       setCuttingActuals(cuttingRes.data as CuttingActual[] || []);
       setCuttingTargets(cuttingTargetsRes.data as CuttingTargetFull[] || []);
       setStorageTransactions(storageRes.data as StorageTransaction[] || []);
+      setProductionNotes((notesRes.data || []).map((n: any) => ({
+        title: n.title || "",
+        body: n.body || "",
+        department: n.department || null,
+        lineName: n.lines?.name || null,
+        poNumber: n.work_orders?.po_number || null,
+        tag: n.tag || "other",
+        impact: n.impact || null,
+        status: n.status || "open",
+        authorName: null,
+      })));
     } catch (error) {
       console.error('Error fetching updates:', error);
     } finally {
@@ -833,6 +852,7 @@ export default function TodayUpdates() {
       finishing: finishingLines,
       headcountCostRate: headcountCost.value ?? null,
       headcountCostCurrency: headcountCost.currency,
+      notes: productionNotes,
       financials: financials.hasData ? {
         totalRevenue: financials.totalRevenue,
         totalCostUsd: financials.totalCostUsd,
@@ -848,7 +868,7 @@ export default function TodayUpdates() {
       } : null,
       generatedBy: profile?.full_name || null,
     };
-  }, [sewingActuals, sewingTargets, cuttingActuals, finishingDailyLogs, factory?.name, selectedDateStr, financials, bdtToUsd, profile?.full_name, headcountCost.value, headcountCost.currency]);
+  }, [sewingActuals, sewingTargets, cuttingActuals, finishingDailyLogs, factory?.name, selectedDateStr, financials, bdtToUsd, profile?.full_name, headcountCost.value, headcountCost.currency, productionNotes]);
 
   const handleSewingClick = (update: SewingUpdate) => {
     setSewingViewKey(null);
