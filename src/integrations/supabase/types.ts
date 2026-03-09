@@ -596,6 +596,8 @@ export type Database = {
           cutting_section_id: string | null
           day_cutting: number
           day_input: number
+          estimated_cost_currency: string | null
+          estimated_cost_value: number | null
           factory_id: string
           hours_actual: number | null
           id: string
@@ -639,6 +641,8 @@ export type Database = {
           cutting_section_id?: string | null
           day_cutting?: number
           day_input?: number
+          estimated_cost_currency?: string | null
+          estimated_cost_value?: number | null
           factory_id: string
           hours_actual?: number | null
           id?: string
@@ -682,6 +686,8 @@ export type Database = {
           cutting_section_id?: string | null
           day_cutting?: number
           day_input?: number
+          estimated_cost_currency?: string | null
+          estimated_cost_value?: number | null
           factory_id?: string
           hours_actual?: number | null
           id?: string
@@ -1092,6 +1098,8 @@ export type Database = {
           cutoff_time: string | null
           enabled_modules: string[] | null
           evening_actual_cutoff: string | null
+          headcount_cost_currency: string | null
+          headcount_cost_value: number | null
           id: string
           is_active: boolean | null
           line_slot_limit: number | null
@@ -1120,6 +1128,8 @@ export type Database = {
           cutoff_time?: string | null
           enabled_modules?: string[] | null
           evening_actual_cutoff?: string | null
+          headcount_cost_currency?: string | null
+          headcount_cost_value?: number | null
           id?: string
           is_active?: boolean | null
           line_slot_limit?: number | null
@@ -1148,6 +1158,8 @@ export type Database = {
           cutoff_time?: string | null
           enabled_modules?: string[] | null
           evening_actual_cutoff?: string | null
+          headcount_cost_currency?: string | null
+          headcount_cost_value?: number | null
           id?: string
           is_active?: boolean | null
           line_slot_limit?: number | null
@@ -1190,6 +1202,8 @@ export type Database = {
           day_over_time_actual: number
           day_poly: number
           day_qc_pass: number
+          estimated_cost_currency: string | null
+          estimated_cost_value: number | null
           factory_id: string
           floor_name: string | null
           has_blocker: boolean | null
@@ -1229,6 +1243,8 @@ export type Database = {
           day_over_time_actual?: number
           day_poly?: number
           day_qc_pass?: number
+          estimated_cost_currency?: string | null
+          estimated_cost_value?: number | null
           factory_id: string
           floor_name?: string | null
           has_blocker?: boolean | null
@@ -1268,6 +1284,8 @@ export type Database = {
           day_over_time_actual?: number
           day_poly?: number
           day_qc_pass?: number
+          estimated_cost_currency?: string | null
+          estimated_cost_value?: number | null
           factory_id?: string
           floor_name?: string | null
           has_blocker?: boolean | null
@@ -2403,6 +2421,8 @@ export type Database = {
           day_over_time: number | null
           day_poly: number | null
           day_qc_pass: number | null
+          estimated_cost_currency: string | null
+          estimated_cost_value: number | null
           factory_id: string
           factory_name: string | null
           floor_name: string | null
@@ -2452,6 +2472,8 @@ export type Database = {
           day_over_time?: number | null
           day_poly?: number | null
           day_qc_pass?: number | null
+          estimated_cost_currency?: string | null
+          estimated_cost_value?: number | null
           factory_id: string
           factory_name?: string | null
           floor_name?: string | null
@@ -2501,6 +2523,8 @@ export type Database = {
           day_over_time?: number | null
           day_poly?: number | null
           day_qc_pass?: number | null
+          estimated_cost_currency?: string | null
+          estimated_cost_value?: number | null
           factory_id?: string
           factory_name?: string | null
           floor_name?: string | null
@@ -2588,6 +2612,8 @@ export type Database = {
           created_at: string | null
           cumulative_good_total: number | null
           custom_data: Json | null
+          estimated_cost_currency: string | null
+          estimated_cost_value: number | null
           estimated_ex_factory: string | null
           factory_id: string
           factory_name: string | null
@@ -2633,6 +2659,8 @@ export type Database = {
           created_at?: string | null
           cumulative_good_total?: number | null
           custom_data?: Json | null
+          estimated_cost_currency?: string | null
+          estimated_cost_value?: number | null
           estimated_ex_factory?: string | null
           factory_id: string
           factory_name?: string | null
@@ -2678,6 +2706,8 @@ export type Database = {
           created_at?: string | null
           cumulative_good_total?: number | null
           custom_data?: Json | null
+          estimated_cost_currency?: string | null
+          estimated_cost_value?: number | null
           estimated_ex_factory?: string | null
           factory_id?: string
           factory_name?: string | null
@@ -2906,6 +2936,8 @@ export type Database = {
           created_at: string | null
           cumulative_good_total: number
           custom_data: Json | null
+          estimated_cost_currency: string | null
+          estimated_cost_value: number | null
           factory_id: string
           floor_name: string | null
           good_today: number
@@ -2943,6 +2975,8 @@ export type Database = {
           created_at?: string | null
           cumulative_good_total?: number
           custom_data?: Json | null
+          estimated_cost_currency?: string | null
+          estimated_cost_value?: number | null
           factory_id: string
           floor_name?: string | null
           good_today?: number
@@ -2980,6 +3014,8 @@ export type Database = {
           created_at?: string | null
           cumulative_good_total?: number
           custom_data?: Json | null
+          estimated_cost_currency?: string | null
+          estimated_cost_value?: number | null
           factory_id?: string
           floor_name?: string | null
           good_today?: number
