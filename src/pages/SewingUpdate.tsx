@@ -27,6 +27,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useOfflineSubmission } from "@/hooks/useOfflineSubmission";
+import { useHeadcountCost } from "@/hooks/useHeadcountCost";
 
 interface Line {
   id: string;
@@ -84,6 +85,7 @@ export default function SewingUpdate() {
   const { profile, user, factory, hasRole, isAdminOrHigher } = useAuth();
   const navigate = useNavigate();
   const { submit: offlineSubmit } = useOfflineSubmission();
+  const { calculateEstimatedCost } = useHeadcountCost();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -314,6 +316,9 @@ export default function SewingUpdate() {
       // Get next milestone label
       const nextMilestoneLabel = nextMilestoneOptions.find(n => n.id === nextMilestone)?.label || "";
 
+      // SewingUpdate only has OT hours, no regular hours — cost stored using OT hours if available
+      const estimatedCost = calculateEstimatedCost(parseInt(mPower), parseFloat(overTime));
+
       const insertData: any = {
         factory_id: profile?.factory_id,
         line_id: selectedLine,
@@ -355,6 +360,8 @@ export default function SewingUpdate() {
         // Notes
         notes: remarks || null,
         submitted_by: user?.id,
+        estimated_cost_value: estimatedCost.value,
+        estimated_cost_currency: estimatedCost.value != null ? estimatedCost.currency : null,
       };
 
       const result = await offlineSubmit("production_updates_sewing", "production_updates_sewing", insertData as Record<string, unknown>, {

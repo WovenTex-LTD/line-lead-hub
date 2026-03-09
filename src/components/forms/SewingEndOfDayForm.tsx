@@ -29,6 +29,8 @@ import {
 } from "@/components/ui/command";
 import { getTodayInTimezone } from "@/lib/date-utils";
 import { useOfflineSubmission } from "@/hooks/useOfflineSubmission";
+import { useHeadcountCost } from "@/hooks/useHeadcountCost";
+import { EstimatedCostDisplay } from "@/components/EstimatedCostDisplay";
 
 interface Line {
   id: string;
@@ -75,6 +77,7 @@ export default function SewingEndOfDayForm() {
   const { t } = useTranslation();
   const { user, profile, factory, isAdminOrHigher } = useAuth();
   const { submit: offlineSubmit } = useOfflineSubmission();
+  const { calculateEstimatedCost, headcountCost } = useHeadcountCost();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -233,6 +236,8 @@ export default function SewingEndOfDayForm() {
     setSubmitting(true);
 
     try {
+      const estimatedCost = calculateEstimatedCost(parseInt(manpowerActual), parseFloat(hoursActual));
+
       const insertData = {
         factory_id: profile.factory_id,
         production_date: getTodayInTimezone(factory?.timezone || "Asia/Dhaka"),
@@ -257,6 +262,8 @@ export default function SewingEndOfDayForm() {
         actual_stage_id: actualStageId,
         actual_stage_progress: parseInt(actualStageProgress),
         remarks: remarks || null,
+        estimated_cost_value: estimatedCost.value,
+        estimated_cost_currency: estimatedCost.value != null ? estimatedCost.currency : null,
       };
 
       const result = await offlineSubmit("sewing_actuals", "sewing_actuals", insertData as Record<string, unknown>, {
@@ -527,6 +534,8 @@ export default function SewingEndOfDayForm() {
               {errors.otHoursActual && <p className="text-sm text-destructive">{errors.otHoursActual}</p>}
             </div>
           </div>
+
+          <EstimatedCostDisplay manpower={manpowerActual} hours={hoursActual} />
         </CardContent>
       </Card>
 

@@ -21,7 +21,8 @@ import {
   AlertTriangle,
   Factory,
   Mail,
-  Bug
+  Bug,
+  DollarSign
 } from "lucide-react";
 import { EmailScheduleSettings } from "@/components/insights/EmailScheduleSettings";
 import { EmptyState } from "@/components/EmptyState";
@@ -39,7 +40,7 @@ interface FactoryStats {
 }
 
 export default function SetupHome() {
-  const { profile, factory, isAdminOrHigher } = useAuth();
+  const { profile, factory, isAdminOrHigher, refreshFactory } = useAuth();
   const navigate = useNavigate();
   const onboarding = useOnboardingChecklist(profile?.factory_id ? profile as any : null);
 
@@ -58,6 +59,9 @@ export default function SetupHome() {
   const [eveningActualCutoff, setEveningActualCutoff] = useState("18:00");
   const [timezone, setTimezone] = useState("Asia/Dhaka");
   const [isSavingCutoff, setIsSavingCutoff] = useState(false);
+  const [headcountCostValue, setHeadcountCostValue] = useState("");
+  const [headcountCostCurrency, setHeadcountCostCurrency] = useState("BDT");
+  const [isSavingCost, setIsSavingCost] = useState(false);
 
   // Common manufacturing region timezones
   const timezones = [
@@ -96,6 +100,12 @@ export default function SetupHome() {
     }
     if (factory?.timezone) {
       setTimezone(factory.timezone);
+    }
+    if (factory?.headcount_cost_value != null) {
+      setHeadcountCostValue(String(factory.headcount_cost_value));
+    }
+    if (factory?.headcount_cost_currency) {
+      setHeadcountCostCurrency(factory.headcount_cost_currency);
     }
   }, [factory]);
 
@@ -149,6 +159,39 @@ export default function SetupHome() {
       toast.error("Error", { description: error?.message ?? "An error occurred" });
     } finally {
       setIsSavingCutoff(false);
+    }
+  }
+
+  async function handleSaveCostSettings() {
+    if (!profile?.factory_id) return;
+
+    const costValue = parseFloat(headcountCostValue);
+    if (!headcountCostValue || isNaN(costValue) || costValue <= 0) {
+      toast.error("Headcount cost must be greater than 0");
+      return;
+    }
+    if (costValue > 1000000) {
+      toast.error("Headcount cost seems too high. Maximum is 1,000,000.");
+      return;
+    }
+
+    setIsSavingCost(true);
+    try {
+      const { error } = await supabase
+        .from('factory_accounts')
+        .update({
+          headcount_cost_value: costValue,
+          headcount_cost_currency: headcountCostCurrency,
+        })
+        .eq('id', profile.factory_id);
+
+      if (error) throw error;
+      await refreshFactory();
+      toast.success("Cost settings updated");
+    } catch (error: any) {
+      toast.error("Error", { description: error?.message ?? "An error occurred" });
+    } finally {
+      setIsSavingCost(false);
     }
   }
 
@@ -378,6 +421,57 @@ export default function SetupHome() {
           </div>
           <Button onClick={handleSaveSettings} disabled={isSavingCutoff}>
             {isSavingCutoff ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
+            ) : (
+              'Save Settings'
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Cost Settings */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <DollarSign className="h-4 w-4" />
+            Cost Settings
+          </CardTitle>
+          <CardDescription>
+            Configure headcount cost for production cost estimates
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Headcount Cost (per man-hour)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                max="1000000"
+                value={headcountCostValue}
+                onChange={(e) => setHeadcountCostValue(e.target.value)}
+                placeholder="0.00"
+              />
+              <p className="text-xs text-muted-foreground">
+                All-in cost per worker per hour (used to estimate production cost).
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Currency</Label>
+              <Select value={headcountCostCurrency} onValueChange={setHeadcountCostCurrency}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BDT">৳ BDT (Bangladeshi Taka)</SelectItem>
+                  <SelectItem value="USD">$ USD (US Dollar)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <Button onClick={handleSaveCostSettings} disabled={isSavingCost}>
+            {isSavingCost ? (
               <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
             ) : (
               'Save Settings'

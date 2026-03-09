@@ -25,6 +25,8 @@ import {
 } from "@/components/ui/command";
 import { EmptyState } from "@/components/EmptyState";
 import { useOfflineSubmission } from "@/hooks/useOfflineSubmission";
+import { useHeadcountCost } from "@/hooks/useHeadcountCost";
+import { EstimatedCostDisplay } from "@/components/EstimatedCostDisplay";
 
 interface Line {
   id: string;
@@ -88,6 +90,7 @@ export default function FinishingUpdate() {
   const navigate = useNavigate();
 
   const { submit: offlineSubmit } = useOfflineSubmission();
+  const { calculateEstimatedCost } = useHeadcountCost();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -317,6 +320,8 @@ export default function FinishingUpdate() {
     setIsSubmitting(true);
 
     try {
+      const estimatedCost = calculateEstimatedCost(parseInt(mPower), parseFloat(dayHour));
+
       const insertData = {
         factory_id: profile?.factory_id,
         line_id: selectedLine,
@@ -352,6 +357,8 @@ export default function FinishingUpdate() {
         // Legacy fields (set defaults)
         qc_pass_qty: parseInt(dayQcPass) || 0,
         manpower: parseInt(mPower) || 0,
+        estimated_cost_value: estimatedCost.value,
+        estimated_cost_currency: estimatedCost.value != null ? estimatedCost.currency : null,
       };
 
       const result = await offlineSubmit("production_updates_finishing", "production_updates_finishing", insertData as Record<string, unknown>, {
@@ -752,6 +759,8 @@ export default function FinishingUpdate() {
                 {errors.totalHour && <p className="text-xs text-destructive">{errors.totalHour}</p>}
               </div>
             </div>
+
+            <EstimatedCostDisplay manpower={mPower} hours={dayHour} />
 
             {/* Row 7: Day Carton & Total Carton */}
             <div className="grid grid-cols-2 gap-4">

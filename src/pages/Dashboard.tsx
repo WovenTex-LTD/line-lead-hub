@@ -38,11 +38,13 @@ import {
   Target,
   Layers,
   LayoutDashboard,
+  DollarSign,
 } from "lucide-react";
 import { SewingMachine } from "@/components/icons/SewingMachine";
 import { NotesPanel } from "@/components/production-notes/NotesPanel";
 import { NoteFormDialog } from "@/components/production-notes/NoteFormDialog";
 import type { NoteDepartment } from "@/hooks/useProductionNotes";
+import { useHeadcountCost } from "@/hooks/useHeadcountCost";
 import { motion } from "framer-motion";
 
 const stagger = {
@@ -125,6 +127,10 @@ interface EndOfDaySubmission {
   cumulative_good_total?: number | null;
   actual_stage_progress?: number | null;
   actual_per_hour?: number | null;
+  order_qty?: number | null;
+  estimated_cost_value?: number | null;
+  estimated_cost_currency?: string | null;
+  cm_per_dozen?: number | null;
   // Finishing daily sheet specific
   hours_logged?: number;
   total_poly?: number;
@@ -204,6 +210,7 @@ interface CuttingSubmission {
   leftover_location: string | null;
   leftover_photo_urls: string[] | null;
   actual_per_hour: number | null;
+  cm_per_dozen: number | null;
 }
 
 interface StorageBinCard {
@@ -289,6 +296,81 @@ export default function Dashboard() {
 
   const canViewDashboard = isAdminOrHigher();
   const onboarding = useOnboarding();
+  const { headcountCost, isConfigured: costConfigured, getCurrencySymbol } = useHeadcountCost();
+
+  // BDT→USD exchange rate
+  const [bdtToUsd, setBdtToUsd] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchRate() {
+      try {
+        const res = await fetch('https://open.er-api.com/v6/latest/USD');
+        const json = await res.json();
+        if (!cancelled && json?.rates?.BDT) {
+          setBdtToUsd(1 / json.rates.BDT); // BDT→USD = 1 / (USD→BDT)
+        }
+      } catch {
+        // Fallback rate if API fails
+        if (!cancelled) setBdtToUsd(1 / 121);
+      }
+    }
+    fetchRate();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Total daily cost across all departments (in native currency)
+  const totalDayCost = useMemo(() => {
+    if (!costConfigured || !headcountCost.value) return null;
+    const rate = headcountCost.value;
+    let total = 0;
+
+    sewingEndOfDay.forEach((s) => {
+      if (s.manpower && s.hours_actual) total += rate * s.manpower * s.hours_actual;
+      if (s.ot_manpower && s.ot_hours) total += rate * s.ot_manpower * s.ot_hours;
+    });
+
+    cuttingSubmissions.forEach((c) => {
+      if (c.man_power && c.hours_actual) total += rate * c.man_power * c.hours_actual;
+      if (c.ot_manpower_actual && c.ot_hours_actual) total += rate * c.ot_manpower_actual * c.ot_hours_actual;
+    });
+
+    finishingDailyLogs
+      .filter((log: any) => log.log_type === 'OUTPUT')
+      .forEach((log: any) => {
+        if (log.m_power_actual && log.actual_hours) total += rate * log.m_power_actual * log.actual_hours;
+        if (log.ot_manpower_actual && log.ot_hours_actual) total += rate * log.ot_manpower_actual * log.ot_hours_actual;
+      });
+
+    return Math.round(total * 100) / 100;
+  }, [costConfigured, headcountCost.value, sewingEndOfDay, cuttingSubmissions, finishingDailyLogs]);
+
+  // Daily revenue from CM (always USD): sum of (cm_per_dozen / 12 × output)
+  const dayRevenue = useMemo(() => {
+    let total = 0;
+    let hasCm = false;
+
+    // Only finished goods (finishing poly output) count as revenue
+    finishingEndOfDay.forEach((f) => {
+      if (f.cm_per_dozen && f.output) {
+        total += (f.cm_per_dozen / 12) * f.output;
+        hasCm = true;
+      }
+    });
+
+    return hasCm ? Math.round(total * 100) / 100 : null;
+  }, [finishingEndOfDay]);
+
+  // Daily profit = revenue (USD) - cost (converted to USD)
+  const dayProfit = useMemo(() => {
+    if (dayRevenue == null || totalDayCost == null) return null;
+    const costCurrency = headcountCost.currency;
+    let costInUsd = totalDayCost;
+    if (costCurrency === 'BDT' && bdtToUsd) {
+      costInUsd = totalDayCost * bdtToUsd;
+    }
+    return Math.round((dayRevenue - costInUsd) * 100) / 100;
+  }, [dayRevenue, totalDayCost, headcountCost.currency, bdtToUsd]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -329,9 +411,12 @@ export default function Dashboard() {
     );
   }
 
+  // DEMO MODE: add ?demo=true to URL to show fake submissions
+  const isDemoMode = new URLSearchParams(window.location.search).get('demo') === 'true';
+
   async function fetchDashboardData() {
     if (!profile?.factory_id) return;
-    
+
     setLoading(true);
     const today = getTodayInTimezone(factory?.timezone || "Asia/Dhaka");
 
@@ -379,7 +464,7 @@ export default function Dashboard() {
         // Fetch sewing end of day (actuals)
         supabase
           .from('sewing_actuals')
-          .select('*, stages:actual_stage_id(name), lines(id, line_id, name), work_orders(po_number, buyer, style)', { count: 'exact' })
+          .select('*, stages:actual_stage_id(name), lines(id, line_id, name), work_orders(po_number, buyer, style, order_qty, cm_per_dozen)', { count: 'exact' })
           .eq('factory_id', profile.factory_id)
           .eq('production_date', today)
           .order('submitted_at', { ascending: false }),
@@ -387,7 +472,7 @@ export default function Dashboard() {
         // Fetch finishing daily logs
         supabase
           .from('finishing_daily_logs')
-          .select('*, lines(id, line_id, name), work_orders(po_number, buyer, style)', { count: 'exact' })
+          .select('*, lines(id, line_id, name), work_orders(po_number, buyer, style, cm_per_dozen)', { count: 'exact' })
           .eq('factory_id', profile.factory_id)
           .eq('production_date', today)
           .order('submitted_at', { ascending: false }),
@@ -403,7 +488,7 @@ export default function Dashboard() {
         // Fetch cutting actuals
         supabase
           .from('cutting_actuals')
-          .select('*, lines!cutting_actuals_line_id_fkey(id, line_id, name), work_orders(po_number, buyer, style, color)', { count: 'exact' })
+          .select('*, lines!cutting_actuals_line_id_fkey(id, line_id, name), work_orders(po_number, buyer, style, color, cm_per_dozen)', { count: 'exact' })
           .eq('factory_id', profile.factory_id)
           .eq('production_date', today)
           .order('submitted_at', { ascending: false }),
@@ -554,20 +639,22 @@ export default function Dashboard() {
           cumulative_good_total: u.cumulative_good_total,
           actual_stage_progress: u.actual_stage_progress,
           actual_per_hour: u.actual_per_hour ?? null,
+          order_qty: u.work_orders?.order_qty ?? null,
+          estimated_cost_value: u.estimated_cost_value ?? null,
+          estimated_cost_currency: u.estimated_cost_currency ?? null,
+          cm_per_dozen: u.work_orders?.cm_per_dozen ?? null,
         }));
 
       // Format finishing daily logs (OUTPUT type only for end of day)
       const finishingOutputLogs = (finishingDailyLogsData || []).filter((log: any) => log.log_type === 'OUTPUT');
       const formattedFinishingEOD: EndOfDaySubmission[] = finishingOutputLogs.map((log: any) => {
-        const totalPoly = log.poly || 0;
-
         return {
           id: log.id,
           type: 'finishing' as const,
           line_uuid: log.line_id,
           line_id: log.lines?.line_id || 'Unknown',
           line_name: log.lines?.name || log.lines?.line_id || 'Unknown',
-          output: totalPoly, // Poly is primary finishing metric
+          output: log.poly || 0,
           submitted_at: log.submitted_at,
           production_date: log.production_date,
           has_blocker: false,
@@ -581,6 +668,7 @@ export default function Dashboard() {
           hours_logged: 0,
           total_poly: log.poly || 0,
           total_carton: log.carton || 0,
+          cm_per_dozen: log.work_orders?.cm_per_dozen ?? null,
         };
       });
 
@@ -644,6 +732,7 @@ export default function Dashboard() {
         leftover_location: c.leftover_location || null,
         leftover_photo_urls: c.leftover_photo_urls ?? null,
         actual_per_hour: c.actual_per_hour ?? null,
+        cm_per_dozen: c.work_orders?.cm_per_dozen ?? null,
       }));
 
       // Format storage bin cards
@@ -747,6 +836,7 @@ export default function Dashboard() {
       // Calculate daily sewing output (using good_today from sewing_actuals)
       const daySewingOutput = (sewingActualsData || []).reduce((sum: number, u: any) => sum + (u.good_today || 0), 0);
 
+      // Calculate daily finishing output (poly per hour × total hours)
       // Calculate daily finishing output (poly is the primary finishing metric)
       const dayFinishingOutput = (finishingDailyLogsData || [])
         .filter((log: any) => log.log_type === 'OUTPUT')
@@ -773,6 +863,162 @@ export default function Dashboard() {
       setAllLines(linesData || []);
       setFinishingDailyLogs(finishingDailyLogsData || []);
       setActiveBlockers(blockers.slice(0, 5));
+
+      // ── DEMO DATA INJECTION (remove later) ──
+      if (isDemoMode && (formattedSewingEOD.length === 0 || formattedSewingTargets.length === 0)) {
+        const now = new Date().toISOString();
+        const demoLines = (linesData || []).slice(0, 6);
+        const lineNames = demoLines.length > 0
+          ? demoLines.map(l => ({ id: l.id, line_id: l.line_id, name: l.name || l.line_id }))
+          : [
+              { id: 'demo-1', line_id: 'L-01', name: 'Line 1' },
+              { id: 'demo-2', line_id: 'L-02', name: 'Line 2' },
+              { id: 'demo-3', line_id: 'L-03', name: 'Line 3' },
+              { id: 'demo-4', line_id: 'L-04', name: 'Line 4' },
+              { id: 'demo-5', line_id: 'L-05', name: 'Line 5' },
+              { id: 'demo-6', line_id: 'L-06', name: 'Line 6' },
+            ];
+
+        const demoBuyers = ['Buyer 1', 'Buyer 2', 'Buyer 3', 'Buyer 4', 'Buyer 5', 'Buyer 6'];
+        const demoStyles = ['ST-2241', 'ST-3387', 'ST-1190', 'ST-4456', 'ST-5521', 'ST-7718'];
+        const demoPOs = ['PO-90021', 'PO-90034', 'PO-90047', 'PO-90053', 'PO-90068', 'PO-90071'];
+
+        // Sewing targets
+        const demoSewingTargets: TargetSubmission[] = lineNames.map((ln, i) => ({
+          id: `demo-st-${i}`,
+          type: 'sewing' as const,
+          line_uuid: ln.id,
+          line_id: ln.line_id,
+          line_name: ln.name,
+          work_order_id: `demo-wo-${i}`,
+          po_number: demoPOs[i % demoPOs.length],
+          buyer: demoBuyers[i % demoBuyers.length],
+          style: demoStyles[i % demoStyles.length],
+          per_hour_target: [55, 62, 48, 70, 58, 65][i % 6],
+          manpower_planned: [32, 28, 35, 30, 26, 33][i % 6],
+          ot_hours_planned: i % 3 === 0 ? 2 : 0,
+          hours_planned: 8,
+          target_total_planned: [440, 496, 384, 560, 464, 520][i % 6],
+          stage_name: null,
+          planned_stage_progress: null,
+          next_milestone: null,
+          estimated_ex_factory: null,
+          order_qty: [12000, 8500, 15000, 6000, 9200, 11000][i % 6],
+          remarks: null,
+          submitted_at: now,
+          production_date: today,
+        }));
+
+        // Sewing actuals
+        const demoSewingEOD: EndOfDaySubmission[] = lineNames.map((ln, i) => {
+          const output = [423, 510, 367, 548, 445, 492][i % 6];
+          return {
+            id: `demo-sa-${i}`,
+            type: 'sewing' as const,
+            line_uuid: ln.id,
+            line_id: ln.line_id,
+            line_name: ln.name,
+            output,
+            submitted_at: now,
+            production_date: today,
+            has_blocker: i === 2,
+            blocker_description: i === 2 ? 'Machine breakdown on station 7 - needle bar issue' : null,
+            blocker_impact: i === 2 ? 'medium' : null,
+            blocker_owner: i === 2 ? 'Maintenance' : null,
+            blocker_status: null,
+            po_number: demoPOs[i % demoPOs.length],
+            buyer: demoBuyers[i % demoBuyers.length],
+            style: demoStyles[i % demoStyles.length],
+            target_qty: null,
+            manpower: [30, 27, 34, 29, 25, 31][i % 6],
+            reject_qty: [3, 5, 8, 2, 4, 6][i % 6],
+            rework_qty: [7, 4, 12, 3, 9, 5][i % 6],
+            stage_name: null,
+            stage_progress: null,
+            ot_hours: i % 3 === 0 ? 2 : 0,
+            ot_manpower: i % 3 === 0 ? 28 : 0,
+            hours_actual: 8,
+            notes: i === 0 ? 'Production running smoothly' : null,
+            work_order_id: `demo-wo-${i}`,
+            cumulative_good_total: output + [3200, 4100, 2800, 5600, 1900, 3800][i % 6],
+            actual_stage_progress: null,
+            actual_per_hour: Math.round(output / 8),
+          };
+        });
+
+        // Finishing targets (use first 4 lines)
+        const finLines = lineNames.slice(0, 4);
+        const demoFinTargets: TargetSubmission[] = finLines.map((ln, i) => ({
+          id: `demo-ft-${i}`,
+          type: 'finishing' as const,
+          line_uuid: ln.id,
+          line_id: ln.line_id,
+          line_name: ln.name,
+          work_order_id: `demo-wo-${i}`,
+          po_number: demoPOs[i],
+          buyer: demoBuyers[i],
+          style: demoStyles[i],
+          per_hour_target: [75, 82, 68, 90][i],
+          m_power_planned: [22, 18, 25, 20][i],
+          day_hour_planned: 8,
+          day_over_time_planned: i === 0 ? 2 : 0,
+          order_qty: [12000, 8500, 15000, 6000][i],
+          remarks: null,
+          submitted_at: now,
+          production_date: today,
+        }));
+
+        // Finishing EOD (daily logs OUTPUT)
+        const demoFinEOD: EndOfDaySubmission[] = finLines.map((ln, i) => {
+          const poly = [580, 640, 520, 710][i];
+          return {
+            id: `demo-fa-${i}`,
+            type: 'finishing' as const,
+            line_uuid: ln.id,
+            line_id: ln.line_id,
+            line_name: ln.name,
+            output: poly,
+            submitted_at: now,
+            production_date: today,
+            has_blocker: false,
+            blocker_description: null,
+            blocker_impact: null,
+            blocker_owner: null,
+            blocker_status: null,
+            po_number: demoPOs[i],
+            buyer: demoBuyers[i],
+            style: demoStyles[i],
+            hours_logged: 8,
+            total_poly: poly,
+            total_carton: Math.floor(poly / 12),
+          };
+        });
+
+        const totalSewOutput = demoSewingEOD.reduce((s, e) => s + e.output, 0);
+        const totalFinOutput = demoFinEOD.reduce((s, e) => s + e.output, 0);
+
+        setSewingTargets(demoSewingTargets);
+        setFinishingTargets(demoFinTargets);
+        setSewingEndOfDay(demoSewingEOD);
+        setFinishingEndOfDay(demoFinEOD);
+        if (linesData) setAllLines(linesData);
+        setActiveBlockers([{
+          id: 'demo-b-1',
+          type: 'sewing',
+          description: 'Machine breakdown on station 7 - needle bar issue',
+          impact: 'medium',
+          line_name: lineNames[2].name,
+          created_at: now,
+        }]);
+        setStats(prev => ({
+          ...prev,
+          updatesToday: demoSewingTargets.length + demoSewingEOD.length + demoFinTargets.length + demoFinEOD.length,
+          blockersToday: 1,
+          daySewingOutput: totalSewOutput,
+          dayFinishingOutput: totalFinOutput,
+        }));
+      }
+      // ── END DEMO DATA ──
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -890,25 +1136,68 @@ export default function Dashboard() {
         initial="hidden"
         animate="show"
       >
-        {/* Updates Today */}
+        {/* Updates Today + Financials sub-card */}
         <motion.div variants={fadeUp}>
-          <Link to="/today" className="block">
-            <div className="relative overflow-hidden rounded-xl border bg-emerald-50 dark:bg-emerald-950/30 p-4 md:p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-600" />
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground">{t('dashboard.updatesToday')}</p>
-                  <p className="font-mono text-2xl md:text-3xl font-bold tracking-tight">
-                    <AnimatedNumber value={stats.updatesToday} />
-                  </p>
-                  <p className="text-[10px] md:text-xs text-muted-foreground">{stats.totalLines} {t('dashboard.linesTracked')}</p>
-                </div>
-                <div className="rounded-xl bg-emerald-500/10 p-2.5">
-                  <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-              </div>
-            </div>
-          </Link>
+          {(() => {
+            const showFinancials = (dayRevenue != null) || (costConfigured && totalDayCost != null);
+            return (
+              <>
+                <Link to="/today" className="block">
+                  <div className={`relative overflow-hidden ${showFinancials ? 'rounded-t-xl' : 'rounded-xl'} border bg-emerald-50 dark:bg-emerald-950/30 p-4 md:p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5`}>
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-600" />
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground">{t('dashboard.updatesToday')}</p>
+                        <p className="font-mono text-2xl md:text-3xl font-bold tracking-tight">
+                          <AnimatedNumber value={stats.updatesToday} />
+                        </p>
+                        <p className="text-[10px] md:text-xs text-muted-foreground">{stats.totalLines} {t('dashboard.linesTracked')}</p>
+                      </div>
+                      <div className="rounded-xl bg-emerald-500/10 p-2.5">
+                        <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+                {showFinancials && (
+                  <div className="rounded-b-xl border border-t-0 bg-blue-50/80 dark:bg-blue-950/20 px-3 py-2 space-y-1">
+                    {dayRevenue != null && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] md:text-xs text-muted-foreground">Revenue</span>
+                        <span className="font-mono text-xs md:text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                          ${dayRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
+                    {costConfigured && totalDayCost != null && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] md:text-xs text-muted-foreground">
+                          Cost{headcountCost.currency === 'BDT' && bdtToUsd ? '' : ''}
+                        </span>
+                        <span className="font-mono text-xs md:text-sm font-semibold text-red-600 dark:text-red-400">
+                          {headcountCost.currency === 'BDT' && bdtToUsd
+                            ? `$${(totalDayCost * bdtToUsd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                            : `$${totalDayCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          }
+                        </span>
+                      </div>
+                    )}
+                    {dayProfit != null && (
+                      <>
+                        <div className="border-t border-blue-200 dark:border-blue-800 my-0.5" />
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] md:text-xs font-semibold text-foreground">Profit</span>
+                          <span className={`font-mono text-xs md:text-sm font-bold ${dayProfit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                            {dayProfit >= 0 ? '+' : '-'}${Math.abs(dayProfit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </motion.div>
 
         {/* Day Sewing Output */}
@@ -1484,7 +1773,7 @@ export default function Dashboard() {
               po_number: eod.po_number,
               buyer: eod.buyer,
               style: eod.style,
-              order_qty: null,
+              order_qty: eod.order_qty ?? null,
               submitted_at: eod.submitted_at,
               good_today: eod.output,
               reject_today: eod.reject_qty ?? 0,
@@ -1503,6 +1792,8 @@ export default function Dashboard() {
               blocker_impact: eod.blocker_impact,
               blocker_owner: eod.blocker_owner,
               blocker_status: eod.blocker_status,
+              estimated_cost_value: eod.estimated_cost_value ?? null,
+              estimated_cost_currency: eod.estimated_cost_currency ?? null,
             };
             const mt = sewingTargets.find(t =>
               t.line_uuid === eod.line_uuid &&
@@ -1568,7 +1859,7 @@ export default function Dashboard() {
                 po_number: ma.po_number,
                 buyer: ma.buyer,
                 style: ma.style,
-                order_qty: null,
+                order_qty: ma.order_qty ?? null,
                 submitted_at: ma.submitted_at,
                 good_today: ma.output,
                 reject_today: ma.reject_qty ?? 0,
@@ -1587,6 +1878,8 @@ export default function Dashboard() {
                 blocker_impact: ma.blocker_impact,
                 blocker_owner: ma.blocker_owner,
                 blocker_status: ma.blocker_status,
+                estimated_cost_value: ma.estimated_cost_value ?? null,
+                estimated_cost_currency: ma.estimated_cost_currency ?? null,
               };
             }
           }

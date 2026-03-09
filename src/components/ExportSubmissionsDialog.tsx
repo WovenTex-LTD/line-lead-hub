@@ -29,11 +29,26 @@ interface ExportData {
   finishingDailyLogs: any[];
 }
 
+interface FinancialsData {
+  totalRevenue: number;
+  totalCostUsd: number;
+  totalCostNative: number;
+  costCurrency: string;
+  profit: number;
+  margin: number;
+  sewingCostUsd: number;
+  cuttingCostUsd: number;
+  finishingCostUsd: number;
+  bdtToUsdRate: number | null;
+  revenueByPo: { po: string; buyer: string; style: string; output: number; cmDz: number; revenue: number }[];
+}
+
 interface ExportSubmissionsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   data: ExportData;
   dateRange: string;
+  financials?: FinancialsData | null;
 }
 
 const esc = (cell: string) => `"${String(cell ?? "").replace(/"/g, '""')}"`;
@@ -43,6 +58,7 @@ export function ExportSubmissionsDialog({
   onOpenChange,
   data,
   dateRange,
+  financials,
 }: ExportSubmissionsDialogProps) {
   const { t } = useTranslation();
   const { factory } = useAuth();
@@ -96,6 +112,55 @@ export function ExportSubmissionsDialog({
       if (includeStorage) deptParts.push("Storage");
       rows.push([`Departments Included: ${deptParts.join(", ")}`]);
       rows.push([]);
+
+      // ── DAILY FINANCIALS ──
+      if (financials && (financials.totalRevenue > 0 || financials.totalCostUsd > 0)) {
+        rows.push(["═══ DAILY FINANCIALS (USD) ═══"]);
+        rows.push([]);
+        rows.push(["Metric", "Amount (USD)"]);
+        rows.push(["Revenue", `$${financials.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]);
+        rows.push(["Cost", `$${financials.totalCostUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]);
+        rows.push(["Profit", `${financials.profit >= 0 ? '+' : '-'}$${Math.abs(financials.profit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]);
+        rows.push(["Margin", `${financials.margin}%`]);
+        rows.push([]);
+
+        if (financials.costCurrency === 'BDT' && financials.bdtToUsdRate) {
+          rows.push(["Cost in BDT", `৳${financials.totalCostNative.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]);
+          rows.push(["Exchange Rate", `${(1 / financials.bdtToUsdRate).toFixed(2)} BDT/USD`]);
+          rows.push([]);
+        }
+
+        // Cost breakdown
+        if (financials.totalCostUsd > 0) {
+          rows.push(["COST BREAKDOWN", "Amount (USD)", "% of Total"]);
+          const depts = [
+            { label: 'Sewing', value: financials.sewingCostUsd },
+            { label: 'Cutting', value: financials.cuttingCostUsd },
+            { label: 'Finishing', value: financials.finishingCostUsd },
+          ].filter(d => d.value > 0);
+          depts.forEach(d => {
+            const pct = financials.totalCostUsd > 0 ? ((d.value / financials.totalCostUsd) * 100).toFixed(1) : '0';
+            rows.push([d.label, `$${d.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, `${pct}%`]);
+          });
+          rows.push([]);
+        }
+
+        // Revenue by PO
+        if (financials.revenueByPo.length > 0) {
+          rows.push(["REVENUE BY PO", "", "", "", ""]);
+          rows.push(["PO Number", "Buyer", "Output (pcs)", "CM/Dozen", "Revenue (USD)"]);
+          financials.revenueByPo.forEach(r => {
+            rows.push([
+              r.po, r.buyer, r.output.toLocaleString(),
+              `$${r.cmDz.toFixed(2)}`,
+              `$${r.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            ]);
+          });
+          rows.push([]);
+        }
+
+        rows.push([]);
+      }
 
       // ── CROSS-DEPARTMENT SUMMARY ──
       rows.push(["FACTORY SUMMARY"]);

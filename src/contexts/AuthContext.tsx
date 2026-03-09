@@ -38,6 +38,8 @@ const factorySchema = z.object({
   max_lines: z.number().nullable(),
   low_stock_threshold: z.number(),
   payment_failed_at: z.string().nullable().optional(),
+  headcount_cost_value: z.number().nullable().optional(),
+  headcount_cost_currency: z.string().nullable().optional().transform(v => v ?? 'BDT'),
 });
 
 type Profile = z.infer<typeof profileSchema>;
@@ -54,6 +56,7 @@ interface AuthContextType {
   signIn: (email: string, password: string, rememberMe?: boolean) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  refreshFactory: () => Promise<void>;
   hasRole: (role: AppRole) => boolean;
   isAdminOrHigher: () => boolean;
   isSuperAdmin: () => boolean;
@@ -264,6 +267,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  async function refreshFactory() {
+    const factoryId = profile?.factory_id;
+    if (!factoryId) return;
+    const { data, error } = await supabase
+      .from('factory_accounts')
+      .select('*')
+      .eq('id', factoryId)
+      .maybeSingle();
+    if (error) {
+      console.error('[AuthContext] Factory refresh error:', error.message);
+      return;
+    }
+    if (data) {
+      const result = factorySchema.safeParse(data);
+      if (result.success) {
+        setFactory(result.data);
+      }
+    }
+  }
+
   async function signIn(email: string, password: string, rememberMe = true) {
     // Set preference BEFORE the Supabase call so the storage adapter routes
     // the session token to the correct store immediately.
@@ -366,6 +389,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signUp,
         signOut,
+        refreshFactory,
         hasRole,
         isAdminOrHigher,
         isSuperAdmin,

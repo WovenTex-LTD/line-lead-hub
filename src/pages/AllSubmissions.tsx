@@ -99,6 +99,8 @@ interface SewingActual {
   remarks: string | null;
   submitted_at: string | null;
   production_date: string;
+  estimated_cost_value: number | null;
+  estimated_cost_currency: string | null;
   stages: { name: string } | null;
   lines: { line_id: string; name: string | null } | null;
   work_orders: { po_number: string; buyer: string; style: string; order_qty: number } | null;
@@ -127,6 +129,8 @@ interface FinishingActual {
   remarks: string | null;
   submitted_at: string | null;
   production_date: string;
+  estimated_cost_value: number | null;
+  estimated_cost_currency: string | null;
   lines: { line_id: string; name: string | null } | null;
   work_orders: { po_number: string; buyer: string; style: string; order_qty: number } | null;
 }
@@ -512,6 +516,8 @@ export default function AllSubmissions() {
         total_hour: (actual as FinishingActual).total_hour,
         order_quantity: (actual as FinishingActual).work_orders?.order_qty ?? null,
         ot_manpower_actual: (actual as FinishingActual).ot_manpower_actual ?? null,
+        estimated_cost_value: (actual as FinishingActual).estimated_cost_value ?? null,
+        estimated_cost_currency: (actual as FinishingActual).estimated_cost_currency ?? null,
       }),
     });
     setActualModalOpen(true);
@@ -1069,6 +1075,8 @@ export default function AllSubmissions() {
           blocker_impact: a.blocker_impact,
           blocker_owner: a.blocker_owner,
           blocker_status: null,
+          estimated_cost_value: a.estimated_cost_value ?? null,
+          estimated_cost_currency: a.estimated_cost_currency ?? null,
         });
 
         let rawTarget: SewingTarget | null = null;

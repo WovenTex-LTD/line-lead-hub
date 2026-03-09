@@ -43,6 +43,7 @@ interface WorkOrder {
   color: string | null;
   order_qty: number;
   smv: number | null;
+  cm_per_dozen: number | null;
   planned_ex_factory: string | null;
   target_per_hour: number | null;
   target_per_day: number | null;
@@ -73,6 +74,7 @@ const workOrderSchema = z.object({
   color: z.string().max(100, "Color too long").optional().nullable(),
   order_qty: z.number().min(0, "Cannot be negative").max(100000000, "Too high"),
   smv: z.number().min(0, "Cannot be negative").max(1000, "Too high").optional().nullable(),
+  cm_per_dozen: z.number().min(0, "Cannot be negative").max(100000, "Too high").optional().nullable(),
   planned_ex_factory: z.string().optional().nullable(),
   target_per_hour: z.number().min(0, "Cannot be negative").max(100000, "Too high").optional().nullable(),
   target_per_day: z.number().min(0, "Cannot be negative").max(1000000, "Too high").optional().nullable(),
@@ -126,6 +128,7 @@ export default function WorkOrders() {
     color: '',
     order_qty: '',
     smv: '',
+    cm_per_dozen: '',
     planned_ex_factory: '',
     target_per_hour: '',
     target_per_day: '',
@@ -229,6 +232,7 @@ export default function WorkOrders() {
       color: '',
       order_qty: '',
       smv: '',
+      cm_per_dozen: '',
       planned_ex_factory: '',
       target_per_hour: '',
       target_per_day: '',
@@ -250,6 +254,7 @@ export default function WorkOrders() {
       color: wo.color || '',
       order_qty: wo.order_qty.toString(),
       smv: wo.smv?.toString() || '',
+      cm_per_dozen: wo.cm_per_dozen?.toString() || '',
       planned_ex_factory: wo.planned_ex_factory || '',
       target_per_hour: wo.target_per_hour?.toString() || '',
       target_per_day: wo.target_per_day?.toString() || '',
@@ -271,6 +276,7 @@ export default function WorkOrders() {
       color: formData.color.trim() || null,
       order_qty: parseInt(formData.order_qty) || 0,
       smv: formData.smv ? parseFloat(formData.smv) : null,
+      cm_per_dozen: formData.cm_per_dozen ? parseFloat(formData.cm_per_dozen) : null,
       planned_ex_factory: formData.planned_ex_factory || null,
       target_per_hour: formData.target_per_hour ? parseInt(formData.target_per_hour) : null,
       target_per_day: formData.target_per_day ? parseInt(formData.target_per_day) : null,
@@ -302,6 +308,7 @@ export default function WorkOrders() {
         color: result.data.color ?? null,
         order_qty: result.data.order_qty,
         smv: result.data.smv ?? null,
+        cm_per_dozen: result.data.cm_per_dozen ?? null,
         planned_ex_factory: result.data.planned_ex_factory ?? null,
         target_per_hour: result.data.target_per_hour ?? null,
         target_per_day: result.data.target_per_day ?? null,
@@ -434,8 +441,8 @@ export default function WorkOrders() {
   }
 
   function downloadTemplate() {
-    const headers = ['po_number', 'buyer', 'style', 'item', 'color', 'order_qty', 'smv', 'planned_ex_factory', 'target_per_hour', 'target_per_day', 'status'];
-    const sampleRow = ['PO-001', 'ABC Buyer', 'STYLE-001', 'T-Shirt', 'Blue', '5000', '12.5', '2026-03-15', '100', '800', 'not_started'];
+    const headers = ['po_number', 'buyer', 'style', 'item', 'color', 'order_qty', 'smv', 'cm_per_dozen', 'planned_ex_factory', 'target_per_hour', 'target_per_day', 'status'];
+    const sampleRow = ['PO-001', 'ABC Buyer', 'STYLE-001', 'T-Shirt', 'Blue', '5000', '12.5', '45.00', '2026-03-15', '100', '800', 'not_started'];
     const csv = [headers.join(','), sampleRow.join(',')].join('\n');
     
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -457,6 +464,7 @@ export default function WorkOrders() {
     'color': 'color',
     'order_qty': 'order_qty',
     'smv': 'smv',
+    'cm_per_dozen': 'cm_per_dozen',
     'planned_ex_factory': 'planned_ex_factory',
     'target_per_hour': 'target_per_hour',
     'target_per_day': 'target_per_day',
@@ -467,6 +475,11 @@ export default function WorkOrders() {
     'buyer name': 'style', // Maps to style as it's a required field
     'product type': 'item',
     'quantity': 'order_qty',
+    'c&m': 'cm_per_dozen',
+    'cm': 'cm_per_dozen',
+    'c&m/dozen': 'cm_per_dozen',
+    'cm/dozen': 'cm_per_dozen',
+    'cost and make': 'cm_per_dozen',
     'current status': 'status',
     'delivery deadline': 'planned_ex_factory',
     'comments': 'color', // Use comments as color/notes
@@ -521,7 +534,7 @@ export default function WorkOrders() {
           row[mappedField] = parseInt(value) || 0;
         } else if (mappedField === 'target_per_hour' || mappedField === 'target_per_day') {
           row[mappedField] = parseInt(value) || null;
-        } else if (mappedField === 'smv') {
+        } else if (mappedField === 'smv' || mappedField === 'cm_per_dozen') {
           row[mappedField] = parseFloat(value) || null;
         } else if (mappedField === 'status') {
           row[mappedField] = mapStatus(value);
@@ -714,6 +727,7 @@ export default function WorkOrders() {
                   <TableHead>Item</TableHead>
                   <TableHead>Color</TableHead>
                   <TableHead className="text-right">Order Qty</TableHead>
+                  <TableHead className="text-right">CM/Dz</TableHead>
                   <TableHead>Ex-Factory</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Active</TableHead>
@@ -723,7 +737,7 @@ export default function WorkOrders() {
               <TableBody>
                 {filteredWorkOrders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center text-muted-foreground">
+                    <TableCell colSpan={11} className="text-center text-muted-foreground">
                       No work orders found. Add your first work order.
                     </TableCell>
                   </TableRow>
@@ -736,6 +750,7 @@ export default function WorkOrders() {
                       <TableCell>{wo.item || '-'}</TableCell>
                       <TableCell>{wo.color || '-'}</TableCell>
                       <TableCell className="text-right font-mono">{wo.order_qty.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-mono">{wo.cm_per_dozen != null ? `$${wo.cm_per_dozen.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</TableCell>
                       <TableCell>{wo.planned_ex_factory || '-'}</TableCell>
                       <TableCell>
                         <Badge className={getStatusColor(wo.status || 'not_started')}>
@@ -839,7 +854,7 @@ export default function WorkOrders() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>SMV</Label>
                 <Input
@@ -850,6 +865,17 @@ export default function WorkOrders() {
                   placeholder="12.5"
                 />
                 {formErrors.smv && <p className="text-sm text-destructive">{formErrors.smv}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label>CM / Dozen (USD)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.cm_per_dozen}
+                  onChange={(e) => setFormData({ ...formData, cm_per_dozen: e.target.value })}
+                  placeholder="$45.00"
+                />
+                {formErrors.cm_per_dozen && <p className="text-sm text-destructive">{formErrors.cm_per_dozen}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Planned Ex-Factory</Label>
