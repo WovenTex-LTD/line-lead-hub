@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Scissors } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useHeadcountCost } from "@/hooks/useHeadcountCost";
+import { EstimatedCostDisplay } from "@/components/EstimatedCostDisplay";
 
 interface CuttingActual {
   id: string;
@@ -32,6 +34,7 @@ interface EditCuttingActualModalProps {
 
 export function EditCuttingActualModal({ submission, open, onOpenChange, onSaved }: EditCuttingActualModalProps) {
   const { t } = useTranslation();
+  const { calculateEstimatedCost } = useHeadcountCost();
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<Record<string, any>>({});
 
@@ -55,6 +58,8 @@ export function EditCuttingActualModal({ submission, open, onOpenChange, onSaved
   const handleSave = async () => {
     setSaving(true);
     try {
+      const estimatedCost = calculateEstimatedCost(formData.man_power, formData.hours_actual);
+
       const { error } = await supabase
         .from('cutting_actuals')
         .update({
@@ -68,6 +73,8 @@ export function EditCuttingActualModal({ submission, open, onOpenChange, onSaved
           ot_hours_actual: formData.ot_hours_actual || null,
           ot_manpower_actual: formData.ot_manpower_actual || null,
           remarks: formData.remarks || null,
+          estimated_cost_value: estimatedCost.value,
+          estimated_cost_currency: estimatedCost.value != null ? estimatedCost.currency : null,
         })
         .eq('id', submission.id);
 
@@ -191,6 +198,11 @@ export function EditCuttingActualModal({ submission, open, onOpenChange, onSaved
               onChange={(e) => handleNumberChange('ot_manpower_actual', e.target.value)}
             />
           </div>
+
+          <EstimatedCostDisplay
+            manpower={String(formData.man_power ?? '')}
+            hours={String(formData.hours_actual ?? '')}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="remarks">{t('cutting.remarks')}</Label>

@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { EditSubmissionModal } from "./EditSubmissionModal";
 import { formatDate, formatDateTimeInTimezone } from "@/lib/date-utils";
+import { useHeadcountCost } from "@/hooks/useHeadcountCost";
 
 interface SewingSubmission {
   id: string;
@@ -29,6 +30,8 @@ interface SewingSubmission {
   next_milestone?: string | null;
   ot_hours: number | null;
   ot_manpower: number | null;
+  estimated_cost_value: number | null;
+  estimated_cost_currency: string | null;
   has_blocker: boolean;
   blocker_description: string | null;
   blocker_impact: string | null;
@@ -64,6 +67,8 @@ interface FinishingSubmission {
   day_carton: number | null;
   total_carton: number | null;
   ot_manpower_actual: number | null;
+  estimated_cost_value: number | null;
+  estimated_cost_currency: string | null;
   remarks: string | null;
   has_blocker: boolean;
   blocker_description: string | null;
@@ -87,6 +92,7 @@ interface SubmissionDetailModalProps {
 export function SubmissionDetailModal({ submission, open, onOpenChange, onDeleted, onUpdated }: SubmissionDetailModalProps) {
   const { t } = useTranslation();
   const { isAdminOrHigher, factory } = useAuth();
+  const { calculateEstimatedCost, getCurrencySymbol, isConfigured: costConfigured } = useHeadcountCost();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -286,6 +292,74 @@ export function SubmissionDetailModal({ submission, open, onOpenChange, onDelete
                 )}
               </div>
             )}
+
+            {/* Cost Estimate */}
+            {(() => {
+              const fmt = (v: number, sym: string) => `${sym}${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+              let regularCost: number | null = null;
+              let otCost: number | null = null;
+              let currency = 'BDT';
+              let isLive = false;
+
+              if (isSewing) {
+                const s = submission as SewingSubmission;
+                if (s.estimated_cost_value != null) {
+                  regularCost = s.estimated_cost_value;
+                  currency = s.estimated_cost_currency || 'BDT';
+                } else if (costConfigured) {
+                  const live = calculateEstimatedCost(s.manpower, s.ot_hours);
+                  if (live.value != null) { regularCost = live.value; currency = live.currency; isLive = true; }
+                }
+                if (costConfigured && s.ot_hours && s.ot_manpower) {
+                  const ot = calculateEstimatedCost(s.ot_manpower, s.ot_hours);
+                  if (ot.value != null) otCost = ot.value;
+                }
+              } else {
+                const f = submission as FinishingSubmission;
+                if (f.estimated_cost_value != null) {
+                  regularCost = f.estimated_cost_value;
+                  currency = f.estimated_cost_currency || 'BDT';
+                } else if (costConfigured) {
+                  const live = calculateEstimatedCost(f.m_power, f.day_hour);
+                  if (live.value != null) { regularCost = live.value; currency = live.currency; isLive = true; }
+                }
+                if (costConfigured && f.day_over_time && f.ot_manpower_actual) {
+                  const ot = calculateEstimatedCost(f.ot_manpower_actual, f.day_over_time);
+                  if (ot.value != null) otCost = ot.value;
+                }
+              }
+
+              if (regularCost == null && otCost == null) return null;
+
+              const sym = currency === 'USD' ? '$' : '৳';
+              return (
+                <div className="p-3 rounded-lg border border-primary/20 bg-primary/5">
+                  <p className="text-sm font-medium mb-2">
+                    Cost Estimate{isLive ? ' (current rate)' : ''}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {regularCost != null && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Regular Cost</p>
+                        <p className="font-mono font-semibold">{fmt(regularCost, sym)} {currency}</p>
+                      </div>
+                    )}
+                    {otCost != null && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">OT Cost</p>
+                        <p className="font-mono font-semibold">{fmt(otCost, sym)} {currency}</p>
+                      </div>
+                    )}
+                  </div>
+                  {regularCost != null && otCost != null && (
+                    <div className="mt-2 pt-2 border-t border-primary/10">
+                      <p className="text-xs text-muted-foreground">Total Cost</p>
+                      <p className="font-mono font-semibold text-lg">{fmt(regularCost + otCost, sym)} {currency}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Notes/Remarks */}
             {(isSewing ? (submission as SewingSubmission).notes : (submission as FinishingSubmission).remarks) && (

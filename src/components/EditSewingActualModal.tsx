@@ -9,6 +9,8 @@ import { Loader2 } from "lucide-react";
 import { SewingMachine } from "@/components/icons/SewingMachine";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useHeadcountCost } from "@/hooks/useHeadcountCost";
+import { EstimatedCostDisplay } from "@/components/EstimatedCostDisplay";
 
 interface SewingActual {
   id: string;
@@ -33,6 +35,7 @@ interface EditSewingActualModalProps {
 
 export function EditSewingActualModal({ submission, open, onOpenChange, onSaved }: EditSewingActualModalProps) {
   const { t } = useTranslation();
+  const { calculateEstimatedCost } = useHeadcountCost();
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<Record<string, any>>({});
 
@@ -56,6 +59,8 @@ export function EditSewingActualModal({ submission, open, onOpenChange, onSaved 
   const handleSave = async () => {
     setSaving(true);
     try {
+      const estimatedCost = calculateEstimatedCost(formData.manpower_actual, formData.hours_actual);
+
       const { error } = await supabase
         .from('sewing_actuals')
         .update({
@@ -67,6 +72,8 @@ export function EditSewingActualModal({ submission, open, onOpenChange, onSaved 
           ot_hours_actual: formData.ot_hours_actual ?? 0,
           ot_manpower_actual: formData.ot_manpower_actual ?? 0,
           remarks: formData.remarks,
+          estimated_cost_value: estimatedCost.value,
+          estimated_cost_currency: estimatedCost.value != null ? estimatedCost.currency : null,
         })
         .eq('id', submission.id);
 
@@ -170,6 +177,11 @@ export function EditSewingActualModal({ submission, open, onOpenChange, onSaved 
               />
             </div>
           </div>
+
+          <EstimatedCostDisplay
+            manpower={String(formData.manpower_actual ?? '')}
+            hours={String(formData.hours_actual ?? '')}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="remarks">{t('modals.remarks')}</Label>

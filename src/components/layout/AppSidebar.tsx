@@ -319,9 +319,8 @@ export function AppSidebar() {
     // If department is 'both' or undefined, show all worker items
   }
 
-  // Hide dev-only pages (Knowledge Base, Chat Analytics, Error Logs) for non-dev factories
-  const isDevFactory = profile?.factory_id?.startsWith(DEV_FACTORY_ID_PREFIX);
-  if (!isDevFactory) {
+  // Hide dev-only pages (Knowledge Base, Chat Analytics, Error Logs) for all factories
+  {
     const devOnlyPaths = ['/setup/knowledge-base', '/setup/chat-analytics', '/setup/error-logs'];
     navItems = navItems.filter(item => !devOnlyPaths.includes(item.path));
   }

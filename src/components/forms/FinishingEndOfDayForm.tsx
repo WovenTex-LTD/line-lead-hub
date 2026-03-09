@@ -29,6 +29,8 @@ import {
 } from "@/components/ui/command";
 import { getTodayInTimezone } from "@/lib/date-utils";
 import { useOfflineSubmission } from "@/hooks/useOfflineSubmission";
+import { useHeadcountCost } from "@/hooks/useHeadcountCost";
+import { EstimatedCostDisplay } from "@/components/EstimatedCostDisplay";
 
 interface Line {
   id: string;
@@ -64,6 +66,7 @@ export default function FinishingEndOfDayForm() {
   const { t } = useTranslation();
   const { user, profile, factory, isAdminOrHigher } = useAuth();
   const { submit: offlineSubmit } = useOfflineSubmission();
+  const { calculateEstimatedCost } = useHeadcountCost();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -221,6 +224,8 @@ export default function FinishingEndOfDayForm() {
     setSubmitting(true);
 
     try {
+      const estimatedCost = calculateEstimatedCost(parseInt(mPowerActual), parseFloat(dayHourActual));
+
       const insertData = {
         factory_id: profile.factory_id,
         production_date: getTodayInTimezone(factory?.timezone || "Asia/Dhaka"),
@@ -247,6 +252,8 @@ export default function FinishingEndOfDayForm() {
         total_hour: totalHour ? parseFloat(totalHour) : 0,
         total_over_time: totalOverTime ? parseFloat(totalOverTime) : 0,
         remarks: remarks || null,
+        estimated_cost_value: estimatedCost.value,
+        estimated_cost_currency: estimatedCost.value != null ? estimatedCost.currency : null,
       };
 
       const result = await offlineSubmit("finishing_actuals", "finishing_actuals", insertData as Record<string, unknown>, {
@@ -593,6 +600,8 @@ export default function FinishingEndOfDayForm() {
               placeholder="0"
             />
           </div>
+
+          <EstimatedCostDisplay manpower={mPowerActual} hours={dayHourActual} />
         </CardContent>
       </Card>
 

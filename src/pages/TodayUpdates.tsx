@@ -27,6 +27,9 @@ import { subDays, format } from "date-fns";
 import { StorageBinCardDetailModal } from "@/components/StorageBinCardDetailModal";
 import { FinishingSubmissionView, FinishingTargetData, FinishingActualData } from "@/components/FinishingSubmissionView";
 import { ExportSubmissionsDialog } from "@/components/ExportSubmissionsDialog";
+import { useHeadcountCost } from "@/hooks/useHeadcountCost";
+import { DollarSign, TrendingUp as TrendingUpIcon, TrendingDown } from "lucide-react";
+import { DailyReportButton, DailyReportData, DailyReportSewingLine, DailyReportCuttingLine, DailyReportFinishingLine } from "@/components/DailyProductionReport";
 
 interface SewingUpdate {
   id: string;
@@ -76,7 +79,7 @@ interface FinishingDailyLog {
   ot_manpower_planned: number | null;
   remarks: string | null;
   lines: { line_id: string; name: string | null } | null;
-  work_orders: { po_number: string; buyer: string; style: string } | null;
+  work_orders: { po_number: string; buyer: string; style: string; cm_per_dozen?: number | null } | null;
 }
 
 interface CuttingActual {
@@ -109,7 +112,7 @@ interface CuttingActual {
   hours_actual: number | null;
   actual_per_hour: number | null;
   lines: { line_id: string; name: string | null } | null;
-  work_orders: { po_number: string; buyer: string; style: string } | null;
+  work_orders: { po_number: string; buyer: string; style: string; cm_per_dozen?: number | null } | null;
 }
 
 interface CuttingTargetFull {
@@ -183,7 +186,7 @@ interface SewingActualRow {
   submitted_at: string | null;
   stages: { name: string } | null;
   lines: { line_id: string; name: string | null } | null;
-  work_orders: { po_number: string; buyer: string; style: string } | null;
+  work_orders: { po_number: string; buyer: string; style: string; cm_per_dozen?: number | null } | null;
 }
 
 interface StorageTransaction {
@@ -232,6 +235,26 @@ export default function TodayUpdates() {
   };
 
   const navigate = useNavigate();
+  const { headcountCost, isConfigured: costConfigured } = useHeadcountCost();
+  const [bdtToUsd, setBdtToUsd] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchRate() {
+      try {
+        const res = await fetch('https://open.er-api.com/v6/latest/USD');
+        const json = await res.json();
+        if (!cancelled && json?.rates?.BDT) {
+          setBdtToUsd(1 / json.rates.BDT);
+        }
+      } catch {
+        if (!cancelled) setBdtToUsd(1 / 121);
+      }
+    }
+    fetchRate();
+    return () => { cancelled = true; };
+  }, []);
+
   const [loading, setLoading] = useState(true);
   const [sewingUpdates, setSewingUpdates] = useState<SewingUpdate[]>([]);
   const [sewingTargets, setSewingTargets] = useState<SewingTargetRow[]>([]);
@@ -269,6 +292,7 @@ export default function TodayUpdates() {
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [selectedFinishingLog, setSelectedFinishingLog] = useState<FinishingDailyLog | null>(null);
   const [finishingLogModalOpen, setFinishingLogModalOpen] = useState(false);
+  const [financialsExpanded, setFinancialsExpanded] = useState(false);
   const [expandedStorageGroups, setExpandedStorageGroups] = useState<Set<string>>(new Set());
 
   // Date picker state
@@ -323,19 +347,19 @@ export default function TodayUpdates() {
           .order('submitted_at', { ascending: false }),
         supabase
           .from('sewing_actuals')
-          .select('*, stages:actual_stage_id(name), lines(line_id, name), work_orders(po_number, buyer, style)')
+          .select('*, stages:actual_stage_id(name), lines(line_id, name), work_orders(po_number, buyer, style, cm_per_dozen)')
           .eq('factory_id', profile.factory_id)
           .eq('production_date', today)
           .order('submitted_at', { ascending: false }),
         supabase
           .from('finishing_daily_logs')
-          .select('*, lines(line_id, name), work_orders(po_number, buyer, style)')
+          .select('*, lines(line_id, name), work_orders(po_number, buyer, style, cm_per_dozen)')
           .eq('factory_id', profile.factory_id)
           .eq('production_date', today)
           .order('submitted_at', { ascending: false }),
         supabase
           .from('cutting_actuals')
-          .select('*, lines!cutting_actuals_line_id_fkey(line_id, name), work_orders(po_number, buyer, style, order_qty, color)')
+          .select('*, lines!cutting_actuals_line_id_fkey(line_id, name), work_orders(po_number, buyer, style, order_qty, color, cm_per_dozen)')
           .eq('factory_id', profile.factory_id)
           .eq('production_date', today)
           .order('submitted_at', { ascending: false }),
@@ -644,6 +668,188 @@ export default function TodayUpdates() {
   const totalCutting = cuttingActuals.reduce((sum, c) => sum + (c.day_cutting || 0), 0);
   const totalStorageReceived = storageTransactions.reduce((sum, s) => sum + (s.receive_qty || 0), 0);
 
+  // ── Financial calculations ──
+  const financials = useMemo(() => {
+    const rate = costConfigured && headcountCost.value ? headcountCost.value : 0;
+    const costCurrency = headcountCost.currency;
+
+    // Revenue: only finishing poly output × (cm_per_dozen / 12)
+    const revenueByPo: { po: string; buyer: string; style: string; output: number; cmDz: number; revenue: number }[] = [];
+    let totalRevenue = 0;
+
+    const finishingOutputLogs = finishingDailyLogs.filter(l => l.log_type === 'OUTPUT');
+    finishingOutputLogs.forEach((log) => {
+      const cm = log.work_orders?.cm_per_dozen;
+      const output = log.poly || 0;
+      if (cm && output) {
+        const rev = (cm / 12) * output;
+        totalRevenue += rev;
+        revenueByPo.push({
+          po: log.work_orders?.po_number || 'Unknown',
+          buyer: log.work_orders?.buyer || '',
+          style: log.work_orders?.style || '',
+          output,
+          cmDz: cm,
+          revenue: rev,
+        });
+      }
+    });
+
+    // Cost by department
+    let sewingCost = 0;
+    let cuttingCost = 0;
+    let finishingCost = 0;
+
+    if (rate > 0) {
+      // Sewing
+      sewingActuals.forEach((s) => {
+        if (s.manpower_actual && s.hours_actual) sewingCost += rate * s.manpower_actual * s.hours_actual;
+        if (s.ot_manpower_actual && s.ot_hours_actual) sewingCost += rate * s.ot_manpower_actual * s.ot_hours_actual;
+      });
+
+      // Cutting
+      cuttingActuals.forEach((c) => {
+        if (c.man_power && c.hours_actual) cuttingCost += rate * c.man_power * c.hours_actual;
+        if (c.ot_manpower_actual && c.ot_hours_actual) cuttingCost += rate * c.ot_manpower_actual * c.ot_hours_actual;
+      });
+
+      // Finishing
+      finishingOutputLogs.forEach((log) => {
+        if (log.m_power_actual && log.actual_hours) finishingCost += rate * log.m_power_actual * log.actual_hours;
+        if (log.ot_manpower_actual && log.ot_hours_actual) finishingCost += rate * log.ot_manpower_actual * log.ot_hours_actual;
+      });
+    }
+
+    const totalCostNative = sewingCost + cuttingCost + finishingCost;
+
+    // Convert cost to USD
+    let totalCostUsd = totalCostNative;
+    let sewingCostUsd = sewingCost;
+    let cuttingCostUsd = cuttingCost;
+    let finishingCostUsd = finishingCost;
+    if (costCurrency === 'BDT' && bdtToUsd) {
+      totalCostUsd = totalCostNative * bdtToUsd;
+      sewingCostUsd = sewingCost * bdtToUsd;
+      cuttingCostUsd = cuttingCost * bdtToUsd;
+      finishingCostUsd = finishingCost * bdtToUsd;
+    }
+
+    const profit = totalRevenue - totalCostUsd;
+    const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
+
+    return {
+      revenueByPo,
+      totalRevenue: Math.round(totalRevenue * 100) / 100,
+      totalCostNative: Math.round(totalCostNative * 100) / 100,
+      totalCostUsd: Math.round(totalCostUsd * 100) / 100,
+      sewingCostUsd: Math.round(sewingCostUsd * 100) / 100,
+      cuttingCostUsd: Math.round(cuttingCostUsd * 100) / 100,
+      finishingCostUsd: Math.round(finishingCostUsd * 100) / 100,
+      profit: Math.round(profit * 100) / 100,
+      margin: Math.round(margin * 10) / 10,
+      costCurrency,
+      hasData: totalRevenue > 0 || totalCostNative > 0,
+    };
+  }, [finishingDailyLogs, sewingActuals, cuttingActuals, costConfigured, headcountCost.value, headcountCost.currency, bdtToUsd]);
+
+  // ── Daily Production Report PDF data ──
+  const dailyReportData = useMemo((): DailyReportData => {
+    const sewingLines: DailyReportSewingLine[] = sewingActuals.map(a => {
+      const target = sewingTargets.find(t => t.line_id === a.line_id && t.work_order_id === a.work_order_id);
+      const targetQty = target?.target_total_planned ?? null;
+      const eff = targetQty && targetQty > 0 ? Math.round((a.good_today / targetQty) * 100) : null;
+      return {
+        lineName: a.lines?.name || a.lines?.line_id || "Unknown",
+        poNumber: a.work_orders?.po_number || null,
+        buyer: a.work_orders?.buyer || null,
+        style: a.work_orders?.style || null,
+        targetQty,
+        actualQty: a.good_today || 0,
+        rejectQty: a.reject_today || 0,
+        reworkQty: a.rework_today || 0,
+        manpower: a.manpower_actual ?? null,
+        hoursActual: a.hours_actual ?? null,
+        otHours: a.ot_hours_actual ?? null,
+        otManpower: a.ot_manpower_actual ?? null,
+        efficiency: eff,
+        hasBLocker: a.has_blocker || false,
+        blockerDescription: a.blocker_description || null,
+        stageName: a.stages?.name || null,
+        stageProgress: a.actual_stage_progress ?? null,
+        remarks: a.remarks || null,
+        submittedAt: a.submitted_at || null,
+      };
+    });
+
+    const cuttingLines: DailyReportCuttingLine[] = cuttingActuals.map(c => ({
+      lineName: c.lines?.name || c.lines?.line_id || "Unknown",
+      poNumber: c.work_orders?.po_number || null,
+      buyer: c.work_orders?.buyer || null,
+      colour: c.colour || null,
+      dayCutting: c.day_cutting || 0,
+      dayInput: c.day_input || 0,
+      totalCutting: c.total_cutting ?? null,
+      totalInput: c.total_input ?? null,
+      balance: c.balance ?? null,
+      orderQty: c.order_qty ?? null,
+      manpower: c.man_power ?? null,
+      hoursActual: c.hours_actual ?? null,
+      otHours: c.ot_hours_actual ?? null,
+      otManpower: c.ot_manpower_actual ?? null,
+      leftoverRecorded: c.leftover_recorded || false,
+      leftoverType: c.leftover_type || null,
+      leftoverQuantity: c.leftover_quantity ?? null,
+      leftoverNotes: c.leftover_notes || null,
+      submittedAt: c.submitted_at || null,
+    }));
+
+    const finishingLines: DailyReportFinishingLine[] = finishingDailyLogs.map(log => ({
+      poNumber: log.work_orders?.po_number || null,
+      buyer: log.work_orders?.buyer || null,
+      style: log.work_orders?.style || null,
+      logType: log.log_type,
+      threadCutting: log.thread_cutting ?? null,
+      insideCheck: log.inside_check ?? null,
+      topSideCheck: log.top_side_check ?? null,
+      buttoning: log.buttoning ?? null,
+      iron: log.iron ?? null,
+      getUp: log.get_up ?? null,
+      poly: log.poly ?? null,
+      carton: log.carton ?? null,
+      manpower: log.m_power_actual ?? null,
+      hours: log.actual_hours ?? null,
+      otHours: log.ot_hours_actual ?? null,
+      otManpower: log.ot_manpower_actual ?? null,
+      cmPerDozen: log.work_orders?.cm_per_dozen ?? null,
+      remarks: log.remarks || null,
+      submittedAt: log.submitted_at || null,
+    }));
+
+    return {
+      factoryName: factory?.name || "Factory",
+      reportDate: selectedDateStr,
+      sewing: sewingLines,
+      cutting: cuttingLines,
+      finishing: finishingLines,
+      headcountCostRate: headcountCost.value ?? null,
+      headcountCostCurrency: headcountCost.currency,
+      financials: financials.hasData ? {
+        totalRevenue: financials.totalRevenue,
+        totalCostUsd: financials.totalCostUsd,
+        totalCostNative: financials.totalCostNative,
+        costCurrency: financials.costCurrency,
+        profit: financials.profit,
+        margin: financials.margin,
+        sewingCostUsd: financials.sewingCostUsd,
+        cuttingCostUsd: financials.cuttingCostUsd,
+        finishingCostUsd: financials.finishingCostUsd,
+        bdtToUsdRate: bdtToUsd,
+        revenueByPo: financials.revenueByPo,
+      } : null,
+      generatedBy: profile?.full_name || null,
+    };
+  }, [sewingActuals, sewingTargets, cuttingActuals, finishingDailyLogs, factory?.name, selectedDateStr, financials, bdtToUsd, profile?.full_name, headcountCost.value, headcountCost.currency]);
+
   const handleSewingClick = (update: SewingUpdate) => {
     setSewingViewKey(null);
     setSelectedLegacySewing(update);
@@ -859,6 +1065,7 @@ export default function TodayUpdates() {
             <RefreshCw className="h-4 w-4 mr-1" />
             Refresh
           </Button>
+          <DailyReportButton data={dailyReportData} loading={loading} />
           <Button variant="outline" size="sm" onClick={() => setExportDialogOpen(true)}>
             <Download className="h-4 w-4 mr-1" />
             Export
@@ -936,6 +1143,144 @@ export default function TodayUpdates() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Financial Summary */}
+      {financials.hasData && (
+        <div className="space-y-2">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-7 w-7 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                <DollarSign className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <span className="text-sm font-semibold">Daily Financials</span>
+              <span className="text-[10px] text-muted-foreground">(USD)</span>
+            </div>
+            {financials.costCurrency === 'BDT' && bdtToUsd && (
+              <span className="text-[10px] text-muted-foreground">
+                Rate: {(1 / bdtToUsd).toFixed(1)} BDT/USD
+              </span>
+            )}
+          </div>
+
+          {/* Revenue / Cost / Profit cards */}
+          <div className="grid grid-cols-3 gap-3">
+            <Card className="relative overflow-hidden border-emerald-500/20">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-emerald-500/0" />
+              <CardContent className="p-4 relative">
+                <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Revenue</p>
+                <p className="font-mono text-xl md:text-2xl font-bold text-emerald-700 dark:text-emerald-400 tracking-tight">
+                  ${financials.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Finishing output</p>
+              </CardContent>
+            </Card>
+
+            <Card className="relative overflow-hidden border-red-500/20">
+              <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-red-500/0" />
+              <CardContent className="p-4 relative">
+                <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Cost</p>
+                <p className="font-mono text-xl md:text-2xl font-bold text-red-600 dark:text-red-400 tracking-tight">
+                  ${financials.totalCostUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {financials.costCurrency === 'BDT' && bdtToUsd
+                    ? `৳${financials.totalCostNative.toLocaleString()}`
+                    : 'All departments'}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className={`relative overflow-hidden ${financials.profit >= 0 ? 'border-emerald-500/20' : 'border-red-500/20'}`}>
+              <div className={`absolute inset-0 bg-gradient-to-br ${financials.profit >= 0 ? 'from-emerald-500/5 to-emerald-500/0' : 'from-red-500/5 to-red-500/0'}`} />
+              <CardContent className="p-4 relative">
+                <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Profit</p>
+                <p className={`font-mono text-xl md:text-2xl font-bold tracking-tight ${financials.profit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {financials.profit >= 0 ? '+' : '-'}${Math.abs(financials.profit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {financials.margin !== 0 ? `${financials.margin}% margin` : '—'}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Expandable details */}
+          <button
+            onClick={() => setFinancialsExpanded(!financialsExpanded)}
+            className="w-full flex items-center justify-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 py-1.5 transition-colors"
+          >
+            <span>{financialsExpanded ? 'Hide details' : 'View breakdown'}</span>
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${financialsExpanded ? 'rotate-180' : ''}`} />
+          </button>
+
+          {financialsExpanded && (
+            <Card className="border-blue-500/20">
+              <CardContent className="p-4 space-y-4">
+                {/* Cost breakdown by department */}
+                {financials.totalCostUsd > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-2.5 uppercase tracking-wider">Cost Breakdown</p>
+                    <div className="space-y-2">
+                      {[
+                        { label: 'Sewing', value: financials.sewingCostUsd, color: 'bg-blue-500' },
+                        { label: 'Cutting', value: financials.cuttingCostUsd, color: 'bg-emerald-500' },
+                        { label: 'Finishing', value: financials.finishingCostUsd, color: 'bg-violet-500' },
+                      ].filter(d => d.value > 0).map((dept) => (
+                        <div key={dept.label} className="flex items-center gap-3">
+                          <span className="text-xs text-muted-foreground w-16">{dept.label}</span>
+                          <div className="flex-1 h-2.5 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${dept.color}`}
+                              style={{ width: `${Math.min((dept.value / financials.totalCostUsd) * 100, 100)}%` }}
+                            />
+                          </div>
+                          <span className="font-mono text-xs font-medium w-20 text-right">
+                            ${dept.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Revenue by PO */}
+                {financials.revenueByPo.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-2.5 uppercase tracking-wider">Revenue by PO</p>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b text-muted-foreground">
+                            <th className="text-left py-1.5 font-medium">PO</th>
+                            <th className="text-left py-1.5 font-medium">Buyer</th>
+                            <th className="text-right py-1.5 font-medium">Output</th>
+                            <th className="text-right py-1.5 font-medium">CM/Dz</th>
+                            <th className="text-right py-1.5 font-medium">Revenue</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {financials.revenueByPo.map((row, i) => (
+                            <tr key={i} className="border-b border-muted/50">
+                              <td className="py-1.5 font-mono">{row.po}</td>
+                              <td className="py-1.5">{row.buyer}</td>
+                              <td className="py-1.5 text-right font-mono">{row.output.toLocaleString()}</td>
+                              <td className="py-1.5 text-right font-mono">${row.cmDz.toFixed(2)}</td>
+                              <td className="py-1.5 text-right font-mono font-medium text-emerald-700 dark:text-emerald-400">
+                                ${row.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative max-w-md">
@@ -2097,6 +2442,19 @@ export default function TodayUpdates() {
           finishingDailyLogs: finishingDailyLogs || [],
         }}
         dateRange="1"
+        financials={financials.hasData ? {
+          totalRevenue: financials.totalRevenue,
+          totalCostUsd: financials.totalCostUsd,
+          totalCostNative: financials.totalCostNative,
+          costCurrency: financials.costCurrency,
+          profit: financials.profit,
+          margin: financials.margin,
+          sewingCostUsd: financials.sewingCostUsd,
+          cuttingCostUsd: financials.cuttingCostUsd,
+          finishingCostUsd: financials.finishingCostUsd,
+          bdtToUsdRate: bdtToUsd,
+          revenueByPo: financials.revenueByPo,
+        } : null}
       />
     </div>
   );

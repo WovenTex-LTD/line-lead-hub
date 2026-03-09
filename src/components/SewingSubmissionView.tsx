@@ -36,6 +36,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { SewingMachine } from "@/components/icons/SewingMachine";
+import { useHeadcountCost } from "@/hooks/useHeadcountCost";
 
 export interface SewingTargetData {
   id: string;
@@ -84,6 +85,8 @@ export interface SewingActualData {
   blocker_impact: string | null;
   blocker_owner: string | null;
   blocker_status: string | null;
+  estimated_cost_value: number | null;
+  estimated_cost_currency: string | null;
 }
 
 interface SewingSubmissionViewProps {
@@ -125,6 +128,7 @@ export function SewingSubmissionView({ target, actual, open, onOpenChange, onEdi
   const { factory } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { calculateEstimatedCost, getCurrencySymbol, isConfigured } = useHeadcountCost();
   const [deleteType, setDeleteType] = useState<"target" | "actual" | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -409,6 +413,59 @@ export function SewingSubmissionView({ target, actual, open, onOpenChange, onEdi
                     )}
                   </div>
                 )}
+
+                {/* Estimated Cost */}
+                {(() => {
+                  const sym = getCurrencySymbol();
+                  const fmt = (v: number) => `${sym}${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                  let regularCost: number | null = null;
+                  let otCost: number | null = null;
+                  let currency = 'BDT';
+                  let isLive = false;
+
+                  if (actual.estimated_cost_value != null) {
+                    regularCost = actual.estimated_cost_value;
+                    currency = actual.estimated_cost_currency || 'BDT';
+                  } else if (isConfigured) {
+                    const live = calculateEstimatedCost(actual.manpower_actual, actual.hours_actual);
+                    if (live.value != null) {
+                      regularCost = live.value;
+                      currency = live.currency;
+                      isLive = true;
+                    }
+                  }
+
+                  if (isConfigured && actual.ot_hours_actual && actual.ot_manpower_actual) {
+                    const ot = calculateEstimatedCost(actual.ot_manpower_actual, actual.ot_hours_actual);
+                    if (ot.value != null) otCost = ot.value;
+                  }
+
+                  if (regularCost == null && otCost == null) return null;
+
+                  const currSym = currency === 'USD' ? '$' : '৳';
+                  const fmtCost = (v: number) => `${currSym}${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+                  return (
+                    <div className="p-3 rounded-lg border border-primary/20 bg-primary/5">
+                      <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-2">
+                        Cost Estimate{isLive ? ' (current rate)' : ''}
+                      </p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {regularCost != null && (
+                          <FieldDisplay label="Regular Cost" value={`${fmtCost(regularCost)} ${currency}`} />
+                        )}
+                        {otCost != null && (
+                          <FieldDisplay label="OT Cost" value={`${fmt(otCost)} ${currency}`} />
+                        )}
+                      </div>
+                      {regularCost != null && otCost != null && (
+                        <div className="mt-2 pt-2 border-t border-primary/10">
+                          <FieldDisplay label="Total Cost" value={`${fmtCost(regularCost + otCost)} ${currency}`} className="text-lg font-bold" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Remarks */}
                 {actual.remarks && (

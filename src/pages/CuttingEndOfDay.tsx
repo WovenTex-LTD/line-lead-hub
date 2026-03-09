@@ -39,6 +39,8 @@ import {
 } from "@/components/ui/popover";
 import { isLateForCutoff, getTodayInTimezone } from "@/lib/date-utils";
 import { useOfflineSubmission } from "@/hooks/useOfflineSubmission";
+import { useHeadcountCost } from "@/hooks/useHeadcountCost";
+import { EstimatedCostDisplay } from "@/components/EstimatedCostDisplay";
 
 interface WorkOrder {
   id: string;
@@ -87,6 +89,7 @@ export default function CuttingEndOfDay() {
   const { t, i18n } = useTranslation();
   const { user, profile, factory, isAdminOrHigher } = useAuth();
   const { submit: offlineSubmit } = useOfflineSubmission();
+  const { calculateEstimatedCost } = useHeadcountCost();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -375,6 +378,8 @@ export default function CuttingEndOfDay() {
         ? isLateForCutoff(factory.evening_actual_cutoff, timezone)
         : false;
 
+      const estimatedCost = calculateEstimatedCost(parseInt(manPower), parseFloat(hoursActual));
+
       const actualData = {
         factory_id: profile.factory_id,
         production_date: today,
@@ -411,6 +416,8 @@ export default function CuttingEndOfDay() {
         leftover_notes: leftoverRecorded ? leftoverNotes || null : null,
         leftover_location: leftoverRecorded ? leftoverLocation || null : null,
         leftover_photo_urls: null,
+        estimated_cost_value: estimatedCost.value,
+        estimated_cost_currency: estimatedCost.value != null ? estimatedCost.currency : null,
       };
 
       if (isEditing && existingActual) {
@@ -732,6 +739,8 @@ export default function CuttingEndOfDay() {
                 />
               </div>
             </div>
+
+            <EstimatedCostDisplay manpower={manPower} hours={hoursActual} />
           </CardContent>
         </Card>
 
