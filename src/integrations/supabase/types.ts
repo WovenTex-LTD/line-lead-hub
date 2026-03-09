@@ -3558,6 +3558,7 @@ export type Database = {
         Row: {
           actual_ex_factory: string | null
           buyer: string
+          cm_per_dozen: number | null
           color: string | null
           construction: string | null
           created_at: string | null
@@ -3583,6 +3584,7 @@ export type Database = {
         Insert: {
           actual_ex_factory?: string | null
           buyer: string
+          cm_per_dozen?: number | null
           color?: string | null
           construction?: string | null
           created_at?: string | null
@@ -3608,6 +3610,7 @@ export type Database = {
         Update: {
           actual_ex_factory?: string | null
           buyer?: string
+          cm_per_dozen?: number | null
           color?: string | null
           construction?: string | null
           created_at?: string | null

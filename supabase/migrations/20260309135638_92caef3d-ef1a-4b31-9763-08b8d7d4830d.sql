@@ -1,0 +1,1 @@
+ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS cm_per_dozen numeric DEFAULT NULL;
