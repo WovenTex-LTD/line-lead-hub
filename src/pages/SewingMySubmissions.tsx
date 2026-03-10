@@ -653,8 +653,10 @@ export default function SewingMySubmissions() {
           blocker_description: null,
           blocker_impact: null,
           blocker_owner: null,
-          blocker_status: null,
-        } : null;
+           blocker_status: null,
+           estimated_cost_value: null,
+           estimated_cost_currency: null,
+         } : null;
         return (
           <SewingSubmissionView
             target={sewingTarget}
