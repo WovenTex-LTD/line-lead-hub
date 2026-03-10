@@ -146,6 +146,11 @@ export function downloadDailyProductionReport(d: DailyReportData) {
     return Math.round(native * bdtRate * 100) / 100;
   };
 
+  // ── Sort lines numerically (Line 1, Line 2, ...) ──
+  const numFromName = (name: string) => parseInt(name.replace(/\D/g, "")) || 9999;
+  d.sewing.sort((a, b) => numFromName(a.lineName) - numFromName(b.lineName));
+  d.cutting.sort((a, b) => numFromName(a.lineName) - numFromName(b.lineName));
+
   // ── Computed summaries ──
   const sewingTotalOutput = d.sewing.reduce((s, l) => s + l.actualQty, 0);
   const sewingTotalTarget = d.sewing.reduce((s, l) => s + (l.targetQty || 0), 0);
