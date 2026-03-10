@@ -89,11 +89,14 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
   }
 
   async function buildDailyReportData(dateStr: string): Promise<DailyReportData> {
-    const factoryId = profile!.factory_id;
+    const factoryId = profile?.factory_id;
+    if (!factoryId) {
+      throw new Error("Factory not available for report export");
+    }
+
     const bdtRate = headcountCost.currency === "BDT" ? await fetchExchangeRate() : null;
     const hcRate = costConfigured && headcountCost.value ? headcountCost.value : 0;
     const isBDT = headcountCost.currency === "BDT";
-
     const [sewActRes, sewTgtRes, cutRes, finRes] = await Promise.all([
       supabase.from("sewing_actuals")
         .select("*, lines(name, line_id), work_orders(po_number, buyer, style, cm_per_dozen)")
