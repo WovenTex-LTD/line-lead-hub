@@ -714,35 +714,54 @@ export default function TodayUpdates() {
       }
     });
 
-    // Cost by department
+    // Cost by department and by PO
     let sewingCost = 0;
     let cuttingCost = 0;
     let finishingCost = 0;
+    const costByPoMap: Record<string, { po: string; buyer: string; style: string; sewingCost: number; cuttingCost: number; finishingCost: number }> = {};
+
+    const addPoCost = (po: string, buyer: string, style: string, dept: 'sewingCost' | 'cuttingCost' | 'finishingCost', amount: number) => {
+      if (!costByPoMap[po]) costByPoMap[po] = { po, buyer, style, sewingCost: 0, cuttingCost: 0, finishingCost: 0 };
+      costByPoMap[po][dept] += amount;
+    };
 
     if (rate > 0) {
       // Sewing (only POs with CM price)
       sewingActuals.forEach((s) => {
         if (!s.work_orders?.cm_per_dozen) return;
-        if (s.manpower_actual && s.hours_actual) sewingCost += rate * s.manpower_actual * s.hours_actual;
-        if (s.ot_manpower_actual && s.ot_hours_actual) sewingCost += rate * s.ot_manpower_actual * s.ot_hours_actual;
+        let lineCost = 0;
+        if (s.manpower_actual && s.hours_actual) lineCost += rate * s.manpower_actual * s.hours_actual;
+        if (s.ot_manpower_actual && s.ot_hours_actual) lineCost += rate * s.ot_manpower_actual * s.ot_hours_actual;
+        sewingCost += lineCost;
+        if (lineCost > 0) addPoCost(s.work_orders?.po_number || 'Unknown', s.work_orders?.buyer || '', s.work_orders?.style || '', 'sewingCost', lineCost);
       });
 
       // Cutting (only POs with CM price)
       cuttingActuals.forEach((c) => {
         if (!c.work_orders?.cm_per_dozen) return;
-        if (c.man_power && c.hours_actual) cuttingCost += rate * c.man_power * c.hours_actual;
-        if (c.ot_manpower_actual && c.ot_hours_actual) cuttingCost += rate * c.ot_manpower_actual * c.ot_hours_actual;
+        let lineCost = 0;
+        if (c.man_power && c.hours_actual) lineCost += rate * c.man_power * c.hours_actual;
+        if (c.ot_manpower_actual && c.ot_hours_actual) lineCost += rate * c.ot_manpower_actual * c.ot_hours_actual;
+        cuttingCost += lineCost;
+        if (lineCost > 0) addPoCost(c.work_orders?.po_number || 'Unknown', c.work_orders?.buyer || '', c.work_orders?.style || '', 'cuttingCost', lineCost);
       });
 
       // Finishing (only POs with CM price)
       finishingOutputLogs.forEach((log) => {
         if (!log.work_orders?.cm_per_dozen) return;
-        if (log.m_power_actual && log.actual_hours) finishingCost += rate * log.m_power_actual * log.actual_hours;
-        if (log.ot_manpower_actual && log.ot_hours_actual) finishingCost += rate * log.ot_manpower_actual * log.ot_hours_actual;
+        let lineCost = 0;
+        if (log.m_power_actual && log.actual_hours) lineCost += rate * log.m_power_actual * log.actual_hours;
+        if (log.ot_manpower_actual && log.ot_hours_actual) lineCost += rate * log.ot_manpower_actual * log.ot_hours_actual;
+        finishingCost += lineCost;
+        if (lineCost > 0) addPoCost(log.work_orders?.po_number || 'Unknown', log.work_orders?.buyer || '', log.work_orders?.style || '', 'finishingCost', lineCost);
       });
     }
 
     const totalCostNative = sewingCost + cuttingCost + finishingCost;
+    const costByPo = Object.values(costByPoMap).map(p => ({
+      ...p,
+      totalCost: p.sewingCost + p.cuttingCost + p.finishingCost,
+    })).sort((a, b) => b.totalCost - a.totalCost);
 
     // Convert cost to USD
     let totalCostUsd = totalCostNative;
@@ -759,8 +778,15 @@ export default function TodayUpdates() {
     const profit = totalRevenue - totalCostUsd;
     const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
 
+    // Convert costByPo to USD
+    const costByPoUsd = costByPo.map(p => {
+      const toUsd = (v: number) => costCurrency === 'BDT' && bdtToUsd ? Math.round(v * bdtToUsd * 100) / 100 : Math.round(v * 100) / 100;
+      return { po: p.po, buyer: p.buyer, style: p.style, sewingCost: toUsd(p.sewingCost), cuttingCost: toUsd(p.cuttingCost), finishingCost: toUsd(p.finishingCost), totalCost: toUsd(p.totalCost) };
+    });
+
     return {
       revenueByPo,
+      costByPo: costByPoUsd,
       totalRevenue: Math.round(totalRevenue * 100) / 100,
       totalCostNative: Math.round(totalCostNative * 100) / 100,
       totalCostUsd: Math.round(totalCostUsd * 100) / 100,
@@ -1263,6 +1289,41 @@ export default function TodayUpdates() {
                           </span>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Cost by PO */}
+                {financials.costByPo.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-2.5 uppercase tracking-wider">Cost by PO</p>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b text-muted-foreground">
+                            <th className="text-left py-1.5 font-medium">PO</th>
+                            <th className="text-left py-1.5 font-medium">Buyer</th>
+                            <th className="text-right py-1.5 font-medium">Sewing</th>
+                            <th className="text-right py-1.5 font-medium">Cutting</th>
+                            <th className="text-right py-1.5 font-medium">Finishing</th>
+                            <th className="text-right py-1.5 font-medium">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {financials.costByPo.map((row, i) => (
+                            <tr key={i} className="border-b border-muted/50">
+                              <td className="py-1.5 font-mono">{row.po}</td>
+                              <td className="py-1.5">{row.buyer}</td>
+                              <td className="py-1.5 text-right font-mono">{row.sewingCost > 0 ? `$${row.sewingCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</td>
+                              <td className="py-1.5 text-right font-mono">{row.cuttingCost > 0 ? `$${row.cuttingCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</td>
+                              <td className="py-1.5 text-right font-mono">{row.finishingCost > 0 ? `$${row.finishingCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</td>
+                              <td className="py-1.5 text-right font-mono font-medium text-red-600 dark:text-red-400">
+                                ${row.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 )}
