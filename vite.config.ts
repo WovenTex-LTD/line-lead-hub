@@ -43,12 +43,12 @@ export default defineConfig(({ mode }) => ({
   // These defines provide a safe fallback so the app doesn't blank-screen.
   define: {
     "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(
-      process.env.VITE_SUPABASE_URL ?? "https://phbehenczyryrlxmgjju.supabase.co"
+      process.env.VITE_SUPABASE_URL ?? "https://varolnwetchstlfholbl.supabase.co"
     ),
     "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(
       process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
         process.env.SUPABASE_ANON_KEY ??
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBoYmVoZW5jenlyeXJseG1namp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMzUyMDcsImV4cCI6MjA4MjkxMTIwN30.CAeAOxHeM5-Lij0rnI1FmicMf8TW0Qzy5s-jxRn0uBk"
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhcm9sbndldGNoc3RsZmhvbGJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NjY3NDMsImV4cCI6MjA4NjM0Mjc0M30.Bdjo1-1jvO25RVN3BJtZQ_CYfmuTSWyH4SC7PeG9pRc"
     ),
   },
   server: {
