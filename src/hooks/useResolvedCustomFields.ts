@@ -143,7 +143,7 @@ export function useResolvedCustomFields(
         if (!result[sectionKey]) result[sectionKey] = [];
         result[sectionKey].push({
           key: field.key,
-          label: resolveLabel(field.label_key),
+          label: resolveLabel(field.label_key ?? field.key),
           value: displayValue,
         });
       }
