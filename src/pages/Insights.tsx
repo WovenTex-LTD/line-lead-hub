@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getTodayInTimezone } from "@/lib/date-utils";
+import { effectivePoly } from "@/lib/finishing-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -381,8 +382,10 @@ export default function Insights() {
       // Finishing daily logs (OUTPUT) → poly is primary output
       finishingDailyLogs?.forEach(u => {
         const existing = getOrCreateDaily(u.production_date);
-        existing.finishingQcPass += (u.poly || 0) + (u.carton || 0);
-        existing.finishingPolyOutput += (u.poly || 0);
+        const adjPoly = effectivePoly(u.poly, u.actual_hours, u.ot_hours_actual);
+        const adjCarton = effectivePoly(u.carton, u.actual_hours, u.ot_hours_actual);
+        existing.finishingQcPass += adjPoly + adjCarton;
+        existing.finishingPolyOutput += adjPoly;
         dailyMap.set(u.production_date, existing);
       });
 
@@ -503,12 +506,12 @@ export default function Insights() {
       // Calculate summary
       const totalSewingOutput = sewingActualsData?.reduce((sum, u) => sum + (u.good_today || 0), 0) || 0;
       const totalSewingTarget = pairedSewingTargets.reduce((sum, t) => sum + ((t.per_hour_target || 0) * 8), 0) || 0;
-      const totalFinishingQcPass = finishingDailyLogs?.reduce((sum, u) => sum + (u.poly || 0) + (u.carton || 0), 0) || 0;
+      const totalFinishingQcPass = finishingDailyLogs?.reduce((sum, u) => sum + effectivePoly(u.poly, u.actual_hours, u.ot_hours_actual) + effectivePoly(u.carton, u.actual_hours, u.ot_hours_actual), 0) || 0;
       const totalManpower = sewingActualsData?.reduce((sum, u) => sum + (u.manpower_actual || 0), 0) || 0;
 
       const prevTotalOutput = prevSewingActuals?.reduce((sum, u) => sum + (u.good_today || 0), 0) || 0;
       const prevTotalTarget = prevSewingTargets?.reduce((sum, t) => sum + ((t.per_hour_target || 0) * 8), 0) || 0;
-      const prevTotalQcPass = prevFinishingDailyLogs?.reduce((sum, u) => sum + (u.poly || 0) + (u.carton || 0), 0) || 0;
+      const prevTotalQcPass = prevFinishingDailyLogs?.reduce((sum, u) => sum + effectivePoly((u as any).poly, (u as any).actual_hours, (u as any).ot_hours_actual) + effectivePoly((u as any).carton, (u as any).actual_hours, (u as any).ot_hours_actual), 0) || 0;
       const prevEfficiency = prevTotalTarget > 0 ? (prevTotalOutput / prevTotalTarget) * 100 : 0;
       const prevTotalBlockers = prevSewingActuals?.filter(u => u.has_blocker).length || 0;
       const prevTotalManpower = prevSewingActuals?.reduce((sum, u) => sum + (u.manpower_actual || 0), 0) || 0;
@@ -562,17 +565,17 @@ export default function Insights() {
       const costCurrency = headcountCost.currency;
       const toUsd = (v: number) => costCurrency === 'BDT' && bdtToUsd ? v * bdtToUsd : v;
 
-      // Revenue: finishing poly output × (cm_per_dozen / 12) — already in USD
+      // Revenue: sewing output × (cm_per_dozen / 12) — already in USD
       const revenueByPoMap: Record<string, { po: string; buyer: string; revenue: number; output: number; cmDz: number }> = {};
       let totalRevenue = 0;
-      finishingDailyLogs?.forEach(log => {
-        const cm = (log as any).work_orders?.cm_per_dozen;
-        const output = log.poly || 0;
+      sewingActualsData?.forEach(u => {
+        const cm = (u as any).work_orders?.cm_per_dozen;
+        const output = u.good_today || 0;
         if (cm && output) {
           const rev = (cm / 12) * output;
           totalRevenue += rev;
-          const po = (log as any).work_orders?.po_number || 'Unknown';
-          if (!revenueByPoMap[po]) revenueByPoMap[po] = { po, buyer: (log as any).work_orders?.buyer || '', revenue: 0, output: 0, cmDz: cm };
+          const po = (u as any).work_orders?.po_number || 'Unknown';
+          if (!revenueByPoMap[po]) revenueByPoMap[po] = { po, buyer: (u as any).work_orders?.buyer || '', revenue: 0, output: 0, cmDz: cm };
           revenueByPoMap[po].revenue += rev;
           revenueByPoMap[po].output += output;
         }
@@ -714,7 +717,7 @@ export default function Insights() {
       const prevMargin = prevRevenue > 0 ? (prevProfit / prevRevenue) * 100 : 0;
 
       // Cost & revenue per piece
-      const totalFinishingPoly = finishingDailyLogs?.reduce((sum, u) => sum + (u.poly || 0), 0) || 0;
+      const totalFinishingPoly = finishingDailyLogs?.reduce((sum, u) => sum + effectivePoly(u.poly, u.actual_hours, u.ot_hours_actual), 0) || 0;
 
       setFinancialData({
         totalRevenue: Math.round(totalRevenue * 100) / 100,

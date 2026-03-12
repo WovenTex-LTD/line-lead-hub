@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { effectivePoly } from "@/lib/finishing-utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -198,7 +199,7 @@ export function InsightsReportDialog() {
 
       // ── Summary ──
       const totalSewingOutput = sewingActuals?.reduce((s, u) => s + (u.good_today || 0), 0) || 0;
-      const totalFinishingQcPass = finishingLogs?.reduce((s, u) => s + (u.poly || 0) + (u.carton || 0), 0) || 0;
+      const totalFinishingQcPass = finishingLogs?.reduce((s, u) => s + effectivePoly(u.poly, u.actual_hours, u.ot_hours_actual) + effectivePoly(u.carton, u.actual_hours, u.ot_hours_actual), 0) || 0;
       const totalManpower = sewingActuals?.reduce((s, u) => s + (u.manpower_actual || 0), 0) || 0;
       const allBlockers = sewingActuals?.filter(u => u.has_blocker) || [];
 
@@ -207,16 +208,17 @@ export function InsightsReportDialog() {
       const costCurrency = headcountCost.currency;
       const toUsd = (v: number) => costCurrency === "BDT" && bdtToUsd ? v * bdtToUsd : v;
 
+      // Revenue: sewing output × (cm_per_dozen / 12)
       let totalRevenue = 0;
       const revenueByPoMap: Record<string, { po: string; buyer: string; revenue: number; output: number }> = {};
-      finishingLogs?.forEach(log => {
-        const cm = (log as any).work_orders?.cm_per_dozen;
-        const output = log.poly || 0;
+      sewingActuals?.forEach(u => {
+        const cm = (u as any).work_orders?.cm_per_dozen;
+        const output = u.good_today || 0;
         if (cm && output) {
           const rev = (cm / 12) * output;
           totalRevenue += rev;
-          const po = (log as any).work_orders?.po_number || "Unknown";
-          if (!revenueByPoMap[po]) revenueByPoMap[po] = { po, buyer: (log as any).work_orders?.buyer || "", revenue: 0, output: 0 };
+          const po = (u as any).work_orders?.po_number || "Unknown";
+          if (!revenueByPoMap[po]) revenueByPoMap[po] = { po, buyer: (u as any).work_orders?.buyer || "", revenue: 0, output: 0 };
           revenueByPoMap[po].revenue += rev;
           revenueByPoMap[po].output += output;
         }
@@ -271,12 +273,13 @@ export function InsightsReportDialog() {
         return { po, buyer: revenueByPoMap[po]?.buyer || "", revenue: Math.round(rev * 100) / 100, cost: Math.round(cu * 100) / 100, profit: Math.round(p * 100) / 100, margin: rev > 0 ? Math.round((p / rev) * 1000) / 10 : 0 };
       }).filter(p => p.revenue > 0 || p.cost > 0).sort((a, b) => b.profit - a.profit);
 
-      // Daily financials
+      // Daily financials — revenue from sewing output
       const dailyRevMap: Record<string, number> = {};
       const dailyCostMap: Record<string, number> = {};
-      finishingLogs?.forEach(log => {
-        const cm = (log as any).work_orders?.cm_per_dozen;
-        if (cm && log.poly) dailyRevMap[log.production_date] = (dailyRevMap[log.production_date] || 0) + (cm / 12) * log.poly;
+      sewingActuals?.forEach(u => {
+        const cm = (u as any).work_orders?.cm_per_dozen;
+        const output = u.good_today || 0;
+        if (cm && output) dailyRevMap[u.production_date] = (dailyRevMap[u.production_date] || 0) + (cm / 12) * output;
       });
       if (rate > 0) {
         sewingActuals?.forEach(s => {
@@ -309,12 +312,10 @@ export function InsightsReportDialog() {
         return { date, displayDate: new Date(date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }), revenue: Math.round(r * 100) / 100, cost: Math.round(c * 100) / 100, profit: Math.round((r - c) * 100) / 100 };
       });
 
-      // Previous period financials
+      // Previous period financials — revenue not available (prev sewing not fetched)
       let prevRevenue = 0;
       let prevCostNative = 0;
       prevFinishing?.forEach(log => {
-        const cm = (log as any).work_orders?.cm_per_dozen;
-        if (cm && (log as any).poly) prevRevenue += (cm / 12) * (log as any).poly;
         if (rate > 0) {
           if ((log as any).m_power_actual && (log as any).actual_hours) prevCostNative += rate * (log as any).m_power_actual * (log as any).actual_hours;
         }

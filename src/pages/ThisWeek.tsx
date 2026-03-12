@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getTodayInTimezone } from "@/lib/date-utils";
+import { effectivePoly } from "@/lib/finishing-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
@@ -186,8 +187,8 @@ export default function ThisWeek() {
           return sum + (((f as any).poly || 0) * hours);
         }, 0);
 
-        // Finishing output: poly is the primary metric
-        const dayFinishingOutput = finishingOutputLogs.reduce((sum, f) => sum + ((f as any).poly || 0), 0);
+        // Finishing output: poly is the primary metric (OT-adjusted)
+        const dayFinishingOutput = finishingOutputLogs.reduce((sum, f) => sum + effectivePoly((f as any).poly, (f as any).actual_hours, (f as any).ot_hours_actual), 0);
 
         // Cutting data - only count targets with matching actuals
         const cuttingActualExists = cuttingActualsData.length > 0;
@@ -215,11 +216,11 @@ export default function ThisWeek() {
         // ── Financial calculations for this day ──
         const rate = costConfigured && headcountCost.value ? headcountCost.value : 0;
 
-        // Revenue: finishing output × (cm_per_dozen / 12) — only POs with CM
+        // Revenue: sewing output × (cm_per_dozen / 12) — only POs with CM
         let dayRevenue = 0;
-        finishingOutputLogs.forEach((f: any) => {
-          const cm = f.work_orders?.cm_per_dozen;
-          const output = f.poly || 0;
+        sewingData.forEach((s: any) => {
+          const cm = s.work_orders?.cm_per_dozen;
+          const output = s.good_today || 0;
           if (cm && output) dayRevenue += (cm / 12) * output;
         });
 
@@ -775,14 +776,14 @@ export default function ThisWeek() {
           const costNat = lineCost(f.m_power_actual, f.actual_hours, f.ot_manpower_actual, f.ot_hours_actual);
           const costU = toUsd(costNat);
           poCostUsd += costU;
-          const cm = f.work_orders?.cm_per_dozen;
-          const rev = cm && f.poly ? (cm / 12) * f.poly : 0;
-          poRevenue += rev;
-          poPoly += f.poly || 0;
+          const rev = 0; // Revenue now driven by sewing output, not finishing poly
+          const adjPoly = effectivePoly(f.poly, f.actual_hours, f.ot_hours_actual);
+          const adjCarton = effectivePoly(f.carton, f.actual_hours, f.ot_hours_actual);
+          poPoly += adjPoly;
           return [
             fmtDate(f._date),
             fN(f.thread_cutting), fN(f.inside_check), fN(f.buttoning), fN(f.iron), fN(f.get_up),
-            fN(f.poly), fN(f.carton),
+            fN(adjPoly), fN(adjCarton),
             fN(f.m_power_actual), fN(f.actual_hours), fN(f.ot_manpower_actual), fN(f.ot_hours_actual),
             rate ? fUsd(costU) : "-",
             cm ? "$" + cm.toFixed(2) : "-",

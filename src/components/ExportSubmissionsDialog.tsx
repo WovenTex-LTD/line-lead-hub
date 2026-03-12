@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { effectivePoly } from "@/lib/finishing-utils";
 import { useTranslation } from "react-i18next";
 import {
   Dialog,
@@ -181,10 +182,10 @@ export function ExportSubmissionsDialog({
       // Finishing: use daily logs if available
       const finOutputData = hasFinishingLogs ? finishingLogOutputs : data.finishingActuals;
       const totalFinishingCarton = hasFinishingLogs
-        ? finOutputData.reduce((s: number, l: any) => s + (l.carton || 0), 0)
+        ? finOutputData.reduce((s: number, l: any) => s + effectivePoly(l.carton, l.actual_hours, l.ot_hours_actual), 0)
         : finOutputData.reduce((s: number, a: any) => s + (a.day_carton || 0), 0);
       const totalFinishingPoly = hasFinishingLogs
-        ? finOutputData.reduce((s: number, l: any) => s + (l.poly || 0), 0)
+        ? finOutputData.reduce((s: number, l: any) => s + effectivePoly(l.poly, l.actual_hours, l.ot_hours_actual), 0)
         : finOutputData.reduce((s: number, a: any) => s + (a.day_poly || 0), 0);
       const totalFinishingQcPass = hasFinishingLogs
         ? totalFinishingCarton // In daily logs, carton IS the output

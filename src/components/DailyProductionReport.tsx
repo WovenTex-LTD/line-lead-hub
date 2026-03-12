@@ -738,8 +738,7 @@ export function downloadDailyProductionReport(d: DailyReportData) {
       const costNat = lineCost(l.manpower, l.hours, l.otManpower, l.otHours);
       const costUsd = toUsd(costNat);
       finTotalCostUsd += costUsd;
-      const rev = l.cmPerDozen && l.poly ? (l.cmPerDozen / 12) * l.poly : 0;
-      finTotalRevenue += rev;
+      const rev = 0; // Revenue now driven by sewing output, not finishing poly
       return [
         String(i + 1),
         (l.poNumber || "-").substring(0, 15),
@@ -782,7 +781,7 @@ export function downloadDailyProductionReport(d: DailyReportData) {
     doc.setFontSize(6);
     doc.setFont("helvetica", "italic");
     doc.setTextColor(gray);
-    doc.text("* Revenue = (CM/Dozen / 12) x Poly output  |  Cost = Rate x MP x Hrs (regular + OT)", m, y + 2);
+    doc.text("* Revenue = (CM/Dozen / 12) x Sewing output  |  Cost = Rate x MP x Hrs (regular + OT)", m, y + 2);
     y += 5;
 
     // Finishing-specific production notes

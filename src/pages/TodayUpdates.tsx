@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { effectivePoly, effectiveCarton } from "@/lib/finishing-utils";
 import { useMidnightRefresh } from "@/hooks/useMidnightRefresh";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -679,10 +680,10 @@ export default function TodayUpdates() {
   const totalOutput = sewingUpdates.reduce((sum, u) => sum + (u.output_qty || 0), 0)
     + sewingActuals.reduce((sum, a) => sum + (a.good_today || 0), 0);
   
-  // Total Finishing Output = Total Poly (primary finishing metric)
+  // Total Finishing Output = Total Poly (OT-adjusted)
   const totalFinishingOutput = finishingDailyLogs
     .filter(log => log.log_type === 'OUTPUT')
-    .reduce((sum, log) => sum + (log.poly || 0), 0);
+    .reduce((sum, log) => sum + effectivePoly(log.poly, log.actual_hours, log.ot_hours_actual), 0);
 
   const totalCutting = cuttingActuals.reduce((sum, c) => sum + (c.day_cutting || 0), 0);
   const totalStorageReceived = storageTransactions.reduce((sum, s) => sum + (s.receive_qty || 0), 0);
@@ -692,21 +693,20 @@ export default function TodayUpdates() {
     const rate = costConfigured && headcountCost.value ? headcountCost.value : 0;
     const costCurrency = headcountCost.currency;
 
-    // Revenue: only finishing poly output × (cm_per_dozen / 12)
+    // Revenue: sewing output × (cm_per_dozen / 12)
     const revenueByPo: { po: string; buyer: string; style: string; output: number; cmDz: number; revenue: number }[] = [];
     let totalRevenue = 0;
 
-    const finishingOutputLogs = finishingDailyLogs.filter(l => l.log_type === 'OUTPUT');
-    finishingOutputLogs.forEach((log) => {
-      const cm = log.work_orders?.cm_per_dozen;
-      const output = log.poly || 0;
+    sewingActuals.forEach((s) => {
+      const cm = s.work_orders?.cm_per_dozen;
+      const output = s.good_today || 0;
       if (cm && output) {
         const rev = (cm / 12) * output;
         totalRevenue += rev;
         revenueByPo.push({
-          po: log.work_orders?.po_number || 'Unknown',
-          buyer: log.work_orders?.buyer || '',
-          style: log.work_orders?.style || '',
+          po: s.work_orders?.po_number || 'Unknown',
+          buyer: s.work_orders?.buyer || '',
+          style: s.work_orders?.style || '',
           output,
           cmDz: cm,
           revenue: rev,
@@ -1549,8 +1549,8 @@ export default function TodayUpdates() {
                     </TableHeader>
                     <TableBody>
                       {mergedFinishingData.map((item, idx) => {
-                        const outputPoly = item.output?.poly || 0;
-                        const outputCarton = item.output?.carton || 0;
+                        const outputPoly = item.output ? effectivePoly(item.output.poly, item.output.actual_hours, item.output.ot_hours_actual) : 0;
+                        const outputCarton = item.output ? effectiveCarton(item.output.carton, item.output.actual_hours, item.output.ot_hours_actual) : 0;
                         const targetPoly = item.target?.poly || 0;
                         const targetCarton = item.target?.carton || 0;
                         const hasOutput = outputPoly > 0 || outputCarton > 0;
@@ -1934,9 +1934,9 @@ export default function TodayUpdates() {
                     </TableHeader>
                     <TableBody>
                       {mergedFinishingData.map((row) => {
-                        const outputPoly = row.output?.poly || 0;
+                        const outputPoly = row.output ? effectivePoly(row.output.poly, row.output.actual_hours, row.output.ot_hours_actual) : 0;
                         const targetPoly = row.target?.poly || 0;
-                        const outputCarton = row.output?.carton || 0;
+                        const outputCarton = row.output ? effectiveCarton(row.output.carton, row.output.actual_hours, row.output.ot_hours_actual) : 0;
                         const targetCarton = row.target?.carton || 0;
                         // Performance % uses poly as primary metric
                         const finTabHours = (row.target?.planned_hours ?? 0) + (row.target?.ot_hours_planned ?? 0);

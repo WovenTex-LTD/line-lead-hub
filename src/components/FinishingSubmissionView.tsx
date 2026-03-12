@@ -340,11 +340,27 @@ export function FinishingSubmissionView({ target, actual, open, onOpenChange, on
                     {actual.actual_hours != null && actual.actual_hours > 0 && (
                       <FieldDisplay label={t('modals.polyPerHour')} value={Math.round((actual.poly / actual.actual_hours) * 100) / 100} suffix=" /hr" className="text-lg text-success" />
                     )}
-                    <FieldDisplay label={t('modals.poly')} value={actual.poly} className="text-lg text-success" />
+                    <FieldDisplay
+                      label={t('modals.poly')}
+                      value={
+                        actual.actual_hours && actual.actual_hours > 0 && actual.ot_hours_actual && actual.ot_hours_actual > 0
+                          ? Math.round((actual.poly / actual.actual_hours) * (actual.actual_hours + actual.ot_hours_actual))
+                          : actual.poly
+                      }
+                      className="text-lg text-success"
+                    />
                     {actual.actual_hours != null && actual.actual_hours > 0 && (
                       <FieldDisplay label={t('modals.cartonPerHour')} value={Math.round((actual.carton / actual.actual_hours) * 100) / 100} suffix=" /hr" className="text-muted-foreground" />
                     )}
-                    <FieldDisplay label={t('modals.carton')} value={actual.carton} className="text-muted-foreground" />
+                    <FieldDisplay
+                      label={t('modals.carton')}
+                      value={
+                        actual.actual_hours && actual.actual_hours > 0 && actual.ot_hours_actual && actual.ot_hours_actual > 0
+                          ? Math.round((actual.carton / actual.actual_hours) * (actual.actual_hours + actual.ot_hours_actual))
+                          : actual.carton
+                      }
+                      className="text-muted-foreground"
+                    />
                   </div>
                 </div>
 

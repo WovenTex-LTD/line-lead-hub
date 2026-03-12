@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { effectivePoly, effectiveCarton } from "@/lib/finishing-utils";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatTimeInTimezone, getTodayInTimezone } from "@/lib/date-utils";
@@ -354,16 +355,16 @@ export default function Dashboard() {
     let total = 0;
     let hasCm = false;
 
-    // Only finished goods (finishing poly output) count as revenue
-    finishingEndOfDay.forEach((f) => {
-      if (f.cm_per_dozen && f.output) {
-        total += (f.cm_per_dozen / 12) * f.output;
+    // Sewing output drives revenue
+    sewingEndOfDay.forEach((s) => {
+      if (s.cm_per_dozen && s.output) {
+        total += (s.cm_per_dozen / 12) * s.output;
         hasCm = true;
       }
     });
 
     return hasCm ? Math.round(total * 100) / 100 : null;
-  }, [finishingEndOfDay]);
+  }, [sewingEndOfDay]);
 
   // Daily profit = revenue (USD) - cost (converted to USD)
   const dayProfit = useMemo(() => {
@@ -658,7 +659,7 @@ export default function Dashboard() {
           line_uuid: log.line_id,
           line_id: log.lines?.line_id || 'Unknown',
           line_name: log.lines?.name || log.lines?.line_id || 'Unknown',
-          output: log.poly || 0,
+          output: effectivePoly(log.poly, log.actual_hours, log.ot_hours_actual),
           submitted_at: log.submitted_at,
           production_date: log.production_date,
           has_blocker: false,
@@ -670,8 +671,8 @@ export default function Dashboard() {
           buyer: log.work_orders?.buyer || null,
           style: log.work_orders?.style || null,
           hours_logged: 0,
-          total_poly: log.poly || 0,
-          total_carton: log.carton || 0,
+          total_poly: effectivePoly(log.poly, log.actual_hours, log.ot_hours_actual),
+          total_carton: effectiveCarton(log.carton, log.actual_hours, log.ot_hours_actual),
           cm_per_dozen: log.work_orders?.cm_per_dozen ?? null,
         };
       });
@@ -844,7 +845,7 @@ export default function Dashboard() {
       // Calculate daily finishing output (poly is the primary finishing metric)
       const dayFinishingOutput = (finishingDailyLogsData || [])
         .filter((log: any) => log.log_type === 'OUTPUT')
-        .reduce((sum: number, log: any) => sum + (log.poly || 0), 0);
+        .reduce((sum: number, log: any) => sum + effectivePoly(log.poly, log.actual_hours, log.ot_hours_actual), 0);
 
       setStats({
         updatesToday: (sewingTargetsCount || 0) + (sewingCount || 0) + (finishingTargetsCount || 0) + (finishingCount || 0) + (cuttingTargetsCount || 0) + (cuttingActualsCount || 0) + (storageTransactionsCount || 0),

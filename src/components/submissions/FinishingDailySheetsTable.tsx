@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { effectivePoly, effectiveCarton } from "@/lib/finishing-utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatShortDate, formatTimeInTimezone, getTodayInTimezone, getCurrentTimeInTimezone } from "@/lib/date-utils";
 import { format } from "date-fns";
@@ -52,6 +53,7 @@ interface DailyLogRow {
   carton: number;
   planned_hours: number | null;
   actual_hours: number | null;
+  ot_hours_actual: number | null;
   remarks: string | null;
   submitted_at: string;
   is_locked: boolean;
@@ -137,6 +139,7 @@ export function FinishingDailySheetsTable({
         carton: log.carton || 0,
         planned_hours: log.planned_hours ?? null,
         actual_hours: log.actual_hours ?? null,
+        ot_hours_actual: log.ot_hours_actual ?? null,
         remarks: log.remarks || null,
         submitted_at: log.submitted_at,
         is_locked: log.is_locked,
@@ -190,8 +193,8 @@ export function FinishingDailySheetsTable({
   // Stats based on active tab
   const tabLogs = logs.filter(l => activeTab === "targets" ? l.log_type === "TARGET" : l.log_type === "OUTPUT");
   const totalLogs = tabLogs.length;
-  const totalPoly = tabLogs.reduce((sum, l) => sum + l.poly, 0);
-  const totalCarton = tabLogs.reduce((sum, l) => sum + l.carton, 0);
+  const totalPoly = tabLogs.reduce((sum, l) => sum + effectivePoly(l.poly, l.actual_hours, l.ot_hours_actual), 0);
+  const totalCarton = tabLogs.reduce((sum, l) => sum + effectiveCarton(l.carton, l.actual_hours, l.ot_hours_actual), 0);
 
   // Daily output trend chart data
   const finishingDailyTrend = useMemo(() => {
@@ -201,8 +204,8 @@ export function FinishingDailySheetsTable({
     for (const l of outputLogs) {
       const d = l.production_date;
       if (!byDate[d]) byDate[d] = { carton: 0, poly: 0 };
-      byDate[d].carton += l.carton || 0;
-      byDate[d].poly += l.poly || 0;
+      byDate[d].carton += effectiveCarton(l.carton, l.actual_hours, l.ot_hours_actual);
+      byDate[d].poly += effectivePoly(l.poly, l.actual_hours, l.ot_hours_actual);
     }
     return Object.entries(byDate)
       .sort(([a], [b]) => a.localeCompare(b))
@@ -254,8 +257,8 @@ export function FinishingDailySheetsTable({
     rows.push([]);
 
     // Section summary
-    const totalPoly = selected.reduce((s, l) => s + (l.poly || 0), 0);
-    const totalCarton = selected.reduce((s, l) => s + (l.carton || 0), 0);
+    const totalPoly = selected.reduce((s, l) => s + effectivePoly(l.poly, l.actual_hours, l.ot_hours_actual), 0);
+    const totalCarton = selected.reduce((s, l) => s + effectiveCarton(l.carton, l.actual_hours, l.ot_hours_actual), 0);
     rows.push(["SUMMARY"]);
     rows.push(["Metric", "Value"]);
     rows.push(["Total Records", String(selected.length)]);
@@ -279,8 +282,8 @@ export function FinishingDailySheetsTable({
         String(l.buttoning),
         String(l.iron),
         String(l.get_up),
-        String(l.poly),
-        String(l.carton),
+        String(effectivePoly(l.poly, l.actual_hours, l.ot_hours_actual)),
+        String(effectiveCarton(l.carton, l.actual_hours, l.ot_hours_actual)),
         String(l.planned_hours ?? "-"),
         String(l.actual_hours ?? "-"),
       ]);
@@ -502,12 +505,12 @@ export function FinishingDailySheetsTable({
                           <TableCell>{log.buyer || "-"}</TableCell>
                           <TableCell className="text-right">
                             <span className="font-mono font-bold text-success">
-                              {log.poly.toLocaleString()}
+                              {effectivePoly(log.poly, log.actual_hours, log.ot_hours_actual).toLocaleString()}
                             </span>
                           </TableCell>
                           <TableCell className="text-right">
                             <span className="font-mono font-bold text-warning">
-                              {log.carton.toLocaleString()}
+                              {effectiveCarton(log.carton, log.actual_hours, log.ot_hours_actual).toLocaleString()}
                             </span>
                           </TableCell>
                           <TableCell className="text-right">

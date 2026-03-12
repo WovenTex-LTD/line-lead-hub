@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useHeadcountCost } from "@/hooks/useHeadcountCost";
 import { supabase } from "@/integrations/supabase/client";
 import { getTodayInTimezone } from "@/lib/date-utils";
+import { effectivePoly } from "@/lib/finishing-utils";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { generateProductionReportPdf } from "@/lib/report-pdf";
 import { downloadDailyProductionReport, DailyReportData } from "@/components/DailyProductionReport";
@@ -192,13 +193,16 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
     cutData.forEach((c: any) => { if (c.work_orders?.cm_per_dozen) cutCost += lc(c.man_power, c.hours_actual, c.ot_manpower_actual, c.ot_hours_actual); });
     finData.filter((f: any) => f.log_type === "OUTPUT").forEach((f: any) => {
       if (f.work_orders?.cm_per_dozen) finCost += lc(f.m_power_actual, f.actual_hours, f.ot_manpower_actual, f.ot_hours_actual);
-      const cm = f.work_orders?.cm_per_dozen;
-      if (cm && f.poly) {
-        const rev = (cm / 12) * f.poly;
+    });
+    // Revenue: sewing output × (cm_per_dozen / 12)
+    sewAct.forEach((s: any) => {
+      const cm = s.work_orders?.cm_per_dozen;
+      if (cm && s.good_today) {
+        const rev = (cm / 12) * s.good_today;
         totalRev += rev;
-        const po = f.work_orders?.po_number || "Unknown";
-        if (!revByPo[po]) revByPo[po] = { po, buyer: f.work_orders?.buyer || "-", output: 0, cmDz: cm, revenue: 0 };
-        revByPo[po].output += f.poly; revByPo[po].revenue += rev;
+        const po = s.work_orders?.po_number || "Unknown";
+        if (!revByPo[po]) revByPo[po] = { po, buyer: s.work_orders?.buyer || "-", output: 0, cmDz: cm, revenue: 0 };
+        revByPo[po].output += s.good_today; revByPo[po].revenue += rev;
       }
     });
 
@@ -381,12 +385,13 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
           const cn = lc(f.manpower, f.hours, f.otManpower, f.otHours);
           const cu = toU(cn);
           poCU += cu;
-          const cm = f.cmPerDozen;
-          const rev = cm && f.poly ? (cm / 12) * f.poly : 0;
-          poRev += rev; poPoly += f.poly || 0;
+          const rev = 0; // Revenue now driven by sewing output, not finishing poly
+          const adjPoly = effectivePoly(f.poly, f.hours, f.otHours);
+          const adjCarton = effectivePoly(f.carton, f.hours, f.otHours);
+          poPoly += adjPoly;
           R.push([
             f.threadCutting, f.insideCheck, f.buttoning, f.iron, f.getUp,
-            f.poly, f.carton, f.manpower, f.hours, f.otManpower, f.otHours,
+            adjPoly, adjCarton, f.manpower, f.hours, f.otManpower, f.otHours,
             rate ? cu : "",
             cm ? "$" + cm.toFixed(2) : "",
             rev > 0 ? Math.round(rev * 100) / 100 : "",
@@ -501,8 +506,11 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
       if (departments.cutting) cuttingData.forEach((c: any) => { if (c.work_orders?.cm_per_dozen) totalCutCost += lc(c.man_power, c.hours_actual, c.ot_manpower_actual, c.ot_hours_actual); });
       if (departments.finishing) finishingData.forEach((f: any) => {
         if (f.work_orders?.cm_per_dozen) totalFinCost += lc(f.m_power_actual, f.actual_hours, f.ot_manpower_actual, f.ot_hours_actual);
-        const cm = f.work_orders?.cm_per_dozen;
-        if (cm && f.poly) totalRevenue += (cm / 12) * f.poly;
+      });
+      // Revenue: sewing output × (cm_per_dozen / 12)
+      if (departments.sewing) sewingData.forEach((s: any) => {
+        const cm = s.work_orders?.cm_per_dozen;
+        if (cm && s.good_today) totalRevenue += (cm / 12) * s.good_today;
       });
       const totalCostNat = totalSewCost + totalCutCost + totalFinCost;
       const totalCostUsd = toUsd(totalCostNat);
@@ -632,13 +640,14 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
           const cn = lc(f.m_power_actual, f.actual_hours, f.ot_manpower_actual, f.ot_hours_actual);
           const cu = toUsd(cn);
           poCU += cu;
-          const cm = f.work_orders?.cm_per_dozen;
-          const rev = cm && f.poly ? (cm / 12) * f.poly : 0;
-          poRev += rev; poPoly += f.poly || 0;
+          const rev = 0; // Revenue now driven by sewing output, not finishing poly
+          const adjPoly = effectivePoly(f.poly, f.actual_hours, f.ot_hours_actual);
+          const adjCarton = effectivePoly(f.carton, f.actual_hours, f.ot_hours_actual);
+          poPoly += adjPoly;
           R.push([
             fmtDate(f.production_date),
             f.thread_cutting, f.inside_check, f.buttoning, f.iron, f.get_up,
-            f.poly, f.carton,
+            adjPoly, adjCarton,
             f.m_power_actual, f.actual_hours, f.ot_manpower_actual, f.ot_hours_actual,
             hcRate ? cu : "",
             cm ? "$" + cm.toFixed(2) : "",

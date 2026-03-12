@@ -138,8 +138,18 @@ export function FinishingDashboard() {
       const totalStats: FinishingStats = {
         totalTargets: targets.length,
         totalOutputs: outputs.length,
-        totalPoly: outputs.reduce((sum, l) => sum + l.poly, 0),
-        totalCarton: outputs.reduce((sum, l) => sum + l.carton, 0),
+        totalPoly: outputs.reduce((sum, l) => {
+          const effectivePoly = l.actual_hours && l.actual_hours > 0 && l.ot_hours_actual && l.ot_hours_actual > 0
+            ? Math.round((l.poly / l.actual_hours) * (l.actual_hours + l.ot_hours_actual))
+            : l.poly;
+          return sum + effectivePoly;
+        }, 0),
+        totalCarton: outputs.reduce((sum, l) => {
+          const effectiveCarton = l.actual_hours && l.actual_hours > 0 && l.ot_hours_actual && l.ot_hours_actual > 0
+            ? Math.round((l.carton / l.actual_hours) * (l.actual_hours + l.ot_hours_actual))
+            : l.carton;
+          return sum + effectiveCarton;
+        }, 0),
       };
 
       setLogs(formattedLogs);
@@ -302,12 +312,22 @@ export function FinishingDashboard() {
                       <div className="text-right">
                         <div className="flex gap-4">
                           <div>
-                            <p className="font-mono font-bold text-lg text-success">{log.poly.toLocaleString()}</p>
+                            <p className="font-mono font-bold text-lg text-success">
+                              {(log.actual_hours && log.actual_hours > 0 && log.ot_hours_actual && log.ot_hours_actual > 0
+                                ? Math.round((log.poly / log.actual_hours) * (log.actual_hours + log.ot_hours_actual))
+                                : log.poly
+                              ).toLocaleString()}
+                            </p>
                             <p className="text-xs text-muted-foreground">poly</p>
                           </div>
                           {log.carton > 0 && (
                           <div>
-                            <p className="font-mono font-semibold text-base text-muted-foreground">{log.carton.toLocaleString()}</p>
+                            <p className="font-mono font-semibold text-base text-muted-foreground">
+                              {(log.actual_hours && log.actual_hours > 0 && log.ot_hours_actual && log.ot_hours_actual > 0
+                                ? Math.round((log.carton / log.actual_hours) * (log.actual_hours + log.ot_hours_actual))
+                                : log.carton
+                              ).toLocaleString()}
+                            </p>
                             <p className="text-xs text-muted-foreground">carton</p>
                           </div>
                           )}
