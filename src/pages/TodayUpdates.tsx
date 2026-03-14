@@ -747,7 +747,7 @@ export default function TodayUpdates() {
       });
 
       // Finishing (only POs with CM price)
-      finishingOutputLogs.forEach((log) => {
+      finishingDailyLogs.filter(l => l.log_type === 'OUTPUT').forEach((log) => {
         if (!log.work_orders?.cm_per_dozen) return;
         let lineCost = 0;
         if (log.m_power_actual && log.actual_hours) lineCost += rate * log.m_power_actual * log.actual_hours;

@@ -329,14 +329,15 @@ export function usePOControlRoom(filters: POFilters = EMPTY_FILTERS) {
                 ? [wo.lines.line_id]
                 : [];
 
-        // Velocity
+        // Velocity — sewing-based (how many units left to sew)
         const actuals = sewingActualsByPO.get(wo.id) || [];
         const { effective: avgPerDay } = computeAvgPerDay(actuals, today);
-        const remaining = Math.max(wo.order_qty - finishedOutput, 0);
-        const neededPerDay = computeNeededPerDay(remaining, wo.planned_ex_factory, today);
-        const forecastFinishDate = computeForecastFinish(remaining, avgPerDay, today);
+        const sewingRemaining = Math.max(wo.order_qty - sewing.good, 0);
+        const neededPerDay = computeNeededPerDay(sewingRemaining, wo.planned_ex_factory, today);
+        const forecastFinishDate = computeForecastFinish(sewingRemaining, avgPerDay, today);
 
-        // Workflow state
+        // Completion / workflow state — finishing-based (PO is done when finishing output meets order_qty)
+        const remaining = Math.max(wo.order_qty - finishedOutput, 0);
         const hasLine = lineNamesResolved.length > 0 || wo.line_id != null;
         const started = sewing.count > 0 || finishedOutput > 0;
         const workflowState = computeWorkflowState({
@@ -346,7 +347,7 @@ export function usePOControlRoom(filters: POFilters = EMPTY_FILTERS) {
           remaining,
         });
 
-        // Cluster
+        // Cluster — uses finishing remaining for due_soon/completion, sewing velocity for pace
         const cluster = computeCluster({
           exFactory: wo.planned_ex_factory,
           remaining,

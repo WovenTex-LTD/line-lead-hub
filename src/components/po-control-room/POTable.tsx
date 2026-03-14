@@ -60,8 +60,8 @@ export function POTable({
                 <TableHead>Ex-Factory</TableHead>
                 {showVelocity && (
                   <>
-                    <TableHead className="text-right">Avg/day</TableHead>
-                    <TableHead className="text-right">Need/day</TableHead>
+                    <TableHead className="text-right">Sewing Avg/day</TableHead>
+                    <TableHead className="text-right">Sewing Need/day</TableHead>
                   </>
                 )}
                 <TableHead className="w-10" />
