@@ -951,41 +951,41 @@ export default function ThisWeek() {
           </div>
 
           {/* Revenue / Cost / Profit cards */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2">
             <Card className="relative overflow-hidden border-emerald-500/20">
               <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-emerald-500/0" />
-              <CardContent className="p-4 relative">
-                <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Revenue</p>
-                <p className="font-mono text-xl md:text-2xl font-bold text-emerald-700 dark:text-emerald-400 tracking-tight">
-                  ${weekFinancials.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <CardContent className="p-2 md:p-4 relative">
+                <p className="text-[9px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Revenue</p>
+                <p className="font-mono text-sm md:text-2xl font-bold text-emerald-700 dark:text-emerald-400 leading-tight break-all">
+                  ${weekFinancials.totalRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Finishing output</p>
+                <p className="text-[9px] text-muted-foreground mt-0.5">Sewing output</p>
               </CardContent>
             </Card>
 
             <Card className="relative overflow-hidden border-red-500/20">
               <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-red-500/0" />
-              <CardContent className="p-4 relative">
-                <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Cost</p>
-                <p className="font-mono text-xl md:text-2xl font-bold text-red-600 dark:text-red-400 tracking-tight">
-                  ${weekFinancials.totalCostUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <CardContent className="p-2 md:p-4 relative">
+                <p className="text-[9px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Cost</p>
+                <p className="font-mono text-sm md:text-2xl font-bold text-red-600 dark:text-red-400 leading-tight break-all">
+                  ${weekFinancials.totalCostUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
+                <p className="text-[9px] text-muted-foreground mt-0.5">
                   {weekFinancials.costCurrency === 'BDT' && bdtToUsd
                     ? `৳${weekFinancials.totalCostNative.toLocaleString()}`
-                    : 'All departments'}
+                    : 'All depts'}
                 </p>
               </CardContent>
             </Card>
 
             <Card className={`relative overflow-hidden ${weekFinancials.profit >= 0 ? 'border-emerald-500/20' : 'border-red-500/20'}`}>
               <div className={`absolute inset-0 bg-gradient-to-br ${weekFinancials.profit >= 0 ? 'from-emerald-500/5 to-emerald-500/0' : 'from-red-500/5 to-red-500/0'}`} />
-              <CardContent className="p-4 relative">
-                <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Profit</p>
-                <p className={`font-mono text-xl md:text-2xl font-bold tracking-tight ${weekFinancials.profit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {weekFinancials.profit >= 0 ? '+' : '-'}${Math.abs(weekFinancials.profit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <CardContent className="p-2 md:p-4 relative">
+                <p className="text-[9px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Profit</p>
+                <p className={`font-mono text-sm md:text-2xl font-bold leading-tight break-all ${weekFinancials.profit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {weekFinancials.profit >= 0 ? '+' : '-'}${Math.abs(weekFinancials.profit).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
+                <p className="text-[9px] text-muted-foreground mt-0.5">
                   {weekFinancials.margin !== 0 ? `${weekFinancials.margin}% margin` : '—'}
                 </p>
               </CardContent>
