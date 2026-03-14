@@ -109,14 +109,20 @@ export async function initializeCapacitor() {
 
       // Style.Dark = dark icons/text (for light backgrounds)
       // Style.Light = light icons/text (for dark backgrounds)
-      const isDarkMode = document.documentElement.classList.contains('dark');
-      await StatusBar.setStyle({ style: isDarkMode ? Style.Dark : Style.Light });
+      const applyStatusBarStyle = async (isDark: boolean) => {
+        await StatusBar.setStyle({ style: isDark ? Style.Light : Style.Dark });
+        if (platform === 'android') {
+          await StatusBar.setBackgroundColor({ color: isDark ? '#0a0a0a' : '#f1f3f5' });
+        }
+      };
 
-      // Android only: set an explicit status bar background color.
-      // (iOS ignores setBackgroundColor; it uses the WebView behind it.)
-      if (platform === 'android') {
-        await StatusBar.setBackgroundColor({ color: '#f1f3f5' }); // matches hsl(var(--background)) in light theme
-      }
+      await applyStatusBarStyle(document.documentElement.classList.contains('dark'));
+
+      // Update status bar whenever the theme class changes
+      const observer = new MutationObserver(() => {
+        applyStatusBarStyle(document.documentElement.classList.contains('dark'));
+      });
+      observer.observe(document.documentElement, { attributeFilter: ['class'] });
 
       console.log('StatusBar configured successfully');
     } catch (statusBarError) {
