@@ -338,7 +338,7 @@ export function FinishingSubmissionView({ target, actual, open, onOpenChange, on
                       );
                     })}
                     {actual.actual_hours != null && actual.actual_hours > 0 && (
-                      <FieldDisplay label={t('modals.polyPerHour')} value={Math.round((actual.poly / actual.actual_hours) * 100) / 100} suffix=" /hr" className="text-lg text-success" />
+                      <FieldDisplay label={t('modals.polyPerHour')} value={Math.round((actual.poly / (actual.actual_hours + (actual.ot_hours_actual || 0))) * 100) / 100} suffix=" /hr" className="text-lg text-success" />
                     )}
                     <FieldDisplay
                       label={t('modals.poly')}
@@ -346,7 +346,7 @@ export function FinishingSubmissionView({ target, actual, open, onOpenChange, on
                       className="text-lg text-success"
                     />
                     {actual.actual_hours != null && actual.actual_hours > 0 && (
-                      <FieldDisplay label={t('modals.cartonPerHour')} value={Math.round((actual.carton / actual.actual_hours) * 100) / 100} suffix=" /hr" className="text-muted-foreground" />
+                      <FieldDisplay label={t('modals.cartonPerHour')} value={Math.round((actual.carton / (actual.actual_hours + (actual.ot_hours_actual || 0))) * 100) / 100} suffix=" /hr" className="text-muted-foreground" />
                     )}
                     <FieldDisplay
                       label={t('modals.carton')}
@@ -471,9 +471,10 @@ export function FinishingSubmissionView({ target, actual, open, onOpenChange, on
                       const tgtHours = target.planned_hours;
                       const actHours = actual.actual_hours;
 
-                      // Poly per-hour rate row (target is already per-hour; derive actual per-hour)
-                      const polyPerHourActual = actHours && actHours > 0
-                        ? Math.round((actual.poly / actHours) * 100) / 100
+                      // Poly per-hour rate row (target is already per-hour; derive actual per-hour using total hours incl. OT)
+                      const totalActHours = (actHours || 0) + (actual.ot_hours_actual || 0);
+                      const polyPerHourActual = totalActHours > 0
+                        ? Math.round((actual.poly / totalActHours) * 100) / 100
                         : null;
 
                       const rows: { label: string; tgt: number | null | undefined; act: number | null | undefined; decimals?: number }[] = [
