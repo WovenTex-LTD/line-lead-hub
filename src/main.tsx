@@ -77,10 +77,9 @@ if ("serviceWorker" in navigator) {
 
 // Initialize Capacitor for native functionality
 initializeCapacitor().then(() => {
-  // Push notifications require google-services.json / Firebase to be configured.
-  // Calling register() without Firebase causes a native FATAL EXCEPTION.
-  // Uncomment when Firebase is set up:
-  // initializePushNotifications();
+  // initializePushNotifications is safe to call — it gracefully catches
+  // the native FATAL EXCEPTION if Firebase is not yet configured.
+  initializePushNotifications();
 });
 
 createRoot(document.getElementById("root")!).render(<App />);

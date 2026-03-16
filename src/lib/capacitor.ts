@@ -250,10 +250,16 @@ export async function initializePushNotifications() {
       console.error('Push registration error:', error);
     });
 
-    // Handle received push notification (foreground)
+    // Handle received push notification (foreground) — show an in-app toast
     PushNotifications.addListener('pushNotificationReceived', (notification) => {
-      console.log('Push notification received:', notification);
-      // Could show an in-app toast or banner here
+      console.log('Push notification received in foreground:', notification);
+      // Dynamically import sonner to avoid circular deps
+      import('sonner').then(({ toast }) => {
+        toast(notification.title ?? 'New notification', {
+          description: notification.body,
+          duration: 5000,
+        });
+      });
     });
 
     // Handle notification tap
@@ -288,17 +294,16 @@ async function savePushToken(token: string) {
     const user = data?.user;
 
     if (user) {
-      // Store token - you may want to create a separate table for push tokens
-      // to support multiple devices per user
-      console.log('Push token for user', user.id, ':', token);
-      
-      // TODO: Implement push token storage when the column/table is added
-      // await supabase.from('push_tokens').upsert({
-      //   user_id: user.id,
-      //   token,
-      //   platform,
-      //   updated_at: new Date().toISOString(),
-      // });
+      await supabase.from('push_tokens').upsert(
+        {
+          user_id: user.id,
+          token,
+          platform,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id,token' }
+      );
+      console.log('Push token saved for user', user.id, 'platform:', platform);
     }
   } catch (error) {
     console.error('Failed to save push token:', error);
