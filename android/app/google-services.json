@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "982820022284",
+    "project_id": "productionportal-3f1e6",
+    "storage_bucket": "productionportal-3f1e6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:982820022284:android:2a9fbb435ad975b08f2629",
+        "android_client_info": {
+          "package_name": "com.woventex.productionportal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBEuATBauDe6nKQ9L9MORCoond5On8tuiA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
