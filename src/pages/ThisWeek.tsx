@@ -1,17 +1,17 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { getTodayInTimezone } from "@/lib/date-utils";
-import { effectivePoly } from "@/lib/finishing-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Loader2, Calendar, TrendingUp, TrendingDown, Minus, Package, ChevronLeft, ChevronRight, Scissors, AlertTriangle, DollarSign, ChevronDown, FileDown } from "lucide-react";
+import { Loader2, Calendar, TrendingUp, TrendingDown, Minus, Package, ChevronLeft, ChevronRight, Scissors, AlertTriangle, DollarSign } from "lucide-react";
 import { SewingMachine } from "@/components/icons/SewingMachine";
-import { useHeadcountCost } from "@/hooks/useHeadcountCost";
-import { jsPDF } from "jspdf";
 import { ReportExportDialog } from "@/components/ReportExportDialog";
+import { useHeadcountCost } from "@/hooks/useHeadcountCost";
+import { calcSewingFinancials, SewingFinancials } from "@/lib/sewing-financials";
 
 interface DailyStats {
   date: string;
@@ -27,25 +27,14 @@ interface DailyStats {
   cuttingTargetCount: number;
   cuttingActualCount: number;
   blockers: number;
-  // Financial
-  revenue: number; // USD
-  sewingCostNative: number;
-  cuttingCostNative: number;
-  finishingCostNative: number;
-  // Raw line data for PDF
-  rawSewing: any[];
-  rawCutting: any[];
-  rawFinishing: any[];
 }
 
 export default function ThisWeek() {
   const { profile, factory } = useAuth();
-  const { headcountCost, isConfigured: costConfigured } = useHeadcountCost();
   const [loading, setLoading] = useState(true);
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = current week, -1 = last week, etc.
   const [weekStats, setWeekStats] = useState<DailyStats[]>([]);
-  const [financialsExpanded, setFinancialsExpanded] = useState(false);
-  const [bdtToUsd, setBdtToUsd] = useState<number | null>(null);
+  const [weekSewingActuals, setWeekSewingActuals] = useState<any[]>([]);
   const [totals, setTotals] = useState({
     sewingOutput: 0,
     finishingTarget: 0,
@@ -56,8 +45,9 @@ export default function ThisWeek() {
     totalBlockers: 0,
     leftoverYards: 0,
   });
+  const { headcountCost, isConfigured: costConfigured } = useHeadcountCost();
+  const [bdtToUsd, setBdtToUsd] = useState<number | null>(null);
 
-  // Fetch exchange rate
   useEffect(() => {
     let cancelled = false;
     async function fetchRate() {
@@ -88,10 +78,24 @@ export default function ThisWeek() {
       const today = new Date(todayStr + "T00:00:00");
       const currentWeekStart = new Date(today);
       currentWeekStart.setDate(today.getDate() - today.getDay()); // Start of current week (Sunday)
-      
+
       // Apply week offset
       const weekStart = new Date(currentWeekStart);
       weekStart.setDate(currentWeekStart.getDate() + (weekOffset * 7));
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      const weekStartStr = format(weekStart, "yyyy-MM-dd");
+      const weekEndStr = format(weekEnd, "yyyy-MM-dd");
+
+      // Fetch all sewing actuals for the week (with CM) in one query for financials
+      const { data: weekSewingData } = await supabase
+        .from('sewing_actuals')
+        .select('good_today, manpower_actual, hours_actual, ot_manpower_actual, ot_hours_actual, work_orders(po_number, buyer, style, cm_per_dozen)')
+        .eq('factory_id', profile.factory_id)
+        .gte('production_date', weekStartStr)
+        .lte('production_date', weekEndStr);
+      setWeekSewingActuals(weekSewingData || []);
+
       const days: DailyStats[] = [];
       let totalSewing = 0;
       let totalFinishingTarget = 0;
@@ -122,13 +126,6 @@ export default function ThisWeek() {
             cuttingTargetCount: 0,
             cuttingActualCount: 0,
             blockers: 0,
-            revenue: 0,
-            sewingCostNative: 0,
-            cuttingCostNative: 0,
-            finishingCostNative: 0,
-            rawSewing: [],
-            rawCutting: [],
-            rawFinishing: [],
           });
           continue;
         }
@@ -136,12 +133,12 @@ export default function ThisWeek() {
         const [sewingRes, finishingRes, sewingTargetsRes, cuttingTargetsRes, cuttingActualsRes] = await Promise.all([
           supabase
             .from('sewing_actuals')
-            .select('line_id, good_today, has_blocker, manpower_actual, hours_actual, ot_manpower_actual, ot_hours_actual, reject_today, rework_today, actual_per_hour, blocker_description, remarks, lines(name, line_id), work_orders(po_number, buyer, style, cm_per_dozen)')
+            .select('line_id, good_today, has_blocker')
             .eq('factory_id', profile.factory_id)
             .eq('production_date', dateStr),
           supabase
             .from('finishing_daily_logs')
-            .select('log_type, poly, carton, planned_hours, work_order_id, m_power_actual, actual_hours, ot_manpower_actual, ot_hours_actual, thread_cutting, inside_check, buttoning, iron, get_up, remarks, lines(name, line_id), work_orders(po_number, buyer, style, cm_per_dozen)')
+            .select('log_type, poly, carton, planned_hours, work_order_id')
             .eq('factory_id', profile.factory_id)
             .eq('production_date', dateStr),
           supabase
@@ -156,7 +153,7 @@ export default function ThisWeek() {
             .eq('production_date', dateStr),
           supabase
             .from('cutting_actuals')
-            .select('day_cutting, total_cutting, day_input, balance, leftover_recorded, leftover_quantity, leftover_unit, man_power, hours_actual, ot_manpower_actual, ot_hours_actual, lines!cutting_actuals_line_id_fkey(name, line_id), work_orders(po_number, buyer, style, color, cm_per_dozen)')
+            .select('day_cutting, leftover_recorded, leftover_quantity, leftover_unit')
             .eq('factory_id', profile.factory_id)
             .eq('production_date', dateStr),
         ]);
@@ -187,8 +184,8 @@ export default function ThisWeek() {
           return sum + (((f as any).poly || 0) * hours);
         }, 0);
 
-        // Finishing output: poly is the primary metric (OT-adjusted)
-        const dayFinishingOutput = finishingOutputLogs.reduce((sum, f) => sum + effectivePoly((f as any).poly, (f as any).actual_hours, (f as any).ot_hours_actual), 0);
+        // Finishing output: poly is the primary metric
+        const dayFinishingOutput = finishingOutputLogs.reduce((sum, f) => sum + ((f as any).poly || 0), 0);
 
         // Cutting data - only count targets with matching actuals
         const cuttingActualExists = cuttingActualsData.length > 0;
@@ -213,39 +210,6 @@ export default function ThisWeek() {
         // Calculate sewing targets (per_hour_target * 8 hours as daily estimate) - only paired targets
         const daySewingTarget = pairedSewingTargets.reduce((sum: number, t: any) => sum + ((t.per_hour_target || 0) * 8), 0);
 
-        // ── Financial calculations for this day ──
-        const rate = costConfigured && headcountCost.value ? headcountCost.value : 0;
-
-        // Revenue: sewing output × (cm_per_dozen / 12) — only POs with CM
-        let dayRevenue = 0;
-        sewingData.forEach((s: any) => {
-          const cm = s.work_orders?.cm_per_dozen;
-          const output = s.good_today || 0;
-          if (cm && output) dayRevenue += (cm / 12) * output;
-        });
-
-        // Cost by department — only POs with CM
-        let daySewingCost = 0;
-        let dayCuttingCost = 0;
-        let dayFinishingCost = 0;
-        if (rate > 0) {
-          sewingData.forEach((s: any) => {
-            if (!s.work_orders?.cm_per_dozen) return;
-            if (s.manpower_actual && s.hours_actual) daySewingCost += rate * s.manpower_actual * s.hours_actual;
-            if (s.ot_manpower_actual && s.ot_hours_actual) daySewingCost += rate * s.ot_manpower_actual * s.ot_hours_actual;
-          });
-          cuttingActualsData.forEach((c: any) => {
-            if (!c.work_orders?.cm_per_dozen) return;
-            if (c.man_power && c.hours_actual) dayCuttingCost += rate * c.man_power * c.hours_actual;
-            if (c.ot_manpower_actual && c.ot_hours_actual) dayCuttingCost += rate * c.ot_manpower_actual * c.ot_hours_actual;
-          });
-          finishingOutputLogs.forEach((f: any) => {
-            if (!f.work_orders?.cm_per_dozen) return;
-            if (f.m_power_actual && f.actual_hours) dayFinishingCost += rate * f.m_power_actual * f.actual_hours;
-            if (f.ot_manpower_actual && f.ot_hours_actual) dayFinishingCost += rate * f.ot_manpower_actual * f.ot_hours_actual;
-          });
-        }
-
         totalSewing += daySewingOutput;
         totalFinishingTarget += dayFinishingTarget;
         totalFinishingOutput += dayFinishingOutput;
@@ -269,13 +233,6 @@ export default function ThisWeek() {
           cuttingTargetCount: cuttingTargetsData.length,
           cuttingActualCount: cuttingActualsData.length,
           blockers: dayBlockers,
-          revenue: Math.round(dayRevenue * 100) / 100,
-          sewingCostNative: Math.round(daySewingCost * 100) / 100,
-          cuttingCostNative: Math.round(dayCuttingCost * 100) / 100,
-          finishingCostNative: Math.round(dayFinishingCost * 100) / 100,
-          rawSewing: sewingData,
-          rawCutting: cuttingActualsData,
-          rawFinishing: finishingOutputLogs,
         });
       }
 
@@ -299,53 +256,6 @@ export default function ThisWeek() {
 
   const maxSewing = Math.max(...weekStats.map(d => Math.max(d.sewingOutput, d.sewingTarget)), 1);
   const maxFinishing = Math.max(...weekStats.map(d => Math.max(d.finishingTarget, d.finishingOutput)), 1);
-
-  // ── Weekly financial summary ──
-  const weekFinancials = useMemo(() => {
-    const costCurrency = headcountCost.currency;
-    const isBDT = costCurrency === 'BDT';
-
-    let totalRevenue = 0;
-    let totalSewingCost = 0;
-    let totalCuttingCost = 0;
-    let totalFinishingCost = 0;
-
-    const dailyFinancials = weekStats.map(day => {
-      totalRevenue += day.revenue;
-      totalSewingCost += day.sewingCostNative;
-      totalCuttingCost += day.cuttingCostNative;
-      totalFinishingCost += day.finishingCostNative;
-      const dayCostNative = day.sewingCostNative + day.cuttingCostNative + day.finishingCostNative;
-      const dayCostUsd = isBDT && bdtToUsd ? dayCostNative * bdtToUsd : dayCostNative;
-      return {
-        ...day,
-        costNative: Math.round(dayCostNative * 100) / 100,
-        costUsd: Math.round(dayCostUsd * 100) / 100,
-        profit: Math.round((day.revenue - dayCostUsd) * 100) / 100,
-      };
-    });
-
-    const totalCostNative = totalSewingCost + totalCuttingCost + totalFinishingCost;
-    const toUsd = (v: number) => isBDT && bdtToUsd ? v * bdtToUsd : v;
-    const totalCostUsd = toUsd(totalCostNative);
-    const profit = totalRevenue - totalCostUsd;
-    const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
-    const hasData = totalRevenue > 0 || totalCostNative > 0;
-
-    return {
-      totalRevenue: Math.round(totalRevenue * 100) / 100,
-      totalCostNative: Math.round(totalCostNative * 100) / 100,
-      totalCostUsd: Math.round(totalCostUsd * 100) / 100,
-      sewingCostUsd: Math.round(toUsd(totalSewingCost) * 100) / 100,
-      cuttingCostUsd: Math.round(toUsd(totalCuttingCost) * 100) / 100,
-      finishingCostUsd: Math.round(toUsd(totalFinishingCost) * 100) / 100,
-      profit: Math.round(profit * 100) / 100,
-      margin: Math.round(margin * 10) / 10,
-      costCurrency,
-      hasData,
-      dailyFinancials,
-    };
-  }, [weekStats, headcountCost.currency, bdtToUsd]);
 
   const getTrend = (current: number, previous: number) => {
     if (previous === 0) return { icon: Minus, color: 'text-muted-foreground' };
@@ -381,456 +291,6 @@ export default function ThisWeek() {
   };
 
   const isCurrentWeek = weekOffset === 0;
-
-  // ── PDF Export ──
-  const handleDownloadPdf = () => {
-    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-    const pw = doc.internal.pageSize.getWidth();
-    const ph = doc.internal.pageSize.getHeight();
-    const m = 10;
-    const cw = pw - m * 2;
-    let y = m;
-
-    const isBDT = weekFinancials.costCurrency === 'BDT';
-    const rate = costConfigured && headcountCost.value ? headcountCost.value : 0;
-    const nSym = isBDT ? "Tk " : "$";
-    const fN = (v: number | null | undefined) => v != null ? v.toLocaleString() : "-";
-    const fUsd = (v: number) => "$" + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const fNat = (v: number) => nSym + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const toUsd = (native: number): number => {
-      if (!isBDT || !bdtToUsd) return native;
-      return Math.round(native * bdtToUsd * 100) / 100;
-    };
-    const lineCost = (mp: number | null, hrs: number | null, otMp: number | null, otHrs: number | null): number => {
-      if (!rate) return 0;
-      let c = 0;
-      if (mp && hrs) c += rate * mp * hrs;
-      if (otMp && otHrs) c += rate * otMp * otHrs;
-      return Math.round(c * 100) / 100;
-    };
-    const numFromName = (name: string) => parseInt(name.replace(/\D/g, "")) || 9999;
-    const fmtDate = (d: string) => { const p = d.split("-"); return `${p[2]}.${p[1]}`; };
-
-    // ── Generic bordered table ──
-    type Col = { label: string; w: number; align?: "left" | "right" | "center" };
-    const drawTable = (
-      cols: Col[], rows: string[][], startY: number,
-      opts?: { boldLastRow?: boolean; fs?: number; rh?: number; pgTitle?: string }
-    ): number => {
-      const fs = opts?.fs || 7;
-      const rh = opts?.rh || 6.5;
-      const totalW = cols.reduce((s, c) => s + c.w, 0);
-      let ty = startY;
-
-      const ensurePage = (need: number) => {
-        if (ty + need > ph - 12) {
-          doc.addPage();
-          ty = m;
-          if (opts?.pgTitle) {
-            doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(0);
-            doc.text(opts.pgTitle, m, ty); ty += 6;
-          }
-          // Re-draw header
-          doc.setFillColor(220, 220, 220);
-          doc.rect(m, ty, totalW, rh, 'F');
-          doc.setFont("helvetica", "bold"); doc.setFontSize(fs); doc.setTextColor(0);
-          let hx = m;
-          cols.forEach(c => {
-            doc.rect(hx, ty, c.w, rh);
-            const tx = c.align === "right" ? hx + c.w - 1.5 : hx + 1.5;
-            doc.text(c.label, tx, ty + rh - 1.5, { align: c.align === "right" ? "right" : "left" });
-            hx += c.w;
-          });
-          ty += rh;
-        }
-      };
-
-      // Header
-      doc.setFillColor(220, 220, 220);
-      doc.rect(m, ty, totalW, rh, 'F');
-      doc.setFont("helvetica", "bold"); doc.setFontSize(fs); doc.setTextColor(0);
-      let hx = m;
-      cols.forEach(c => {
-        doc.rect(hx, ty, c.w, rh);
-        const tx = c.align === "right" ? hx + c.w - 1.5 : hx + 1.5;
-        doc.text(c.label, tx, ty + rh - 1.5, { align: c.align === "right" ? "right" : "left" });
-        hx += c.w;
-      });
-      ty += rh;
-
-      // Rows
-      rows.forEach((row, ri) => {
-        ensurePage(rh);
-        const isLast = ri === rows.length - 1 && opts?.boldLastRow;
-        if (isLast) {
-          doc.setFillColor(240, 240, 240);
-          doc.rect(m, ty, totalW, rh, 'F');
-          doc.setFont("helvetica", "bold");
-        } else {
-          doc.setFont("helvetica", "normal");
-        }
-        doc.setFontSize(fs); doc.setTextColor(0);
-        let rx = m;
-        row.forEach((cell, ci) => {
-          doc.rect(rx, ty, cols[ci].w, rh);
-          const tx = cols[ci].align === "right" ? rx + cols[ci].w - 1.5 : rx + 1.5;
-          doc.text((cell || "").substring(0, Math.floor(cols[ci].w / 1.8)), tx, ty + rh - 1.5, { align: cols[ci].align === "right" ? "right" : "left" });
-          rx += cols[ci].w;
-        });
-        ty += rh;
-      });
-      return ty;
-    };
-
-    const pageHead = (title: string): number => {
-      y = m;
-      doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(0);
-      doc.text(`${factory?.name || "Factory"} — Weekly Report`, m, y);
-      doc.setFontSize(8); doc.setFont("helvetica", "normal");
-      doc.text(getWeekRange(), pw - m, y, { align: "right" });
-      y += 5;
-      doc.setDrawColor(0); doc.setLineWidth(0.4); doc.line(m, y, pw - m, y);
-      y += 4;
-      doc.setFont("helvetica", "bold"); doc.setFontSize(10);
-      doc.text(title, m, y);
-      y += 6;
-      return y;
-    };
-
-    // ========== PAGE 1: SUMMARY ==========
-    doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(0);
-    doc.text(`${factory?.name || "Factory"} — WEEKLY PRODUCTION REPORT`, m, y);
-    y += 6;
-    doc.setFontSize(9); doc.setFont("helvetica", "normal");
-    doc.text(`Period: ${getWeekRange()} | Generated: ${format(new Date(), "PPpp")}`, m, y);
-    y += 8;
-
-    // Production summary table
-    doc.setFont("helvetica", "bold"); doc.setFontSize(10);
-    doc.text("PRODUCTION SUMMARY", m, y); y += 6;
-
-    const sumCols: Col[] = [
-      { label: "Day", w: 28 },
-      { label: "Sewing Out", w: 28, align: "right" },
-      { label: "Sewing Tgt", w: 28, align: "right" },
-      { label: "Finish Out", w: 28, align: "right" },
-      { label: "Finish Tgt", w: 28, align: "right" },
-      { label: "Cutting", w: 25, align: "right" },
-      { label: "Blockers", w: 22, align: "right" },
-    ];
-    const sumRows = weekStats.map(d => [
-      `${d.dayName} ${fmtDate(d.date)}`,
-      fN(d.sewingOutput), fN(d.sewingTarget),
-      fN(d.finishingOutput), fN(d.finishingTarget),
-      fN(d.cuttingActual), String(d.blockers),
-    ]);
-    sumRows.push(["TOTAL", fN(totals.sewingOutput), "", fN(totals.finishingOutput), fN(totals.finishingTarget), fN(totals.cuttingActual), String(totals.totalBlockers)]);
-    y = drawTable(sumCols, sumRows, y, { boldLastRow: true, pgTitle: "PRODUCTION SUMMARY" });
-    y += 8;
-
-    // Financial summary table
-    if (weekFinancials.hasData) {
-      doc.setFont("helvetica", "bold"); doc.setFontSize(10);
-      doc.text("WEEKLY FINANCIALS (USD)", m, y); y += 6;
-
-      const finCols: Col[] = [
-        { label: "Day", w: 28 },
-        { label: "Revenue ($)", w: 35, align: "right" },
-        { label: "Sewing Cost", w: 35, align: "right" },
-        { label: "Cutting Cost", w: 35, align: "right" },
-        { label: "Finish Cost", w: 35, align: "right" },
-        { label: "Total Cost ($)", w: 35, align: "right" },
-        { label: "Profit ($)", w: 35, align: "right" },
-      ];
-      const finRows = weekFinancials.dailyFinancials.map(d => {
-        const isFut = new Date(d.date) > new Date();
-        if (isFut) return [`${d.dayName} ${fmtDate(d.date)}`, "-", "-", "-", "-", "-", "-"];
-        return [
-          `${d.dayName} ${fmtDate(d.date)}`,
-          fUsd(d.revenue),
-          fUsd(toUsd(d.sewingCostNative)),
-          fUsd(toUsd(d.cuttingCostNative)),
-          fUsd(toUsd(d.finishingCostNative)),
-          fUsd(d.costUsd),
-          `${d.profit >= 0 ? "+" : "-"}${fUsd(Math.abs(d.profit))}`,
-        ];
-      });
-      finRows.push([
-        "TOTAL", fUsd(weekFinancials.totalRevenue), fUsd(weekFinancials.sewingCostUsd),
-        fUsd(weekFinancials.cuttingCostUsd), fUsd(weekFinancials.finishingCostUsd),
-        fUsd(weekFinancials.totalCostUsd),
-        `${weekFinancials.profit >= 0 ? "+" : "-"}${fUsd(Math.abs(weekFinancials.profit))}`,
-      ]);
-      y = drawTable(finCols, finRows, y, { boldLastRow: true, pgTitle: "WEEKLY FINANCIALS" });
-      y += 3;
-      doc.setFontSize(7); doc.setFont("helvetica", "italic"); doc.setTextColor(90);
-      if (isBDT && bdtToUsd) doc.text(`Cost in BDT: Tk${weekFinancials.totalCostNative.toLocaleString()} | Rate: ${(1 / bdtToUsd).toFixed(1)} BDT/USD | Margin: ${weekFinancials.margin}%`, m, y + 2);
-      else doc.text(`Margin: ${weekFinancials.margin}%`, m, y + 2);
-    }
-
-    // ========== SEWING DETAIL (grouped by Line) ==========
-    const allSewing = weekStats.flatMap(d => d.rawSewing.map((s: any) => ({ ...s, _date: d.date, _dayName: d.dayName })));
-    try { if (allSewing.length > 0) {
-      doc.addPage();
-      y = pageHead("SEWING — LINE WISE OUTPUT & COST");
-
-      const sewCols: Col[] = [
-        { label: "Day", w: 18 },
-        { label: "PO / Style", w: 38 },
-        { label: "Output", w: 18, align: "right" },
-        { label: "Reject", w: 14, align: "right" },
-        { label: "Rework", w: 14, align: "right" },
-        { label: "Eff %", w: 16, align: "right" },
-        { label: "MP", w: 12, align: "right" },
-        { label: "Hrs", w: 12, align: "right" },
-        { label: "OT MP", w: 14, align: "right" },
-        { label: "OT Hrs", w: 14, align: "right" },
-        { label: `Cost (${isBDT ? "BDT" : "USD"})`, w: 26, align: "right" },
-        { label: "Cost ($)", w: 24, align: "right" },
-        { label: "Notes", w: cw - 220 > 0 ? cw - 220 : 20 },
-      ];
-
-      // Group by line
-      const sewByLine: Record<string, any[]> = {};
-      allSewing.forEach((s: any) => {
-        const ln = s.lines?.name || s.lines?.line_id || "Unknown";
-        if (!sewByLine[ln]) sewByLine[ln] = [];
-        sewByLine[ln].push(s);
-      });
-      const sewLineKeys = Object.keys(sewByLine).sort((a, b) => numFromName(a) - numFromName(b));
-
-      let sewDeptCostNat = 0, sewDeptCostUsd = 0, sewDeptOutput = 0;
-
-      sewLineKeys.forEach(lineName => {
-        const entries = sewByLine[lineName].sort((a: any, b: any) => a._date.localeCompare(b._date));
-
-        // Line header label
-        y += 6;
-        if (y + 20 > ph - 12) { doc.addPage(); y = pageHead("SEWING — LINE WISE OUTPUT & COST"); }
-        doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(30, 80, 180);
-        doc.text(lineName, m, y); y += 3;
-        doc.setTextColor(0);
-
-        let lineCostNat = 0, lineCostUsd = 0, lineOutput = 0, lineReject = 0, lineRework = 0;
-        const rows = entries.map((s: any) => {
-          const costNat = lineCost(s.manpower_actual, s.hours_actual, s.ot_manpower_actual, s.ot_hours_actual);
-          const costU = toUsd(costNat);
-          lineCostNat += costNat; lineCostUsd += costU;
-          lineOutput += s.good_today || 0;
-          lineReject += s.reject_today || 0;
-          lineRework += s.rework_today || 0;
-          const target = s.actual_per_hour; // target pieces per hour
-          const eff = target && s.manpower_actual && s.hours_actual
-            ? Math.round(((s.good_today || 0) / (target * s.hours_actual)) * 100)
-            : null;
-          return [
-            fmtDate(s._date),
-            ((s.work_orders?.po_number || "-") + " / " + (s.work_orders?.style || "-")).substring(0, 22),
-            fN(s.good_today), String(s.reject_today || 0), String(s.rework_today || 0),
-            eff != null ? eff + "%" : "-",
-            fN(s.manpower_actual), fN(s.hours_actual), fN(s.ot_manpower_actual), fN(s.ot_hours_actual),
-            rate ? fNat(costNat) : "-", rate ? fUsd(costU) : "-",
-            (s.blocker_description || s.remarks || "-").substring(0, 24),
-          ];
-        });
-        rows.push([`${lineName} Total`, "", fN(lineOutput), String(lineReject), String(lineRework), "", "", "", "", "", rate ? fNat(lineCostNat) : "-", rate ? fUsd(lineCostUsd) : "-", ""]);
-        y = drawTable(sewCols, rows, y, { boldLastRow: true, fs: 6.5, rh: 6, pgTitle: "SEWING — LINE WISE OUTPUT & COST" });
-        y += 4;
-
-        sewDeptCostNat += lineCostNat; sewDeptCostUsd += lineCostUsd; sewDeptOutput += lineOutput;
-      });
-
-      // Department total
-      if (y + 12 > ph - 12) { doc.addPage(); y = pageHead("SEWING — LINE WISE OUTPUT & COST"); }
-      doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(0);
-      doc.text(`SEWING DEPARTMENT TOTAL — Output: ${fN(sewDeptOutput)} | Cost: ${rate ? fNat(sewDeptCostNat) : "-"} (${rate ? fUsd(sewDeptCostUsd) : "-"})`, m, y);
-      y += 2;
-      doc.setDrawColor(0); doc.setLineWidth(0.5); doc.line(m, y, pw - m, y);
-    } } catch (e) { console.error("PDF sewing section error:", e); }
-
-    // ========== CUTTING DETAIL (grouped by PO) ==========
-    const allCutting = weekStats.flatMap(d => d.rawCutting.map((c: any) => ({ ...c, _date: d.date, _dayName: d.dayName })));
-    try { if (allCutting.length > 0) {
-      doc.addPage();
-      y = pageHead("CUTTING — PO WISE DETAIL & COST");
-
-      const cutCols: Col[] = [
-        { label: "Day", w: 18 },
-        { label: "Line", w: 22 },
-        { label: "Colour", w: 22 },
-        { label: "Day Cut", w: 20, align: "right" },
-        { label: "Day Input", w: 20, align: "right" },
-        { label: "Total Cut", w: 22, align: "right" },
-        { label: "Balance", w: 20, align: "right" },
-        { label: "MP", w: 12, align: "right" },
-        { label: "Hrs", w: 12, align: "right" },
-        { label: "OT MP", w: 14, align: "right" },
-        { label: "OT Hrs", w: 14, align: "right" },
-        { label: `Cost (${isBDT ? "BDT" : "USD"})`, w: 26, align: "right" },
-        { label: "Cost ($)", w: 24, align: "right" },
-      ];
-
-      // Group by PO
-      const cutByPo: Record<string, { buyer: string; entries: any[] }> = {};
-      allCutting.forEach((c: any) => {
-        const po = c.work_orders?.po_number || "Unknown PO";
-        if (!cutByPo[po]) cutByPo[po] = { buyer: c.work_orders?.buyer || "-", entries: [] };
-        cutByPo[po].entries.push(c);
-      });
-      const cutPoKeys = Object.keys(cutByPo).sort();
-
-      let cutDeptCostNat = 0, cutDeptCostUsd = 0, cutDeptDayCut = 0;
-
-      cutPoKeys.forEach(po => {
-        const { buyer, entries } = cutByPo[po];
-        entries.sort((a: any, b: any) => {
-          if (a._date !== b._date) return a._date.localeCompare(b._date);
-          return numFromName(a.lines?.name || "") - numFromName(b.lines?.name || "");
-        });
-
-        // PO header label
-        y += 6;
-        if (y + 20 > ph - 12) { doc.addPage(); y = pageHead("CUTTING — PO WISE DETAIL & COST"); }
-        doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(30, 80, 180);
-        doc.text(`PO: ${po} — Buyer: ${buyer}`, m, y); y += 3;
-        doc.setTextColor(0);
-
-        let poCostNat = 0, poCostUsd = 0, poDayCut = 0;
-        const rows = entries.map((c: any) => {
-          const costNat = lineCost(c.man_power, c.hours_actual, c.ot_manpower_actual, c.ot_hours_actual);
-          const costU = toUsd(costNat);
-          poCostNat += costNat; poCostUsd += costU;
-          poDayCut += c.day_cutting || 0;
-          return [
-            fmtDate(c._date),
-            (c.lines?.name || c.lines?.line_id || "-").substring(0, 12),
-            (c.work_orders?.color || "-").substring(0, 13),
-            fN(c.day_cutting), fN(c.day_input), fN(c.total_cutting), fN(c.balance),
-            fN(c.man_power), fN(c.hours_actual), fN(c.ot_manpower_actual), fN(c.ot_hours_actual),
-            rate ? fNat(costNat) : "-", rate ? fUsd(costU) : "-",
-          ];
-        });
-        rows.push([`${po} Total`, "", "", fN(poDayCut), "", "", "", "", "", "", "", rate ? fNat(poCostNat) : "-", rate ? fUsd(poCostUsd) : "-"]);
-        y = drawTable(cutCols, rows, y, { boldLastRow: true, fs: 6.5, rh: 6, pgTitle: "CUTTING — PO WISE DETAIL & COST" });
-        y += 4;
-
-        cutDeptCostNat += poCostNat; cutDeptCostUsd += poCostUsd; cutDeptDayCut += poDayCut;
-      });
-
-      // Department total
-      if (y + 12 > ph - 12) { doc.addPage(); y = pageHead("CUTTING — PO WISE DETAIL & COST"); }
-      doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(0);
-      doc.text(`CUTTING DEPARTMENT TOTAL — Day Cut: ${fN(cutDeptDayCut)} | Cost: ${rate ? fNat(cutDeptCostNat) : "-"} (${rate ? fUsd(cutDeptCostUsd) : "-"})`, m, y);
-      y += 2;
-      doc.setDrawColor(0); doc.setLineWidth(0.5); doc.line(m, y, pw - m, y);
-    } } catch (e) { console.error("PDF cutting section error:", e); }
-
-    // ========== FINISHING DETAIL (grouped by PO) ==========
-    const allFinishing = weekStats.flatMap(d => d.rawFinishing.map((f: any) => ({ ...f, _date: d.date, _dayName: d.dayName })));
-    try { if (allFinishing.length > 0) {
-      doc.addPage();
-      y = pageHead("FINISHING — PO WISE OUTPUT, COST & REVENUE");
-
-      const finCols: Col[] = [
-        { label: "Day", w: 18 },
-        { label: "Thread", w: 16, align: "right" },
-        { label: "Check", w: 14, align: "right" },
-        { label: "Button", w: 16, align: "right" },
-        { label: "Iron", w: 14, align: "right" },
-        { label: "Get Up", w: 16, align: "right" },
-        { label: "Poly", w: 16, align: "right" },
-        { label: "Carton", w: 16, align: "right" },
-        { label: "MP", w: 12, align: "right" },
-        { label: "Hrs", w: 12, align: "right" },
-        { label: "OT MP", w: 14, align: "right" },
-        { label: "OT Hrs", w: 14, align: "right" },
-        { label: "Cost ($)", w: 24, align: "right" },
-        { label: "CM/Dz", w: 16, align: "right" },
-        { label: "Revenue ($)", w: cw - 218 > 0 ? cw - 218 : 22, align: "right" },
-      ];
-
-      // Group by PO
-      const finByPo: Record<string, { buyer: string; cmDz: number | null; entries: any[] }> = {};
-      allFinishing.forEach((f: any) => {
-        const po = f.work_orders?.po_number || "Unknown PO";
-        if (!finByPo[po]) finByPo[po] = { buyer: f.work_orders?.buyer || "-", cmDz: f.work_orders?.cm_per_dozen || null, entries: [] };
-        finByPo[po].entries.push(f);
-      });
-      const finPoKeys = Object.keys(finByPo).sort();
-
-      let finDeptCostUsd = 0, finDeptRevenue = 0, finDeptPoly = 0;
-
-      finPoKeys.forEach(po => {
-        const { buyer, cmDz, entries } = finByPo[po];
-        entries.sort((a: any, b: any) => a._date.localeCompare(b._date));
-
-        // PO header label
-        y += 6;
-        if (y + 20 > ph - 12) { doc.addPage(); y = pageHead("FINISHING — PO WISE OUTPUT, COST & REVENUE"); }
-        doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(30, 80, 180);
-        doc.text(`PO: ${po} — Buyer: ${buyer}${cmDz ? ` — CM/Dz: $${cmDz.toFixed(2)}` : ""}`, m, y); y += 3;
-        doc.setTextColor(0);
-
-        let poCostUsd = 0, poRevenue = 0, poPoly = 0;
-        const rows = entries.map((f: any) => {
-          const costNat = lineCost(f.m_power_actual, f.actual_hours, f.ot_manpower_actual, f.ot_hours_actual);
-          const costU = toUsd(costNat);
-          poCostUsd += costU;
-          const rev = 0; // Revenue now driven by sewing output, not finishing poly
-          const adjPoly = effectivePoly(f.poly, f.actual_hours, f.ot_hours_actual);
-          const adjCarton = effectivePoly(f.carton, f.actual_hours, f.ot_hours_actual);
-          poPoly += adjPoly;
-          return [
-            fmtDate(f._date),
-            fN(f.thread_cutting), fN(f.inside_check), fN(f.buttoning), fN(f.iron), fN(f.get_up),
-            fN(adjPoly), fN(adjCarton),
-            fN(f.m_power_actual), fN(f.actual_hours), fN(f.ot_manpower_actual), fN(f.ot_hours_actual),
-            rate ? fUsd(costU) : "-",
-            cm ? "$" + cm.toFixed(2) : "-",
-            rev > 0 ? fUsd(Math.round(rev * 100) / 100) : "-",
-          ];
-        });
-        rows.push([`${po} Total`, "", "", "", "", "", fN(poPoly), "", "", "", "", "", rate ? fUsd(poCostUsd) : "-", "", poRevenue > 0 ? fUsd(Math.round(poRevenue * 100) / 100) : "-"]);
-        y = drawTable(finCols, rows, y, { boldLastRow: true, fs: 6.5, rh: 6, pgTitle: "FINISHING — PO WISE OUTPUT, COST & REVENUE" });
-        y += 4;
-
-        finDeptCostUsd += poCostUsd; finDeptRevenue += poRevenue; finDeptPoly += poPoly;
-      });
-
-      // Department total
-      if (y + 12 > ph - 12) { doc.addPage(); y = pageHead("FINISHING — PO WISE OUTPUT, COST & REVENUE"); }
-      doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(0);
-      doc.text(`FINISHING DEPARTMENT TOTAL — Poly: ${fN(finDeptPoly)} | Cost: ${rate ? fUsd(finDeptCostUsd) : "-"} | Revenue: ${finDeptRevenue > 0 ? fUsd(Math.round(finDeptRevenue * 100) / 100) : "-"} | Profit: ${finDeptRevenue > 0 && rate ? fUsd(Math.round((finDeptRevenue - finDeptCostUsd) * 100) / 100) : "-"}`, m, y);
-      y += 2;
-      doc.setDrawColor(0); doc.setLineWidth(0.5); doc.line(m, y, pw - m, y);
-    } } catch (e) { console.error("PDF finishing section error:", e); }
-
-    // ========== SIGN-OFF ==========
-    doc.addPage();
-    y = pageHead("SIGN-OFF");
-    doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(0);
-    const signLabels = ["Production Manager", "Factory Manager", "General Manager"];
-    const signW = (cw - 20) / 3;
-    signLabels.forEach((label, i) => {
-      const sx = m + i * (signW + 10);
-      doc.setDrawColor(0); doc.setLineWidth(0.3);
-      doc.line(sx, y + 20, sx + signW, y + 20);
-      doc.text(label, sx + signW / 2, y + 25, { align: "center" });
-      doc.text("Date: _______________", sx, y + 32);
-    });
-
-    // Page footers
-    const totalPages = doc.getNumberOfPages();
-    for (let p = 1; p <= totalPages; p++) {
-      doc.setPage(p);
-      doc.setFontSize(7); doc.setFont("helvetica", "normal"); doc.setTextColor(120);
-      doc.text(`Page ${p} of ${totalPages}`, pw - m - 20, ph - 5);
-      doc.text(factory?.name || "", m, ph - 5);
-    }
-
-    const weekLabel = getWeekRange().replace(/\s/g, '_');
-    doc.save(`weekly_report_${weekLabel}.pdf`);
-  };
 
   return (
     <div className="py-4 lg:py-6 space-y-6">
@@ -932,153 +392,96 @@ export default function ThisWeek() {
         </Card>
       </div>
 
-      {/* Weekly Financials */}
-      {weekFinancials.hasData && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                <DollarSign className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <span className="text-sm font-semibold">Weekly Financials</span>
-              <span className="text-[10px] text-muted-foreground">(USD)</span>
-            </div>
-            {weekFinancials.costCurrency === 'BDT' && bdtToUsd && (
-              <span className="text-[10px] text-muted-foreground">
-                Rate: {(1 / bdtToUsd).toFixed(1)} BDT/USD
-              </span>
-            )}
-          </div>
-
-          {/* Revenue / Cost / Profit cards */}
-          <div className="grid grid-cols-3 gap-2">
-            <Card className="relative overflow-hidden border-emerald-500/20">
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-emerald-500/0" />
-              <CardContent className="p-2 md:p-4 relative">
-                <p className="text-[9px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Revenue</p>
-                <p className="font-mono text-sm md:text-2xl font-bold text-emerald-700 dark:text-emerald-400 leading-tight break-all">
-                  ${weekFinancials.totalRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                </p>
-                <p className="text-[9px] text-muted-foreground mt-0.5">Sewing output</p>
-              </CardContent>
-            </Card>
-
-            <Card className="relative overflow-hidden border-red-500/20">
-              <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-red-500/0" />
-              <CardContent className="p-2 md:p-4 relative">
-                <p className="text-[9px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Cost</p>
-                <p className="font-mono text-sm md:text-2xl font-bold text-red-600 dark:text-red-400 leading-tight break-all">
-                  ${weekFinancials.totalCostUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                </p>
-                <p className="text-[9px] text-muted-foreground mt-0.5">
-                  {weekFinancials.costCurrency === 'BDT' && bdtToUsd
-                    ? `৳${weekFinancials.totalCostNative.toLocaleString()}`
-                    : 'All depts'}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className={`relative overflow-hidden ${weekFinancials.profit >= 0 ? 'border-emerald-500/20' : 'border-red-500/20'}`}>
-              <div className={`absolute inset-0 bg-gradient-to-br ${weekFinancials.profit >= 0 ? 'from-emerald-500/5 to-emerald-500/0' : 'from-red-500/5 to-red-500/0'}`} />
-              <CardContent className="p-2 md:p-4 relative">
-                <p className="text-[9px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Profit</p>
-                <p className={`font-mono text-sm md:text-2xl font-bold leading-tight break-all ${weekFinancials.profit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {weekFinancials.profit >= 0 ? '+' : '-'}${Math.abs(weekFinancials.profit).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                </p>
-                <p className="text-[9px] text-muted-foreground mt-0.5">
-                  {weekFinancials.margin !== 0 ? `${weekFinancials.margin}% margin` : '—'}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Expandable details */}
-          <button
-            onClick={() => setFinancialsExpanded(!financialsExpanded)}
-            className="w-full flex items-center justify-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 py-1.5 transition-colors"
-          >
-            <span>{financialsExpanded ? 'Hide details' : 'View breakdown'}</span>
-            <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${financialsExpanded ? 'rotate-180' : ''}`} />
-          </button>
-
-          {financialsExpanded && (
-            <Card className="border-blue-500/20">
-              <CardContent className="p-4 space-y-4">
-                {/* Cost breakdown by department */}
-                {weekFinancials.totalCostUsd > 0 && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-2.5 uppercase tracking-wider">Cost Breakdown</p>
-                    <div className="space-y-2">
-                      {[
-                        { label: 'Sewing', value: weekFinancials.sewingCostUsd, color: 'bg-blue-500' },
-                        { label: 'Cutting', value: weekFinancials.cuttingCostUsd, color: 'bg-emerald-500' },
-                        { label: 'Finishing', value: weekFinancials.finishingCostUsd, color: 'bg-violet-500' },
-                      ].filter(d => d.value > 0).map((dept) => (
-                        <div key={dept.label} className="flex items-center gap-3">
-                          <span className="text-xs text-muted-foreground w-16">{dept.label}</span>
-                          <div className="flex-1 h-2.5 rounded-full bg-muted overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${dept.color}`}
-                              style={{ width: `${Math.min((dept.value / weekFinancials.totalCostUsd) * 100, 100)}%` }}
-                            />
-                          </div>
-                          <span className="font-mono text-xs font-medium w-20 text-right">
-                            ${dept.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+      {/* Weekly Financial Summary */}
+      {(() => {
+        if (weekSewingActuals.length === 0) return null;
+        const fin: SewingFinancials = calcSewingFinancials(
+          weekSewingActuals,
+          headcountCost.value ?? 0,
+          headcountCost.currency,
+          bdtToUsd,
+        );
+        return (
+          <Card className="relative overflow-hidden border-border/50">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-600" />
+            <CardHeader className="pt-5 pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-8 w-8 rounded-lg bg-blue-100 dark:bg-blue-950/50 flex items-center justify-center shrink-0">
+                    <DollarSign className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                   </div>
-                )}
-
-                {/* Daily financials table */}
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2.5 uppercase tracking-wider">Daily Breakdown</p>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="border-b text-muted-foreground">
-                          <th className="text-left py-1.5 font-medium">Day</th>
-                          <th className="text-right py-1.5 font-medium">Revenue</th>
-                          <th className="text-right py-1.5 font-medium">Cost</th>
-                          <th className="text-right py-1.5 font-medium">Profit</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {weekFinancials.dailyFinancials.map((d) => {
-                          const isFuture = new Date(d.date) > new Date();
-                          if (isFuture) return (
-                            <tr key={d.date} className="border-b border-muted/50 text-muted-foreground">
-                              <td className="py-1.5">{d.dayName}</td>
-                              <td className="py-1.5 text-right">—</td>
-                              <td className="py-1.5 text-right">—</td>
-                              <td className="py-1.5 text-right">—</td>
-                            </tr>
-                          );
-                          return (
-                            <tr key={d.date} className="border-b border-muted/50">
-                              <td className="py-1.5 font-medium">{d.dayName}</td>
-                              <td className="py-1.5 text-right font-mono text-emerald-700 dark:text-emerald-400">
-                                ${d.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </td>
-                              <td className="py-1.5 text-right font-mono text-red-600 dark:text-red-400">
-                                ${d.costUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </td>
-                              <td className={`py-1.5 text-right font-mono font-medium ${d.profit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                                {d.profit >= 0 ? '+' : '-'}${Math.abs(d.profit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                  <CardTitle className="text-base">Weekly Sewing Financials</CardTitle>
                 </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
+                <Link to="/finances" className="text-xs text-blue-600 dark:text-blue-400 hover:underline shrink-0">
+                  Full Report →
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-4">
+              {!fin.hasData && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 rounded-lg px-3 py-2">
+                  CM rates not yet set on work orders — output value cannot be calculated.
+                </p>
+              )}
+              {/* Metric tiles */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/20 p-3 border border-emerald-100 dark:border-emerald-900/30">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/60 mb-1">Output Value</p>
+                  <p className="text-xl font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
+                    {fin.totalValue > 0 ? `$${fin.totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '—'}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-muted/40 p-3 border border-border/50">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/60 mb-1">Operating Cost</p>
+                  <p className="text-xl font-bold tabular-nums">
+                    {fin.totalCostUsd > 0 ? `$${fin.totalCostUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : <span className="text-muted-foreground/50 text-sm font-normal">Not configured</span>}
+                  </p>
+                </div>
+                <div className={`rounded-xl p-3 border ${fin.profit > 0 ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/30' : fin.profit < 0 ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/30' : 'bg-muted/40 border-border/50'}`}>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/60 mb-1">Margin</p>
+                  <p className={`text-xl font-bold tabular-nums ${fin.profit > 0 ? 'text-emerald-700 dark:text-emerald-400' : fin.profit < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-muted-foreground/50'}`}>
+                    {fin.hasData ? <>{fin.profit >= 0 ? '+' : '−'}${Math.abs(fin.profit).toLocaleString(undefined, { maximumFractionDigits: 0 })}{fin.margin !== 0 && <span className="text-xs font-medium ml-1.5 opacity-70">{fin.margin}%</span>}</> : '—'}
+                  </p>
+                </div>
+              </div>
+
+              {/* PO breakdown table */}
+              {fin.valueByPo.length > 0 && (
+                <div className="rounded-xl border overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b bg-muted/20">
+                        <th className="text-left py-2.5 px-3 font-bold uppercase tracking-[0.1em] text-muted-foreground/60">Work Order</th>
+                        <th className="text-right py-2.5 px-3 font-bold uppercase tracking-[0.1em] text-muted-foreground/60">Output</th>
+                        <th className="text-right py-2.5 px-3 font-bold uppercase tracking-[0.1em] text-muted-foreground/60 hidden sm:table-cell">Prod CM/pc</th>
+                        <th className="text-right py-2.5 px-3 font-bold uppercase tracking-[0.1em] text-muted-foreground/60">Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {fin.valueByPo.map(row => (
+                        <tr key={row.po} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
+                          <td className="py-2.5 px-3">
+                            <p className="font-semibold">{row.po}</p>
+                            {row.buyer && <p className="text-muted-foreground text-[11px]">{row.buyer}</p>}
+                          </td>
+                          <td className="py-2.5 px-3 text-right tabular-nums text-muted-foreground">{row.output.toLocaleString()} pcs</td>
+                          <td className="py-2.5 px-3 text-right tabular-nums text-muted-foreground hidden sm:table-cell">${row.productionCmPc.toFixed(3)}</td>
+                          <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-emerald-700 dark:text-emerald-400">
+                            ${row.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <p className="text-[10px] text-muted-foreground/50">
+                Sewing dept · Production CM = 70% of entered CM · Costs in USD
+              </p>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Daily Breakdown */}
       <Tabs defaultValue="sewing">

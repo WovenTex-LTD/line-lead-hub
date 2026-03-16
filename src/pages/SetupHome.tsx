@@ -443,7 +443,7 @@ export default function SetupHome() {
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Per Operator Cost (per man-hour)</Label>
+              <Label className="text-sm font-medium">Headcount Cost (per man-hour)</Label>
               <Input
                 type="number"
                 step="0.01"

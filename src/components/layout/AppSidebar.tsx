@@ -33,6 +33,7 @@ import {
   Bug,
   BookOpen,
   BarChart3,
+  DollarSign,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -92,6 +93,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Bug,
   BookOpen,
   BarChart3,
+  DollarSign,
 };
 
 const navLabelKeys: Record<string, string> = {
@@ -507,15 +509,15 @@ export function AppSidebar() {
                           undefined
                         }
                         className={cn(
-                          "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors",
+                          "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors duration-150",
                           isActive(item.path)
                             ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                            : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/20"
                         )}
                       >
                         {Icon && (
-                          <div className="relative">
-                            <Icon className="h-5 w-5 shrink-0" />
+                          <div className="relative shrink-0">
+                            <Icon className="h-5 w-5" />
                             {collapsed && item.path === '/setup' && showSetupBadge && (
                               <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-sidebar" />
                             )}
@@ -562,15 +564,15 @@ Settings
                         <Link
                           to={item.path}
                           className={cn(
-                            "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors",
+                            "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors duration-150",
                             isActive(item.path)
                               ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                              : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                              : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/20"
                           )}
                         >
                           {Icon && (
-                            <div className="relative">
-                              <Icon className="h-5 w-5 shrink-0" />
+                            <div className="relative shrink-0">
+                              <Icon className="h-5 w-5" />
                               {collapsed && item.path === '/setup' && showSetupBadge && (
                                 <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-sidebar" />
                               )}

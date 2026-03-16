@@ -92,11 +92,10 @@ export function InsightsReportDialog() {
 
       // Previous period for comparison
       const prevStartStr = format(subDays(startDateObj, period), "yyyy-MM-dd");
-      const { data: prevFinishing } = await supabase
-        .from("finishing_daily_logs")
-        .select("poly, m_power_actual, actual_hours, ot_manpower_actual, ot_hours_actual, work_orders(cm_per_dozen)")
+      const { data: prevSewing } = await supabase
+        .from("sewing_actuals")
+        .select("good_today, manpower_actual, hours_actual, ot_manpower_actual, ot_hours_actual, work_orders(cm_per_dozen)")
         .eq("factory_id", profile.factory_id)
-        .eq("log_type", "OUTPUT")
         .gte("production_date", prevStartStr)
         .lt("production_date", startDateStr);
 
@@ -208,14 +207,14 @@ export function InsightsReportDialog() {
       const costCurrency = headcountCost.currency;
       const toUsd = (v: number) => costCurrency === "BDT" && bdtToUsd ? v * bdtToUsd : v;
 
-      // Revenue: sewing output × (cm_per_dozen / 12)
+      // Revenue: sewing output × (cm_per_dozen × 0.70 / 12) — production share is 70% of CM
       let totalRevenue = 0;
       const revenueByPoMap: Record<string, { po: string; buyer: string; revenue: number; output: number }> = {};
       sewingActuals?.forEach(u => {
         const cm = (u as any).work_orders?.cm_per_dozen;
         const output = u.good_today || 0;
         if (cm && output) {
-          const rev = (cm / 12) * output;
+          const rev = (cm * 0.70 / 12) * output;
           totalRevenue += rev;
           const po = (u as any).work_orders?.po_number || "Unknown";
           if (!revenueByPoMap[po]) revenueByPoMap[po] = { po, buyer: (u as any).work_orders?.buyer || "", revenue: 0, output: 0 };
@@ -224,11 +223,11 @@ export function InsightsReportDialog() {
         }
       });
 
-      let sewCost = 0, cutCost = 0, finCost = 0;
-      const costByPoMap: Record<string, { sewing: number; cutting: number; finishing: number }> = {};
-      const addCost = (po: string, dept: "sewing" | "cutting" | "finishing", amt: number) => {
-        if (!costByPoMap[po]) costByPoMap[po] = { sewing: 0, cutting: 0, finishing: 0 };
-        costByPoMap[po][dept] += amt;
+      let sewCost = 0;
+      const costByPoMap: Record<string, { sewing: number }> = {};
+      const addCost = (po: string, amt: number) => {
+        if (!costByPoMap[po]) costByPoMap[po] = { sewing: 0 };
+        costByPoMap[po].sewing += amt;
       };
 
       if (rate > 0) {
@@ -238,36 +237,20 @@ export function InsightsReportDialog() {
           if (s.manpower_actual && s.hours_actual) c += rate * s.manpower_actual * s.hours_actual;
           if (s.ot_manpower_actual && s.ot_hours_actual) c += rate * s.ot_manpower_actual * s.ot_hours_actual;
           sewCost += c;
-          if (c > 0) addCost((s as any).work_orders?.po_number || "Unknown", "sewing", c);
-        });
-        cuttingActuals?.forEach(c => {
-          if (!(c as any).work_orders?.cm_per_dozen) return;
-          let cost = 0;
-          if (c.man_power && c.hours_actual) cost += rate * c.man_power * c.hours_actual;
-          if (c.ot_manpower_actual && c.ot_hours_actual) cost += rate * c.ot_manpower_actual * c.ot_hours_actual;
-          cutCost += cost;
-          if (cost > 0) addCost((c as any).work_orders?.po_number || "Unknown", "cutting", cost);
-        });
-        finishingLogs?.forEach(log => {
-          if (!(log as any).work_orders?.cm_per_dozen) return;
-          let c = 0;
-          if (log.m_power_actual && log.actual_hours) c += rate * log.m_power_actual * log.actual_hours;
-          if (log.ot_manpower_actual && log.ot_hours_actual) c += rate * log.ot_manpower_actual * log.ot_hours_actual;
-          finCost += c;
-          if (c > 0) addCost((log as any).work_orders?.po_number || "Unknown", "finishing", c);
+          if (c > 0) addCost((s as any).work_orders?.po_number || "Unknown", c);
         });
       }
 
-      const totalCostUsd = toUsd(sewCost + cutCost + finCost);
+      const totalCostUsd = toUsd(sewCost);
       const profit = totalRevenue - totalCostUsd;
       const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
-      const totalPoly = finishingLogs?.reduce((s, u) => s + (u.poly || 0), 0) || 0;
+
 
       // Profit by PO
       const allPos = new Set([...Object.keys(revenueByPoMap), ...Object.keys(costByPoMap)]);
       const profitByPo = Array.from(allPos).map(po => {
         const rev = revenueByPoMap[po]?.revenue || 0;
-        const cn = costByPoMap[po] ? (costByPoMap[po].sewing + costByPoMap[po].cutting + costByPoMap[po].finishing) : 0;
+        const cn = costByPoMap[po]?.sewing || 0;
         const cu = toUsd(cn);
         const p = rev - cu;
         return { po, buyer: revenueByPoMap[po]?.buyer || "", revenue: Math.round(rev * 100) / 100, cost: Math.round(cu * 100) / 100, profit: Math.round(p * 100) / 100, margin: rev > 0 ? Math.round((p / rev) * 1000) / 10 : 0 };
@@ -279,7 +262,7 @@ export function InsightsReportDialog() {
       sewingActuals?.forEach(u => {
         const cm = (u as any).work_orders?.cm_per_dozen;
         const output = u.good_today || 0;
-        if (cm && output) dailyRevMap[u.production_date] = (dailyRevMap[u.production_date] || 0) + (cm / 12) * output;
+        if (cm && output) dailyRevMap[u.production_date] = (dailyRevMap[u.production_date] || 0) + (cm * 0.70 / 12) * output;
       });
       if (rate > 0) {
         sewingActuals?.forEach(s => {
@@ -288,20 +271,6 @@ export function InsightsReportDialog() {
           if (s.manpower_actual && s.hours_actual) c += rate * s.manpower_actual * s.hours_actual;
           if (s.ot_manpower_actual && s.ot_hours_actual) c += rate * s.ot_manpower_actual * s.ot_hours_actual;
           dailyCostMap[s.production_date] = (dailyCostMap[s.production_date] || 0) + c;
-        });
-        cuttingActuals?.forEach(c => {
-          if (!(c as any).work_orders?.cm_per_dozen) return;
-          let cost = 0;
-          if (c.man_power && c.hours_actual) cost += rate * c.man_power * c.hours_actual;
-          if (c.ot_manpower_actual && c.ot_hours_actual) cost += rate * c.ot_manpower_actual * c.ot_hours_actual;
-          dailyCostMap[c.production_date] = (dailyCostMap[c.production_date] || 0) + cost;
-        });
-        finishingLogs?.forEach(log => {
-          if (!(log as any).work_orders?.cm_per_dozen) return;
-          let c = 0;
-          if (log.m_power_actual && log.actual_hours) c += rate * log.m_power_actual * log.actual_hours;
-          if (log.ot_manpower_actual && log.ot_hours_actual) c += rate * log.ot_manpower_actual * log.ot_hours_actual;
-          dailyCostMap[log.production_date] = (dailyCostMap[log.production_date] || 0) + c;
         });
       }
 
@@ -312,19 +281,23 @@ export function InsightsReportDialog() {
         return { date, displayDate: new Date(date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }), revenue: Math.round(r * 100) / 100, cost: Math.round(c * 100) / 100, profit: Math.round((r - c) * 100) / 100 };
       });
 
-      // Previous period financials — revenue not available (prev sewing not fetched)
+      // Previous period financials — sewing only
       let prevRevenue = 0;
       let prevCostNative = 0;
-      prevFinishing?.forEach(log => {
+      prevSewing?.forEach(s => {
+        const cm = (s as any).work_orders?.cm_per_dozen;
+        const output = s.good_today || 0;
+        if (cm && output) prevRevenue += (cm * 0.70 / 12) * output;
         if (rate > 0) {
-          if ((log as any).m_power_actual && (log as any).actual_hours) prevCostNative += rate * (log as any).m_power_actual * (log as any).actual_hours;
+          if (s.manpower_actual && s.hours_actual) prevCostNative += rate * s.manpower_actual * s.hours_actual;
+          if (s.ot_manpower_actual && s.ot_hours_actual) prevCostNative += rate * s.ot_manpower_actual * s.ot_hours_actual;
         }
       });
       const prevCostUsd = toUsd(prevCostNative);
       const prevProfit = prevRevenue - prevCostUsd;
       const prevMargin = prevRevenue > 0 ? (prevProfit / prevRevenue) * 100 : 0;
 
-      const hasFinancialData = totalRevenue > 0 || (sewCost + cutCost + finCost) > 0;
+      const hasFinancialData = totalRevenue > 0 || sewCost > 0;
 
       // ── Build export data ──
       const exportData: ExportData = {
@@ -350,10 +323,10 @@ export function InsightsReportDialog() {
           profit: Math.round(profit * 100) / 100,
           margin: Math.round(margin * 10) / 10,
           sewingCost: Math.round(toUsd(sewCost) * 100) / 100,
-          cuttingCost: Math.round(toUsd(cutCost) * 100) / 100,
-          finishingCost: Math.round(toUsd(finCost) * 100) / 100,
-          revenuePerPiece: totalPoly > 0 ? Math.round((totalRevenue / totalPoly) * 100) / 100 : 0,
-          costPerPiece: totalPoly > 0 ? Math.round((totalCostUsd / totalPoly) * 100) / 100 : 0,
+          cuttingCost: 0,
+          finishingCost: 0,
+          revenuePerPiece: totalSewingOutput > 0 ? Math.round((totalRevenue / totalSewingOutput) * 100) / 100 : 0,
+          costPerPiece: totalSewingOutput > 0 ? Math.round((totalCostUsd / totalSewingOutput) * 100) / 100 : 0,
           profitByPo,
           dailyFinancials,
           prevRevenue: Math.round(prevRevenue * 100) / 100,

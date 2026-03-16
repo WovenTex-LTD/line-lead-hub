@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { effectivePoly } from "@/lib/finishing-utils";
 import { useTranslation } from "react-i18next";
 import {
   Dialog,
@@ -53,15 +52,6 @@ interface ExportSubmissionsDialogProps {
 }
 
 const esc = (cell: string) => `"${String(cell ?? "").replace(/"/g, '""')}"`;
-
-// Extract numeric part from line name for sorting (e.g. "Line 3" → 3)
-const lineSort = (a: any, b: any) => {
-  const nameA = a.lines?.name || a.lines?.line_id || "";
-  const nameB = b.lines?.name || b.lines?.line_id || "";
-  const numA = parseInt(nameA.replace(/\D/g, "")) || 9999;
-  const numB = parseInt(nameB.replace(/\D/g, "")) || 9999;
-  return numA - numB;
-};
 
 export function ExportSubmissionsDialog({
   open,
@@ -123,42 +113,28 @@ export function ExportSubmissionsDialog({
       rows.push([`Departments Included: ${deptParts.join(", ")}`]);
       rows.push([]);
 
-      // ── DAILY FINANCIALS ──
+      // ── SEWING FINANCIALS ──
       if (financials && (financials.totalRevenue > 0 || financials.totalCostUsd > 0)) {
-        rows.push(["═══ DAILY FINANCIALS (USD) ═══"]);
+        rows.push(["═══ SEWING FINANCIALS (USD) ═══"]);
+        rows.push(["Note: Sewing dept only. Production CM = 70% of entered CM/dozen."]);
         rows.push([]);
         rows.push(["Metric", "Amount (USD)"]);
-        rows.push(["Revenue", `$${financials.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]);
-        rows.push(["Cost", `$${financials.totalCostUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]);
-        rows.push(["Profit", `${financials.profit >= 0 ? '+' : '-'}$${Math.abs(financials.profit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]);
-        rows.push(["Margin", `${financials.margin}%`]);
+        rows.push(["Output Value", `$${financials.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]);
+        rows.push(["Operating Cost", `$${financials.totalCostUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]);
+        rows.push(["Operating Margin", `${financials.profit >= 0 ? '+' : '-'}$${Math.abs(financials.profit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]);
+        rows.push(["Margin %", `${financials.margin}%`]);
         rows.push([]);
 
         if (financials.costCurrency === 'BDT' && financials.bdtToUsdRate) {
-          rows.push(["Cost in BDT", `৳${financials.totalCostNative.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]);
+          rows.push(["Operating Cost in BDT", `৳${financials.totalCostNative.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]);
           rows.push(["Exchange Rate", `${(1 / financials.bdtToUsdRate).toFixed(2)} BDT/USD`]);
           rows.push([]);
         }
 
-        // Cost breakdown
-        if (financials.totalCostUsd > 0) {
-          rows.push(["COST BREAKDOWN", "Amount (USD)", "% of Total"]);
-          const depts = [
-            { label: 'Sewing', value: financials.sewingCostUsd },
-            { label: 'Cutting', value: financials.cuttingCostUsd },
-            { label: 'Finishing', value: financials.finishingCostUsd },
-          ].filter(d => d.value > 0);
-          depts.forEach(d => {
-            const pct = financials.totalCostUsd > 0 ? ((d.value / financials.totalCostUsd) * 100).toFixed(1) : '0';
-            rows.push([d.label, `$${d.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, `${pct}%`]);
-          });
-          rows.push([]);
-        }
-
-        // Revenue by PO
+        // Output value by PO
         if (financials.revenueByPo.length > 0) {
-          rows.push(["REVENUE BY PO", "", "", "", ""]);
-          rows.push(["PO Number", "Buyer", "Output (pcs)", "CM/Dozen", "Revenue (USD)"]);
+          rows.push(["OUTPUT VALUE BY WORK ORDER", "", "", "", ""]);
+          rows.push(["PO Number", "Buyer", "Sewing Output (pcs)", "CM/Dozen (entered)", "Output Value (USD)"]);
           financials.revenueByPo.forEach(r => {
             rows.push([
               r.po, r.buyer, r.output.toLocaleString(),
@@ -182,10 +158,10 @@ export function ExportSubmissionsDialog({
       // Finishing: use daily logs if available
       const finOutputData = hasFinishingLogs ? finishingLogOutputs : data.finishingActuals;
       const totalFinishingCarton = hasFinishingLogs
-        ? finOutputData.reduce((s: number, l: any) => s + effectivePoly(l.carton, l.actual_hours, l.ot_hours_actual), 0)
+        ? finOutputData.reduce((s: number, l: any) => s + (l.carton || 0), 0)
         : finOutputData.reduce((s: number, a: any) => s + (a.day_carton || 0), 0);
       const totalFinishingPoly = hasFinishingLogs
-        ? finOutputData.reduce((s: number, l: any) => s + effectivePoly(l.poly, l.actual_hours, l.ot_hours_actual), 0)
+        ? finOutputData.reduce((s: number, l: any) => s + (l.poly || 0), 0)
         : finOutputData.reduce((s: number, a: any) => s + (a.day_poly || 0), 0);
       const totalFinishingQcPass = hasFinishingLogs
         ? totalFinishingCarton // In daily logs, carton IS the output
@@ -242,7 +218,7 @@ export function ExportSubmissionsDialog({
         rows.push(["Section Summary:", `${data.sewingTargets.length} records | Avg Target/hr: ${avgTargetPerHr} | Avg Manpower: ${avgManpower} | Late: ${lateTargets}`]);
 
         rows.push(["Date", "Time", "Line", "PO Number", "Buyer", "Style", "Order Qty", "Target/hr", "Planned Total", "Manpower", "Hours Planned", "OT Hours", "Progress %", "Stage", "Next Milestone", "Status", "Remarks"]);
-        [...data.sewingTargets].sort(lineSort).forEach((t: any) => {
+        data.sewingTargets.forEach((t: any) => {
           rows.push([
             formatDate(t.production_date), fmtTime(t.submitted_at),
             t.lines?.name || t.lines?.line_id || "-", t.work_orders?.po_number || "-",
@@ -268,7 +244,7 @@ export function ExportSubmissionsDialog({
           "Good Today", "Reject", "Rework", "Cumulative Total", "Actual/hr",
           "Manpower", "Hours Actual", "OT Hours", "OT Manpower", "Progress %", "Stage",
           "Has Blocker", "Blocker Type", "Blocker Impact", "Blocker Owner", "Status", "Remarks"]);
-        [...data.sewingActuals].sort(lineSort).forEach((a: any) => {
+        data.sewingActuals.forEach((a: any) => {
           const pct = a.work_orders?.order_qty > 0
             ? Math.round((a.cumulative_good_total / a.work_orders.order_qty) * 100) : 0;
           rows.push([
@@ -301,7 +277,7 @@ export function ExportSubmissionsDialog({
           rows.push(["Date", "Time", "Line", "PO Number", "Buyer", "Style",
             "Thread Cutting", "Inside Check", "Top Side Check", "Buttoning", "Iron", "Get Up", "Poly", "Carton",
             "Planned Hours", "Manpower Planned", "OT Hours Planned", "OT Manpower Planned", "Remarks"]);
-          [...finishingLogTargets].sort(lineSort).forEach((l: any) => {
+          finishingLogTargets.forEach((l: any) => {
             rows.push([
               formatDate(l.production_date), fmtTime(l.submitted_at),
               l.lines?.name || l.lines?.line_id || "-",
@@ -323,7 +299,7 @@ export function ExportSubmissionsDialog({
           rows.push(["Date", "Time", "Line", "PO Number", "Buyer", "Style",
             "Thread Cutting", "Inside Check", "Top Side Check", "Buttoning", "Iron", "Get Up", "Poly", "Carton",
             "Actual Hours", "Manpower Actual", "OT Hours Actual", "OT Manpower Actual", "Locked", "Remarks"]);
-          [...finishingLogOutputs].sort(lineSort).forEach((l: any) => {
+          finishingLogOutputs.forEach((l: any) => {
             rows.push([
               formatDate(l.production_date), fmtTime(l.submitted_at),
               l.lines?.name || l.lines?.line_id || "-",
@@ -347,7 +323,7 @@ export function ExportSubmissionsDialog({
           const lateTargets = data.finishingTargets.filter((t: any) => t.is_late).length;
           rows.push(["Section Summary:", `${data.finishingTargets.length} records | Avg Target/hr: ${avgTargetPerHr} | Late: ${lateTargets}`]);
           rows.push(["Date", "Time", "Line", "PO Number", "Buyer", "Style", "Order Qty", "Target/hr", "Manpower", "Day Hours", "OT Hours", "OT Manpower", "Status", "Remarks"]);
-          [...data.finishingTargets].sort(lineSort).forEach((t: any) => {
+          data.finishingTargets.forEach((t: any) => {
             rows.push([
               formatDate(t.production_date), fmtTime(t.submitted_at),
               t.lines?.name || t.lines?.line_id || "-", t.work_orders?.po_number || "-",
@@ -369,7 +345,7 @@ export function ExportSubmissionsDialog({
             "Day QC Pass", "Total QC Pass", "Day Poly", "Total Poly", "Day Carton", "Total Carton",
             "Manpower", "OT Manpower", "Day Hours", "OT Hours", "Total Hours", "Total OT",
             "Avg Production", "Has Blocker", "Blocker Type", "Blocker Impact", "Blocker Owner", "Status", "Remarks"]);
-          [...data.finishingActuals].sort(lineSort).forEach((a: any) => {
+          data.finishingActuals.forEach((a: any) => {
             rows.push([
               formatDate(a.production_date), fmtTime(a.submitted_at),
               a.lines?.name || a.lines?.line_id || "-", a.work_orders?.po_number || "-",
@@ -404,7 +380,7 @@ export function ExportSubmissionsDialog({
         rows.push(["Date", "Time", "Line", "PO Number", "Buyer", "Style", "Colour", "Order Qty",
           "Marker Capacity", "Lay Capacity", "Cutting Capacity", "Day Cutting", "Day Input",
           "Manpower", "Hours Planned", "OT Hours", "OT Manpower", "Target/hr", "Under Qty", "Status"]);
-        [...data.cuttingTargets].sort(lineSort).forEach((t: any) => {
+        data.cuttingTargets.forEach((t: any) => {
           rows.push([
             formatDate(t.production_date), fmtTime(t.submitted_at),
             t.lines?.name || t.lines?.line_id || "-",
@@ -433,7 +409,7 @@ export function ExportSubmissionsDialog({
           "Day Cutting", "Total Cutting", "Day Input", "Total Input", "Balance",
           "Manpower", "Hours Actual", "OT Hours", "OT Manpower", "Actual/hr",
           "Status", "Acknowledged"]);
-        [...data.cuttingActuals].sort(lineSort).forEach((a: any) => {
+        data.cuttingActuals.forEach((a: any) => {
           rows.push([
             formatDate(a.production_date), fmtTime(a.submitted_at),
             a.lines?.name || a.lines?.line_id || "-",

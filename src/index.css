@@ -142,8 +142,8 @@ main {
     --sidebar-foreground: 214 32% 91%;
     --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 33% 17%;
-    --sidebar-accent-foreground: 214 32% 91%;
+    --sidebar-accent: 217 45% 24%;
+    --sidebar-accent-foreground: 214 32% 97%;
     --sidebar-border: 217 33% 17%;
     --sidebar-ring: 217 91% 60%;
     
@@ -209,8 +209,8 @@ main {
     --sidebar-foreground: 214 32% 91%;
     --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 33% 12%;
-    --sidebar-accent-foreground: 214 32% 91%;
+    --sidebar-accent: 217 45% 19%;
+    --sidebar-accent-foreground: 214 32% 97%;
     --sidebar-border: 217 33% 12%;
     --sidebar-ring: 217 91% 60%;
     
@@ -859,3 +859,41 @@ main {
 .driver-popover-arrow-side-right  { border-right-color:  #2851a3 !important; border-left-color:   transparent !important; border-top-color:    transparent !important; border-bottom-color: transparent !important; }
 .driver-popover-arrow-side-top    { border-top-color:    #2851a3 !important; border-left-color:   transparent !important; border-right-color:  transparent !important; border-bottom-color: transparent !important; }
 .driver-popover-arrow-side-bottom { border-bottom-color: #2851a3 !important; border-left-color:   transparent !important; border-right-color:  transparent !important; border-top-color:    transparent !important; }
+
+/* ── Finance theme override ─────────────────────────────────────────────────
+   Applied when data-theme="finance" is set on <html>.
+   Shifts all primary/ring/sidebar accent colours from blue → purple.
+   This previews the future ProductionPortal Finance product identity.
+────────────────────────────────────────────────────────────────────────── */
+
+[data-theme="finance"] {
+  --primary: 270 76% 52%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 270 76% 52%;
+  --chart-1: 270 76% 52%;
+  --sidebar-background: 270 40% 17%;
+  --sidebar-foreground: 270 20% 88%;
+  --sidebar-primary: 270 76% 72%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 0 0% 97%;
+  --sidebar-accent-foreground: 270 65% 38%;
+  --sidebar-border: 270 30% 25%;
+  --sidebar-ring: 270 76% 72%;
+  --sidebar-hover: 270 35% 27%;
+}
+
+
+[data-theme="finance"].dark {
+  --primary: 270 76% 66%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 270 76% 66%;
+  --chart-1: 270 76% 66%;
+  --sidebar-background: 270 40% 13%;
+  --sidebar-foreground: 270 20% 88%;
+  --sidebar-primary: 270 76% 70%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 0 0% 96%;
+  --sidebar-accent-foreground: 270 65% 35%;
+  --sidebar-border: 270 30% 20%;
+  --sidebar-ring: 270 76% 70%;
+}

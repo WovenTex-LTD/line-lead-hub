@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getTodayInTimezone } from "@/lib/date-utils";
-import { effectivePoly } from "@/lib/finishing-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,13 +19,13 @@ import {
 } from "recharts";
 import { PeriodComparison } from "@/components/insights/PeriodComparison";
 import { LineDrillDown } from "@/components/insights/LineDrillDown";
-import { ReportExportDialog } from "@/components/ReportExportDialog";
-import { InsightsReportDialog } from "@/components/insights/InsightsReportDialog";
 
 import { LineEfficiencyTargets } from "@/components/insights/LineEfficiencyTargets";
 
 import { InteractiveChart } from "@/components/ui/interactive-chart";
 import { useHeadcountCost } from "@/hooks/useHeadcountCost";
+import { ReportExportDialog } from "@/components/ReportExportDialog";
+import { InsightsReportDialog } from "@/components/insights/InsightsReportDialog";
 
 interface DailyData {
   date: string;
@@ -382,8 +381,8 @@ export default function Insights() {
       // Finishing daily logs (OUTPUT) → poly is primary output
       finishingDailyLogs?.forEach(u => {
         const existing = getOrCreateDaily(u.production_date);
-        const adjPoly = effectivePoly(u.poly, u.actual_hours, u.ot_hours_actual);
-        const adjCarton = effectivePoly(u.carton, u.actual_hours, u.ot_hours_actual);
+        const adjPoly = u.poly || 0;
+        const adjCarton = u.carton || 0;
         existing.finishingQcPass += adjPoly + adjCarton;
         existing.finishingPolyOutput += adjPoly;
         dailyMap.set(u.production_date, existing);
@@ -506,12 +505,12 @@ export default function Insights() {
       // Calculate summary
       const totalSewingOutput = sewingActualsData?.reduce((sum, u) => sum + (u.good_today || 0), 0) || 0;
       const totalSewingTarget = pairedSewingTargets.reduce((sum, t) => sum + ((t.per_hour_target || 0) * 8), 0) || 0;
-      const totalFinishingQcPass = finishingDailyLogs?.reduce((sum, u) => sum + effectivePoly(u.poly, u.actual_hours, u.ot_hours_actual) + effectivePoly(u.carton, u.actual_hours, u.ot_hours_actual), 0) || 0;
+      const totalFinishingQcPass = finishingDailyLogs?.reduce((sum, u) => sum + (u.poly || 0) + (u.carton || 0), 0) || 0;
       const totalManpower = sewingActualsData?.reduce((sum, u) => sum + (u.manpower_actual || 0), 0) || 0;
 
       const prevTotalOutput = prevSewingActuals?.reduce((sum, u) => sum + (u.good_today || 0), 0) || 0;
       const prevTotalTarget = prevSewingTargets?.reduce((sum, t) => sum + ((t.per_hour_target || 0) * 8), 0) || 0;
-      const prevTotalQcPass = prevFinishingDailyLogs?.reduce((sum, u) => sum + effectivePoly((u as any).poly, (u as any).actual_hours, (u as any).ot_hours_actual) + effectivePoly((u as any).carton, (u as any).actual_hours, (u as any).ot_hours_actual), 0) || 0;
+      const prevTotalQcPass = prevFinishingDailyLogs?.reduce((sum, u) => sum + ((u as any).poly || 0) + ((u as any).carton || 0), 0) || 0;
       const prevEfficiency = prevTotalTarget > 0 ? (prevTotalOutput / prevTotalTarget) * 100 : 0;
       const prevTotalBlockers = prevSewingActuals?.filter(u => u.has_blocker).length || 0;
       const prevTotalManpower = prevSewingActuals?.reduce((sum, u) => sum + (u.manpower_actual || 0), 0) || 0;
@@ -565,14 +564,14 @@ export default function Insights() {
       const costCurrency = headcountCost.currency;
       const toUsd = (v: number) => costCurrency === 'BDT' && bdtToUsd ? v * bdtToUsd : v;
 
-      // Revenue: sewing output × (cm_per_dozen / 12) — already in USD
+      // Revenue: sewing output × (cm_per_dozen × 0.70 / 12) — production CM share (70%)
       const revenueByPoMap: Record<string, { po: string; buyer: string; revenue: number; output: number; cmDz: number }> = {};
       let totalRevenue = 0;
       sewingActualsData?.forEach(u => {
         const cm = (u as any).work_orders?.cm_per_dozen;
         const output = u.good_today || 0;
         if (cm && output) {
-          const rev = (cm / 12) * output;
+          const rev = (cm * 0.70 / 12) * output;
           totalRevenue += rev;
           const po = (u as any).work_orders?.po_number || 'Unknown';
           if (!revenueByPoMap[po]) revenueByPoMap[po] = { po, buyer: (u as any).work_orders?.buyer || '', revenue: 0, output: 0, cmDz: cm };
@@ -581,13 +580,9 @@ export default function Insights() {
         }
       });
 
-      // Cost by department (native currency, then convert to USD)
-      let sewCost = 0, cutCost = 0, finCost = 0;
-      const costByPoMap: Record<string, { sewing: number; cutting: number; finishing: number }> = {};
-      const addPoCost = (po: string, dept: 'sewing' | 'cutting' | 'finishing', amount: number) => {
-        if (!costByPoMap[po]) costByPoMap[po] = { sewing: 0, cutting: 0, finishing: 0 };
-        costByPoMap[po][dept] += amount;
-      };
+      // Cost — sewing only (native currency, then convert to USD)
+      let sewCost = 0;
+      const costByPoMap: Record<string, { sewing: number }> = {};
 
       if (rate > 0) {
         sewingActualsData?.forEach(s => {
@@ -596,32 +591,16 @@ export default function Insights() {
           if (s.manpower_actual && s.hours_actual) c += rate * s.manpower_actual * s.hours_actual;
           if (s.ot_manpower_actual && s.ot_hours_actual) c += rate * s.ot_manpower_actual * s.ot_hours_actual;
           sewCost += c;
-          if (c > 0) addPoCost((s as any).work_orders?.po_number || 'Unknown', 'sewing', c);
-        });
-
-        cuttingActualsData?.forEach(c => {
-          if (!(c as any).work_orders?.cm_per_dozen) return;
-          let cost = 0;
-          if (c.man_power && c.hours_actual) cost += rate * c.man_power * c.hours_actual;
-          if (c.ot_manpower_actual && c.ot_hours_actual) cost += rate * c.ot_manpower_actual * c.ot_hours_actual;
-          cutCost += cost;
-          if (cost > 0) addPoCost((c as any).work_orders?.po_number || 'Unknown', 'cutting', cost);
-        });
-
-        finishingDailyLogs?.forEach(log => {
-          if (!(log as any).work_orders?.cm_per_dozen) return;
-          let c = 0;
-          if (log.m_power_actual && log.actual_hours) c += rate * log.m_power_actual * log.actual_hours;
-          if (log.ot_manpower_actual && log.ot_hours_actual) c += rate * log.ot_manpower_actual * log.ot_hours_actual;
-          finCost += c;
-          if (c > 0) addPoCost((log as any).work_orders?.po_number || 'Unknown', 'finishing', c);
+          if (c > 0) {
+            const po = (s as any).work_orders?.po_number || 'Unknown';
+            if (!costByPoMap[po]) costByPoMap[po] = { sewing: 0 };
+            costByPoMap[po].sewing += c;
+          }
         });
       }
 
-      const totalCostUsd = toUsd(sewCost + cutCost + finCost);
-      const sewingCostUsd = toUsd(sewCost);
-      const cuttingCostUsd = toUsd(cutCost);
-      const finishingCostUsd = toUsd(finCost);
+      const totalCostUsd = toUsd(sewCost);
+      const sewingCostUsd = totalCostUsd;
       const profit = totalRevenue - totalCostUsd;
       const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
 
@@ -632,7 +611,7 @@ export default function Insights() {
       const allPos = new Set([...Object.keys(revenueByPoMap), ...Object.keys(costByPoMap)]);
       const profitByPo = Array.from(allPos).map(po => {
         const rev = revenueByPoMap[po]?.revenue || 0;
-        const costNative = costByPoMap[po] ? (costByPoMap[po].sewing + costByPoMap[po].cutting + costByPoMap[po].finishing) : 0;
+        const costNative = costByPoMap[po]?.sewing || 0;
         const costUsd = toUsd(costNative);
         const poProfit = rev - costUsd;
         return {
@@ -645,14 +624,14 @@ export default function Insights() {
         };
       }).filter(p => p.revenue > 0 || p.cost > 0).sort((a, b) => b.profit - a.profit);
 
-      // Daily financials (revenue + cost per day)
+      // Daily financials — sewing only (revenue + cost per day)
       const dailyRevMap: Record<string, number> = {};
       const dailyCostMap: Record<string, number> = {};
-      finishingDailyLogs?.forEach(log => {
-        const cm = (log as any).work_orders?.cm_per_dozen;
-        const output = log.poly || 0;
+      sewingActualsData?.forEach(s => {
+        const cm = (s as any).work_orders?.cm_per_dozen;
+        const output = s.good_today || 0;
         if (cm && output) {
-          dailyRevMap[log.production_date] = (dailyRevMap[log.production_date] || 0) + (cm / 12) * output;
+          dailyRevMap[s.production_date] = (dailyRevMap[s.production_date] || 0) + (cm * 0.70 / 12) * output;
         }
       });
       if (rate > 0) {
@@ -662,20 +641,6 @@ export default function Insights() {
           if (s.manpower_actual && s.hours_actual) c += rate * s.manpower_actual * s.hours_actual;
           if (s.ot_manpower_actual && s.ot_hours_actual) c += rate * s.ot_manpower_actual * s.ot_hours_actual;
           dailyCostMap[s.production_date] = (dailyCostMap[s.production_date] || 0) + c;
-        });
-        cuttingActualsData?.forEach(c => {
-          if (!(c as any).work_orders?.cm_per_dozen) return;
-          let cost = 0;
-          if (c.man_power && c.hours_actual) cost += rate * c.man_power * c.hours_actual;
-          if (c.ot_manpower_actual && c.ot_hours_actual) cost += rate * c.ot_manpower_actual * c.ot_hours_actual;
-          dailyCostMap[c.production_date] = (dailyCostMap[c.production_date] || 0) + cost;
-        });
-        finishingDailyLogs?.forEach(log => {
-          if (!(log as any).work_orders?.cm_per_dozen) return;
-          let c = 0;
-          if (log.m_power_actual && log.actual_hours) c += rate * log.m_power_actual * log.actual_hours;
-          if (log.ot_manpower_actual && log.ot_hours_actual) c += rate * log.ot_manpower_actual * log.ot_hours_actual;
-          dailyCostMap[log.production_date] = (dailyCostMap[log.production_date] || 0) + c;
         });
       }
 
@@ -693,50 +658,43 @@ export default function Insights() {
         };
       });
 
-      // Previous period financials
+      // Previous period financials — sewing only
       let prevRevenue = 0;
-      prevFinishingOutputLogs?.forEach(log => {
-        const cm = (log as any).work_orders?.cm_per_dozen;
-        const output = (log as any).poly || 0;
-        if (cm && output) prevRevenue += (cm / 12) * output;
+      prevSewingActuals?.forEach(s => {
+        const cm = (s as any).work_orders?.cm_per_dozen;
+        const output = s.good_today || 0;
+        if (cm && output) prevRevenue += (cm * 0.70 / 12) * output;
       });
       let prevCostNative = 0;
       if (rate > 0) {
         prevSewingActuals?.forEach(s => {
           if (s.manpower_actual && (s as any).hours_actual) prevCostNative += rate * s.manpower_actual * (s as any).hours_actual;
-        });
-        prevCuttingActuals?.forEach(c => {
-          if ((c as any).man_power && (c as any).hours_actual) prevCostNative += rate * (c as any).man_power * (c as any).hours_actual;
-        });
-        prevFinishingOutputLogs?.forEach(log => {
-          if ((log as any).m_power_actual && (log as any).actual_hours) prevCostNative += rate * (log as any).m_power_actual * (log as any).actual_hours;
+          if ((s as any).ot_manpower_actual && (s as any).ot_hours_actual) prevCostNative += rate * (s as any).ot_manpower_actual * (s as any).ot_hours_actual;
         });
       }
       const prevCostUsd = toUsd(prevCostNative);
       const prevProfit = prevRevenue - prevCostUsd;
       const prevMargin = prevRevenue > 0 ? (prevProfit / prevRevenue) * 100 : 0;
 
-      // Cost & revenue per piece
-      const totalFinishingPoly = finishingDailyLogs?.reduce((sum, u) => sum + effectivePoly(u.poly, u.actual_hours, u.ot_hours_actual), 0) || 0;
-
+      // Cost & revenue per piece (sewing output)
       setFinancialData({
         totalRevenue: Math.round(totalRevenue * 100) / 100,
         totalCost: Math.round(totalCostUsd * 100) / 100,
         profit: Math.round(profit * 100) / 100,
         margin: Math.round(margin * 10) / 10,
         sewingCost: Math.round(sewingCostUsd * 100) / 100,
-        cuttingCost: Math.round(cuttingCostUsd * 100) / 100,
-        finishingCost: Math.round(finishingCostUsd * 100) / 100,
+        cuttingCost: 0,
+        finishingCost: 0,
         revenueByPo,
         profitByPo,
         dailyFinancials,
-        costPerPiece: totalFinishingPoly > 0 ? Math.round((totalCostUsd / totalFinishingPoly) * 100) / 100 : 0,
-        revenuePerPiece: totalFinishingPoly > 0 ? Math.round((totalRevenue / totalFinishingPoly) * 100) / 100 : 0,
+        costPerPiece: totalSewingOutput > 0 ? Math.round((totalCostUsd / totalSewingOutput) * 100) / 100 : 0,
+        revenuePerPiece: totalSewingOutput > 0 ? Math.round((totalRevenue / totalSewingOutput) * 100) / 100 : 0,
         prevRevenue: Math.round(prevRevenue * 100) / 100,
         prevCost: Math.round(prevCostUsd * 100) / 100,
         prevProfit: Math.round(prevProfit * 100) / 100,
         prevMargin: Math.round(prevMargin * 10) / 10,
-        hasData: totalRevenue > 0 || (sewCost + cutCost + finCost) > 0,
+        hasData: totalRevenue > 0 || sewCost > 0,
       });
 
     } catch (error) {
@@ -895,6 +853,8 @@ export default function Insights() {
           <p className="text-muted-foreground">Deep-dive analytics and performance trends</p>
         </div>
         <div className="flex items-center gap-3">
+          <InsightsReportDialog />
+          <ReportExportDialog />
           <Select value={period} onValueChange={(v) => setPeriod(v as '7' | '14' | '21' | '30')}>
             <SelectTrigger className="w-[160px]">
               <Calendar className="h-4 w-4 mr-2" />
@@ -907,8 +867,6 @@ export default function Insights() {
               <SelectItem value="30">Last 30 days</SelectItem>
             </SelectContent>
           </Select>
-          <InsightsReportDialog />
-          <ReportExportDialog />
         </div>
       </div>
 
@@ -1777,18 +1735,16 @@ export default function Insights() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Wallet className="h-5 w-5 text-orange-600" />
-                  Cost by Department
+                  Cost by Work Order
                 </CardTitle>
-                <CardDescription>Labor cost distribution (USD)</CardDescription>
+                <CardDescription>Sewing labor cost per PO (USD)</CardDescription>
               </CardHeader>
               <CardContent className="p-4 sm:p-6">
                 {(() => {
-                  const COST_COLORS = ['#1e40af', '#d97706', '#7c3aed'];
-                  const costPieData = [
-                    { name: 'Sewing', value: financialData.sewingCost },
-                    { name: 'Cutting', value: financialData.cuttingCost },
-                    { name: 'Finishing', value: financialData.finishingCost },
-                  ].filter(d => d.value > 0);
+                  const COST_COLORS = ['#1e40af', '#7c3aed', '#d97706', '#0891b2', '#059669', '#dc2626', '#9333ea', '#0284c7'];
+                  const costPieData = financialData.profitByPo
+                    .filter(p => p.cost > 0)
+                    .map(p => ({ name: p.po, value: p.cost }));
                   return costPieData.length > 0 ? (
                     <div className="w-full flex flex-col items-center">
                       <div className="relative">
@@ -2077,13 +2033,9 @@ export default function Insights() {
 
               {/* Biggest cost driver */}
               {financialData.totalCost > 0 && (() => {
-                const depts = [
-                  { name: 'Sewing', cost: financialData.sewingCost },
-                  { name: 'Cutting', cost: financialData.cuttingCost },
-                  { name: 'Finishing', cost: financialData.finishingCost },
-                ].sort((a, b) => b.cost - a.cost);
-                const top = depts[0];
-                const pct = Math.round((top.cost / financialData.totalCost) * 100);
+                const topPo = [...financialData.profitByPo].sort((a, b) => b.cost - a.cost)[0];
+                if (!topPo) return null;
+                const pct = financialData.totalCost > 0 ? Math.round((topPo.cost / financialData.totalCost) * 100) : 0;
                 return (
                   <div className="flex items-start gap-3 p-3 rounded-lg bg-orange-500/10">
                     <div className="h-8 w-8 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0">
@@ -2092,7 +2044,7 @@ export default function Insights() {
                     <div>
                       <p className="font-medium text-orange-600">Biggest Cost Driver</p>
                       <p className="text-sm text-muted-foreground">
-                        {top.name} accounts for {pct}% of total cost (${top.cost.toLocaleString(undefined, { maximumFractionDigits: 0 })})
+                        {topPo.po} accounts for {pct}% of total sewing cost (${topPo.cost.toLocaleString(undefined, { maximumFractionDigits: 0 })})
                       </p>
                     </div>
                   </div>
