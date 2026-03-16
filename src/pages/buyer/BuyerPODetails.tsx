@@ -120,7 +120,7 @@ export default function BuyerPODetails() {
     return sortAlerts(computeBuyerAlerts(workOrder, aggregates, sewingHistory));
   }, [workOrder, aggregates, sewingHistory]);
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!workOrder) return;
     let csv = `PO Report: ${workOrder.po_number}\n`;
     csv += `Style,${workOrder.style}\n`;
@@ -135,12 +135,9 @@ export default function BuyerPODetails() {
       csv += `${d.date},${d.sewingOutput},${d.finishingOutput}\n`;
     }
 
+    const { downloadFile } = await import("@/lib/capacitor");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `po-report-${workOrder.po_number}-${todayStr}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    await downloadFile(blob, `po-report-${workOrder.po_number}-${todayStr}.csv`);
   };
 
   if (loading) {

@@ -431,7 +431,7 @@ export default function AllSubmissions() {
           r.is_late ? "Late" : "On Time",
         ].join(","));
       });
-      downloadCsv(csvRows, `sewing-targets-${format(new Date(), "yyyy-MM-dd")}.csv`, rows.length);
+      downloadCsvRows(csvRows, `sewing-targets-${format(new Date(), "yyyy-MM-dd")}.csv`, rows.length);
     } else {
       const rows = sewingSortedData.filter(r => selectedIds.has(r.id)) as SewingActual[];
       const headers = ["Date", "Line", "PO", "Buyer", "Good Today", "Cumulative", "Rejects", "Rework", "Manpower", "OT Hours", "Blocker"];
@@ -451,18 +451,14 @@ export default function AllSubmissions() {
           r.has_blocker ? "Yes" : "No",
         ].join(","));
       });
-      downloadCsv(csvRows, `sewing-actuals-${format(new Date(), "yyyy-MM-dd")}.csv`, rows.length);
+      downloadCsvRows(csvRows, `sewing-actuals-${format(new Date(), "yyyy-MM-dd")}.csv`, rows.length);
     }
   }
 
-  function downloadCsv(csvRows: string[], filename: string, count: number) {
+  async function downloadCsvRows(csvRows: string[], filename: string, count: number) {
+    const { downloadFile } = await import("@/lib/capacitor");
     const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    await downloadFile(blob, filename);
     toast.success(`Exported ${count} rows`);
   }
 

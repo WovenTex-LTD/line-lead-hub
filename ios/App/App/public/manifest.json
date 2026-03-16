@@ -1,6 +1,6 @@
 {
-  "name": "Production Portal",
-  "short_name": "ProdPortal",
+  "name": "ProductionPortal",
+  "short_name": "ProductionPortal",
   "description": "Enterprise-grade factory production tracking and management platform",
   "start_url": "/",
   "display": "standalone",

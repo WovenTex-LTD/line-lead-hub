@@ -985,7 +985,8 @@ export async function downloadInsightsPdf(d: ExportData) {
 
   // Save
   const fileDate = d.endDate || format(new Date(), "yyyy-MM-dd");
-  doc.save(`insights-report-${d.periodDays}days-${fileDate}.pdf`);
+  const { savePdf } = await import("@/lib/capacitor");
+  await savePdf(doc, `insights-report-${d.periodDays}days-${fileDate}.pdf`);
 }
 
 // ─── CSV GENERATION ───────────────────────────────────────────────────
@@ -1075,18 +1076,12 @@ function buildCsvRows(d: ExportData): string[][] {
   return rows;
 }
 
-export function downloadInsightsCsv(d: ExportData) {
+export async function downloadInsightsCsv(d: ExportData) {
   const rows = buildCsvRows(d);
   const csvContent = rows.map((row) => row.map(esc).join(",")).join("\n");
-  const BOM = "\uFEFF";
-  const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
-  const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
   const fileDate = d.endDate || format(new Date(), "yyyy-MM-dd");
-  link.href = url;
-  link.download = `insights-report-${d.periodDays}days-${fileDate}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+  const { downloadCsv } = await import("@/lib/capacitor");
+  await downloadCsv(csvContent, `insights-report-${d.periodDays}days-${fileDate}.csv`);
 }
 
 // ─── COMPONENT ────────────────────────────────────────────────────────

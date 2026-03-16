@@ -1,6 +1,6 @@
 {
 	"appId": "com.woventex.productionportal",
-	"appName": "Production Portal",
+	"appName": "ProductionPortal",
 	"webDir": "dist",
 	"server": {
 		"androidScheme": "https",
@@ -18,14 +18,13 @@
 	"android": {
 		"allowMixedContent": false,
 		"captureInput": true,
-		"webContentsDebuggingEnabled": false,
-		"overScrollMode": "always"
+		"webContentsDebuggingEnabled": true
 	},
 	"plugins": {
 		"SplashScreen": {
 			"launchShowDuration": 2000,
 			"launchAutoHide": true,
-			"backgroundColor": "#f1f3f5",
+			"backgroundColor": "#1B2A4A",
 			"androidScaleType": "CENTER_CROP",
 			"showSpinner": false
 		},
@@ -41,7 +40,6 @@
 				"alert"
 			]
 		},
-		"App": {},
 		"Keyboard": {
 			"resize": "body",
 			"resizeOnFullScreen": true
@@ -49,6 +47,7 @@
 	},
 	"packageClassList": [
 		"AppPlugin",
+		"FilesystemPlugin",
 		"HapticsPlugin",
 		"PushNotificationsPlugin",
 		"SharePlugin",

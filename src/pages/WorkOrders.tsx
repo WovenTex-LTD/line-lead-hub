@@ -414,18 +414,14 @@ export default function WorkOrders() {
     }
   }
 
-  function downloadTemplate() {
+  async function downloadTemplate() {
     const headers = ['po_number', 'buyer', 'style', 'item', 'color', 'order_qty', 'smv', 'cm_per_dozen', 'planned_ex_factory', 'target_per_hour', 'target_per_day', 'status'];
     const sampleRow = ['PO-001', 'ABC Buyer', 'STYLE-001', 'T-Shirt', 'Blue', '5000', '12.5', '45.00', '2026-03-15', '100', '800', 'not_started'];
     const csv = [headers.join(','), sampleRow.join(',')].join('\n');
     
+    const { downloadFile } = await import("@/lib/capacitor");
     const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'work_orders_template.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+    await downloadFile(blob, 'work_orders_template.csv');
   }
 
   // Column mapping for flexible CSV import

@@ -242,18 +242,13 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
   const fN = (v: number | null | undefined) => v != null ? v.toLocaleString() : "";
   const fUsd = (v: number) => "$" + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  function downloadCsv(rows: (string | number | null | undefined)[][], filename: string) {
+  async function downloadCsvFile(rows: (string | number | null | undefined)[][], filename: string) {
     const csvContent = rows.map(row => row.map(esc).join(",")).join("\n");
-    const BOM = "\uFEFF";
-    const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    const { downloadCsv } = await import("@/lib/capacitor");
+    await downloadCsv(csvContent, filename);
   }
 
-  function generateDailyCsv(data: DailyReportData) {
+  async function generateDailyCsv(data: DailyReportData) {
     const R: (string | number | null)[][] = [];
     const rate = data.headcountCostRate || 0;
     const isBDT = data.headcountCostCurrency === "BDT";
@@ -429,10 +424,10 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
     }
 
     R.push(["=== END OF REPORT ==="]);
-    downloadCsv(R, `daily_report_${data.reportDate}.csv`);
+    await downloadCsvFile(R, `daily_report_${data.reportDate}.csv`);
   }
 
-  function generatePeriodCsv(
+  async function generatePeriodCsv(
     sewingData: any[], cuttingData: any[], finishingData: any[], storageData: any[],
     label: string, xRate: number | null, dates: string[],
   ) {
@@ -701,7 +696,7 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
 
     R.push(["=== END OF REPORT ==="]);
     const safePeriod = label.replace(/[^a-zA-Z0-9\- ]/g, "").replace(/\s+/g, "_");
-    downloadCsv(R, `${reportType}_report_${safePeriod}.csv`);
+    await downloadCsvFile(R, `${reportType}_report_${safePeriod}.csv`);
   }
 
   async function handleGenerate() {

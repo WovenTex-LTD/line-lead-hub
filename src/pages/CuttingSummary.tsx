@@ -223,14 +223,10 @@ export default function CuttingSummary() {
     downloadCSV(csv, `cutting-summary-${dateFrom}-to-${dateTo}.csv`);
   }
 
-  function downloadCSV(csv: string, filename: string) {
+  async function downloadCSV(csv: string, filename: string) {
+    const { downloadFile } = await import("@/lib/capacitor");
     const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    await downloadFile(blob, filename);
   }
 
   if (!isAdminOrHigher()) {

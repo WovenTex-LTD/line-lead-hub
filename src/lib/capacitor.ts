@@ -350,6 +350,94 @@ export async function shareContent(title: string, text: string, url?: string) {
 }
 
 /**
+ * Download / share a file. On native platforms (iOS/Android) this writes the
+ * file to a temporary directory and opens the native share sheet so the user
+ * can save, AirDrop, email, etc. On web it falls back to the standard
+ * anchor-click download approach.
+ */
+export async function downloadFile(
+  blob: Blob,
+  filename: string,
+): Promise<void> {
+  if (!isNative) {
+    // Standard browser download
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    return;
+  }
+
+  try {
+    const { Filesystem, Directory } = await import('@capacitor/filesystem');
+    const { Share } = await import('@capacitor/share');
+
+    // Convert blob → base64
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        resolve(result.split(',')[1]); // strip data:…;base64, prefix
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+    // Write to cache directory
+    const written = await Filesystem.writeFile({
+      path: filename,
+      data: base64,
+      directory: Directory.Cache,
+    });
+
+    // Open native share sheet with the file
+    await Share.share({
+      title: filename,
+      files: [written.uri],
+      dialogTitle: 'Export',
+    });
+  } catch (error) {
+    console.error('Native file download failed:', error);
+    // Fallback to web approach (may not work but worth trying)
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+}
+
+/**
+ * Save a jsPDF document. On native, opens the share sheet; on web, triggers download.
+ */
+export async function savePdf(
+  doc: import('jspdf').jsPDF,
+  filename: string,
+): Promise<void> {
+  if (!isNative) {
+    doc.save(filename);
+    return;
+  }
+  const blob = doc.output('blob');
+  await downloadFile(blob, filename);
+}
+
+/**
+ * Download CSV content as a file. Handles native share sheet on mobile.
+ */
+export async function downloadCsv(
+  csvContent: string,
+  filename: string,
+): Promise<void> {
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+  await downloadFile(blob, filename);
+}
+
+/**
  * Haptic feedback
  */
 export async function hapticFeedback(style: 'light' | 'medium' | 'heavy' = 'medium') {

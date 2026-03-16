@@ -113,7 +113,7 @@ export interface DailyReportData {
 
 // ── PDF Generation — Landscape Ledger ──────────────────────────────────
 
-export function downloadDailyProductionReport(d: DailyReportData) {
+export async function downloadDailyProductionReport(d: DailyReportData) {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pw = doc.internal.pageSize.getWidth(); // ~297
   const ph = doc.internal.pageSize.getHeight(); // ~210
@@ -810,7 +810,8 @@ export function downloadDailyProductionReport(d: DailyReportData) {
   drawAllFooters();
 
   const fileDate = format(new Date(d.reportDate + "T00:00:00"), "yyyy-MM-dd");
-  doc.save(`daily-production-report-${fileDate}.pdf`);
+  const { savePdf } = await import("@/lib/capacitor");
+  await savePdf(doc, `daily-production-report-${fileDate}.pdf`);
 }
 
 // ── Button Component ───────────────────────────────────────────────────

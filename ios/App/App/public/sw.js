@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-const CACHE_NAME = 'production-portal-v1';
+const CACHE_NAME = 'production-portal-v5';
 const OFFLINE_QUEUE_KEY = 'offline_submission_queue';
 const SYNC_TAG = 'sync-submissions';
 
@@ -13,12 +13,13 @@ const STATIC_ASSETS = [
   '/icons/icon-512x512.png',
 ];
 
-// Patterns for resources we should NOT cache (sensitive data)
+// Patterns for resources we should NOT cache (sensitive data + version check)
 const NO_CACHE_PATTERNS = [
   /supabase/,
   /\/api\//,
   /\/auth\//,
   /\/rest\/v1\//,
+  /version\.json/,
 ];
 
 // Install event - cache static assets
@@ -50,7 +51,7 @@ function shouldNotCache(url) {
   return NO_CACHE_PATTERNS.some(pattern => pattern.test(url.href));
 }
 
-// Fetch event - network-first for API, cache-first for static assets
+// Fetch event - network-first for navigation, cache-first for hashed assets
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -65,27 +66,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For static assets: cache-first strategy
-  event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Return cached version and update cache in background
-        event.waitUntil(
-          fetch(request).then((response) => {
-            if (response.ok) {
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(request, response);
-              });
-            }
-          }).catch(() => {/* Network error, ignore */})
-        );
-        return cachedResponse;
-      }
-
-      // Network-first fallback
-      return fetch(request).then((response) => {
-        // Only cache static assets (not API responses)
-        if (response.ok && response.type === 'basic' && !shouldNotCache(url)) {
+  // Navigation requests (HTML pages): NETWORK-FIRST
+  // Always fetch the latest HTML so new JS/CSS bundle references are picked up
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).then((response) => {
+        if (response.ok) {
           const responseClone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(request, responseClone);
@@ -93,11 +79,30 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       }).catch(() => {
-        // Return offline page for navigation requests
-        if (request.mode === 'navigate') {
-          return caches.match('/');
-        }
-        return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
+        // Offline fallback: serve cached HTML
+        return caches.match('/').then((cached) => {
+          return cached || new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
+        });
+      })
+    );
+    return;
+  }
+
+  // Static assets: network-first with cache fallback
+  // This ensures users always get the latest assets when online
+  event.respondWith(
+    fetch(request).then((response) => {
+      if (response.ok && response.type === 'basic' && !shouldNotCache(url)) {
+        const responseClone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(request, responseClone);
+        });
+      }
+      return response;
+    }).catch(() => {
+      // Offline fallback: serve from cache
+      return caches.match(request).then((cached) => {
+        return cached || new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
       });
     })
   );
@@ -162,7 +167,7 @@ self.addEventListener('push', (event) => {
   try {
     const data = event.data.json();
     const options = {
-      body: data.body || 'New notification from Production Portal',
+      body: data.body || 'New notification from ProductionPortal',
       icon: '/icons/icon-192x192.png',
       badge: '/icons/icon-96x96.png',
       vibrate: [100, 50, 100],
@@ -173,7 +178,7 @@ self.addEventListener('push', (event) => {
     };
 
     event.waitUntil(
-      self.registration.showNotification(data.title || 'Production Portal', options)
+      self.registration.showNotification(data.title || 'ProductionPortal', options)
     );
   } catch (error) {
     console.error('Push notification error:', error);

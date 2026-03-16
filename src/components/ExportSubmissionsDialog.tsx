@@ -452,16 +452,10 @@ export function ExportSubmissionsDialog({
       rows.push(["═══ END OF REPORT ═══"]);
 
       const csvContent = rows.map(row => row.map(esc).join(",")).join("\n");
-      const BOM = "\uFEFF";
-      const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
-      const link = document.createElement("a");
-      const url = URL.createObjectURL(blob);
       const fileDate = format(new Date(), "yyyy-MM-dd");
       const deptSuffix = deptParts.join("_").toLowerCase();
-      link.href = url;
-      link.download = `submissions_${deptSuffix}_${dateRange}days_${fileDate}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
+      const { downloadCsv } = await import("@/lib/capacitor");
+      await downloadCsv(csvContent, `submissions_${deptSuffix}_${dateRange}days_${fileDate}.csv`);
 
       toast.success(t("modals.exportedRecords", { count: getExportCounts() }));
       onOpenChange(false);

@@ -277,7 +277,7 @@ export function CuttingSubmissionsTable({
     });
   }
 
-  function exportSelectedCsv() {
+  async function exportSelectedCsv() {
     const rows = sortedData.filter(s => selectedIds.has(s.id));
     const headers = ["Date", "Line", "PO", "Buyer", "Order Qty", "Target", "Day Cutting", "Total Cutting", "Day Input", "Total Input", "Balance"];
     const csvRows = [headers.join(",")];
@@ -296,13 +296,9 @@ export function CuttingSubmissionsTable({
         s.balance ?? "",
       ].join(","));
     });
+    const { downloadFile } = await import("@/lib/capacitor");
     const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `cutting-submissions-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await downloadFile(blob, `cutting-submissions-${format(new Date(), "yyyy-MM-dd")}.csv`);
     toast.success(`Exported ${rows.length} rows`);
   }
 

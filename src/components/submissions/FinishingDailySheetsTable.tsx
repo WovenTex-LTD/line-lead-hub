@@ -241,7 +241,7 @@ export function FinishingDailySheetsTable({
     });
   }
 
-  function exportSelectedCsv() {
+  async function exportSelectedCsv() {
     const selected = sortedData.filter(l => selectedIds.has(l.id));
     const esc = (cell: string) => `"${String(cell ?? "").replace(/"/g, '""')}"`;
     const exportDate = format(new Date(), "PPpp");
@@ -292,14 +292,8 @@ export function FinishingDailySheetsTable({
     rows.push(["═══ END OF REPORT ═══"]);
 
     const csvContent = rows.map(row => row.map(esc).join(",")).join("\n");
-    const BOM = "\uFEFF";
-    const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `finishing-${activeTab}-${fileDate}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const { downloadCsv } = await import("@/lib/capacitor");
+    await downloadCsv(csvContent, `finishing-${activeTab}-${fileDate}.csv`);
     toast.success(`Exported ${selected.length} rows`);
   }
 

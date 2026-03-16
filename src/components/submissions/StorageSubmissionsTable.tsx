@@ -423,7 +423,7 @@ export function StorageSubmissionsTable({
     });
   }
 
-  function exportSelectedCsv() {
+  async function exportSelectedCsv() {
     const rows = filteredCards.filter(c => selectedIds.has(c.id));
     const headers = ["Created", "PO Number", "Buyer", "Style", "Description", "Received", "Issued", "Balance"];
     const csvRows = [headers.join(",")];
@@ -439,13 +439,9 @@ export function StorageSubmissionsTable({
         c.latestBalance ?? "",
       ].join(","));
     });
+    const { downloadFile } = await import("@/lib/capacitor");
     const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `storage-bin-cards-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await downloadFile(blob, `storage-bin-cards-${format(new Date(), "yyyy-MM-dd")}.csv`);
     toast.success(`Exported ${rows.length} rows`);
   }
 
