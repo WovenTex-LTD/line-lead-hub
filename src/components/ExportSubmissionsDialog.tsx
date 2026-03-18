@@ -217,7 +217,7 @@ export function ExportSubmissionsDialog({
         const lateTargets = data.sewingTargets.filter((t: any) => t.is_late).length;
         rows.push(["Section Summary:", `${data.sewingTargets.length} records | Avg Target/hr: ${avgTargetPerHr} | Avg Manpower: ${avgManpower} | Late: ${lateTargets}`]);
 
-        rows.push(["Date", "Time", "Line", "PO Number", "Buyer", "Style", "Order Qty", "Target/hr", "Planned Total", "Manpower", "Hours Planned", "OT Hours", "Progress %", "Stage", "Next Milestone", "Status", "Remarks"]);
+        rows.push(["Date", "Time", "Line", "PO Number", "Buyer", "Style", "Order Qty", "Target/hr", "Planned Total", "Manpower", "Hours Planned", "OT Hours", "Progress %", "Stage", "Next Milestone", "Remarks"]);
         data.sewingTargets.forEach((t: any) => {
           rows.push([
             formatDate(t.production_date), fmtTime(t.submitted_at),
@@ -228,7 +228,7 @@ export function ExportSubmissionsDialog({
             String(t.manpower_planned || 0), String(t.hours_planned || "-"),
             String(t.ot_hours_planned || 0), `${t.planned_stage_progress || 0}%`,
             t.stages?.name || "-", t.next_milestone || "-",
-            t.is_late ? "⚠ Late" : "✓ On Time", t.remarks || "-",
+            t.remarks || "-",
           ]);
         });
         rows.push([]);
@@ -322,7 +322,7 @@ export function ExportSubmissionsDialog({
             ? Math.round(data.finishingTargets.reduce((s: number, t: any) => s + (t.per_hour_target || 0), 0) / data.finishingTargets.length) : 0;
           const lateTargets = data.finishingTargets.filter((t: any) => t.is_late).length;
           rows.push(["Section Summary:", `${data.finishingTargets.length} records | Avg Target/hr: ${avgTargetPerHr} | Late: ${lateTargets}`]);
-          rows.push(["Date", "Time", "Line", "PO Number", "Buyer", "Style", "Order Qty", "Target/hr", "Manpower", "Day Hours", "OT Hours", "OT Manpower", "Status", "Remarks"]);
+          rows.push(["Date", "Time", "Line", "PO Number", "Buyer", "Style", "Order Qty", "Target/hr", "Manpower", "Day Hours", "OT Hours", "OT Manpower", "Remarks"]);
           data.finishingTargets.forEach((t: any) => {
             rows.push([
               formatDate(t.production_date), fmtTime(t.submitted_at),
@@ -332,7 +332,7 @@ export function ExportSubmissionsDialog({
               String(t.per_hour_target || 0), String(t.m_power_planned || 0),
               String(t.day_hour_planned || 0), String(t.day_over_time_planned || 0),
               String(t.ot_manpower_planned || "-"),
-              t.is_late ? "⚠ Late" : "✓ On Time", t.remarks || "-",
+              t.remarks || "-",
             ]);
           });
           rows.push([]);
@@ -379,7 +379,7 @@ export function ExportSubmissionsDialog({
 
         rows.push(["Date", "Time", "Line", "PO Number", "Buyer", "Style", "Colour", "Order Qty",
           "Marker Capacity", "Lay Capacity", "Cutting Capacity", "Day Cutting", "Day Input",
-          "Manpower", "Hours Planned", "OT Hours", "OT Manpower", "Target/hr", "Under Qty", "Status"]);
+          "Manpower", "Hours Planned", "OT Hours", "OT Manpower", "Target/hr", "Under Qty"]);
         data.cuttingTargets.forEach((t: any) => {
           rows.push([
             formatDate(t.production_date), fmtTime(t.submitted_at),
@@ -393,7 +393,6 @@ export function ExportSubmissionsDialog({
             String(t.man_power || 0), String(t.hours_planned || "-"),
             String(t.ot_hours_planned || 0), String(t.ot_manpower_planned || "-"),
             String(t.target_per_hour || "-"), String(t.under_qty || 0),
-            t.is_late ? "⚠ Late" : "✓ On Time",
           ]);
         });
         rows.push([]);
@@ -408,7 +407,7 @@ export function ExportSubmissionsDialog({
         rows.push(["Date", "Time", "Line", "PO Number", "Buyer", "Style", "Colour", "Order Qty",
           "Day Cutting", "Total Cutting", "Day Input", "Total Input", "Balance",
           "Manpower", "Hours Actual", "OT Hours", "OT Manpower", "Actual/hr",
-          "Status", "Acknowledged"]);
+          "Acknowledged"]);
         data.cuttingActuals.forEach((a: any) => {
           rows.push([
             formatDate(a.production_date), fmtTime(a.submitted_at),
@@ -422,7 +421,7 @@ export function ExportSubmissionsDialog({
             String(a.man_power || 0), String(a.hours_actual || "-"),
             String(a.ot_hours_actual || 0), String(a.ot_manpower_actual || "-"),
             String(a.actual_per_hour || "-"),
-            a.is_late ? "⚠ Late" : "✓ On Time", a.acknowledged ? "Yes" : "No",
+            a.acknowledged ? "Yes" : "No",
           ]);
         });
         rows.push([]);

@@ -5,7 +5,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { StatusBadge } from "@/components/ui/status-badge";
 import {
   Table,
   TableBody,
@@ -20,12 +19,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, Users as UsersIcon, Search, UserPlus, Shield, Mail, Phone, MoreHorizontal, Pencil, Trash2, Layers, PackageCheck, Scissors, Warehouse, Building2 } from "lucide-react";
+import { Loader2, Users as UsersIcon, Search, UserPlus, Shield, Mail, Phone, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { ROLE_LABELS } from "@/lib/constants";
 import { InviteUserDialog } from "@/components/users/InviteUserDialog";
 import { EditUserDialog } from "@/components/users/EditUserDialog";
 import { CleanupGlobalRolesDialog } from "@/components/users/CleanupGlobalRolesDialog";
-import { Badge } from "@/components/ui/badge";
 
 interface User {
   id: string;
@@ -186,28 +184,20 @@ export default function UsersPage() {
     (user.role || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getRoleBadgeVariant = (role: string | null) => {
+  const getRoleBadgeClass = (role: string | null) => {
     switch (role) {
-      case 'owner':
-        return 'primary';
-      case 'admin':
-        return 'info';
-      case 'supervisor':
-        return 'warning';
-      case 'sewing':
-        return 'info';
-      case 'finishing':
-        return 'warning';
-      case 'cutting':
-        return 'success';
-      case 'storage':
-        return 'primary';
-      case 'buyer':
-        return 'warning';
-      default:
-        return 'neutral';
+      case 'owner': return 'bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/40';
+      case 'admin': return 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-700/40';
+      case 'supervisor': return 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-200/60 dark:border-amber-700/40';
+      case 'sewing': return 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 border border-blue-200/60 dark:border-blue-700/40';
+      case 'finishing': return 'bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300 border border-violet-200/60 dark:border-violet-700/40';
+      case 'cutting': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-700/40';
+      case 'storage': return 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300 border border-orange-200/60 dark:border-orange-700/40';
+      case 'buyer': return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300 border border-cyan-200/60 dark:border-cyan-700/40';
+      default: return 'bg-slate-100 text-slate-600 dark:bg-slate-500/20 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700/40';
     }
   };
+
 
   const activeUsers = users.filter(u => u.invitation_status === 'active');
   const pendingUsers = users.filter(u => u.invitation_status === 'pending');
@@ -227,15 +217,17 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="py-4 lg:py-6 space-y-6">
+    <div className="py-3 md:py-4 lg:py-6 space-y-5 md:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <UsersIcon className="h-6 w-6" />
-            Users
-          </h1>
-          <p className="text-muted-foreground">Manage factory users and roles</p>
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-slate-500/10 flex items-center justify-center">
+            <UsersIcon className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+          </div>
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold">Users</h1>
+            <p className="text-sm text-muted-foreground">Manage factory users and roles</p>
+          </div>
         </div>
         {isAdminOrHigher() && (
           <div className="flex items-center gap-2">
@@ -249,31 +241,23 @@ export default function UsersPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <Card>
-          <CardContent className="p-3 sm:p-4 text-center">
-            <p className="text-2xl sm:text-3xl font-bold">{users.length}</p>
-            <p className="text-xs sm:text-sm text-muted-foreground">Total Users</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3 sm:p-4 text-center">
-            <p className="text-2xl sm:text-3xl font-bold text-success">{activeUsers.length}</p>
-            <p className="text-xs sm:text-sm text-muted-foreground">Active</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3 sm:p-4 text-center">
-            <p className="text-2xl sm:text-3xl font-bold text-warning">{pendingUsers.length}</p>
-            <p className="text-xs sm:text-sm text-muted-foreground">Pending</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3 sm:p-4 text-center">
-            <p className="text-2xl sm:text-3xl font-bold text-primary">{adminCount}</p>
-            <p className="text-xs sm:text-sm text-muted-foreground">Admins</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
+        <div className="relative overflow-hidden rounded-xl border border-slate-200/60 dark:border-slate-800/40 bg-gradient-to-br from-slate-50 via-white to-slate-50/50 dark:from-slate-950/40 dark:via-card dark:to-slate-950/20 p-4 hover:shadow-lg transition-all duration-300">
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-slate-600/70 dark:text-slate-400/70">Total Users</p>
+          <p className="font-mono text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 mt-1">{users.length}</p>
+        </div>
+        <div className="relative overflow-hidden rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50 via-white to-green-50/50 dark:from-emerald-950/40 dark:via-card dark:to-green-950/20 p-4 hover:shadow-lg transition-all duration-300">
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-emerald-600/70 dark:text-emerald-400/70">Active</p>
+          <p className="font-mono text-2xl font-bold tracking-tight text-emerald-900 dark:text-emerald-100 mt-1">{activeUsers.length}</p>
+        </div>
+        <div className="relative overflow-hidden rounded-xl border border-amber-200/60 dark:border-amber-800/40 bg-gradient-to-br from-amber-50 via-white to-orange-50/50 dark:from-amber-950/40 dark:via-card dark:to-orange-950/20 p-4 hover:shadow-lg transition-all duration-300">
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-amber-600/70 dark:text-amber-400/70">Pending</p>
+          <p className="font-mono text-2xl font-bold tracking-tight text-amber-900 dark:text-amber-100 mt-1">{pendingUsers.length}</p>
+        </div>
+        <div className="relative overflow-hidden rounded-xl border border-indigo-200/60 dark:border-indigo-800/40 bg-gradient-to-br from-indigo-50 via-white to-blue-50/50 dark:from-indigo-950/40 dark:via-card dark:to-blue-950/20 p-4 hover:shadow-lg transition-all duration-300">
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-indigo-600/70 dark:text-indigo-400/70">Admins</p>
+          <p className="font-mono text-2xl font-bold tracking-tight text-indigo-900 dark:text-indigo-100 mt-1">{adminCount}</p>
+        </div>
       </div>
 
       {/* Search */}
@@ -288,12 +272,12 @@ export default function UsersPage() {
       </div>
 
       {/* Users Table */}
-      <Card>
+      <Card className="border-border/50">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-muted/50">
                   <TableHead>User</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Contact</TableHead>
@@ -314,63 +298,29 @@ export default function UsersPage() {
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium">
-                              {user.full_name}
-                              {user.id === currentUser?.id && (
-                                <span className="text-muted-foreground text-xs ml-2">(you)</span>
-                              )}
-                            </p>
-                            {/* Show badge for workers with department OR for department-specific roles */}
-                            {((user.role === 'worker' && user.department) || ['sewing', 'finishing', 'cutting', 'storage'].includes(user.role || '')) && (
-                              <Badge 
-                                variant="outline" 
-                                className={`text-xs ${
-                                  (user.department === 'sewing' || user.role === 'sewing')
-                                    ? 'border-blue-500/50 text-blue-600 bg-blue-50 dark:bg-blue-950/30' 
-                                    : (user.department === 'finishing' || user.role === 'finishing')
-                                    ? 'border-orange-500/50 text-orange-600 bg-orange-50 dark:bg-orange-950/30'
-                                    : (user.department === 'cutting' || user.role === 'cutting')
-                                    ? 'border-green-500/50 text-green-600 bg-green-50 dark:bg-green-950/30'
-                                    : (user.department === 'storage' || user.role === 'storage')
-                                    ? 'border-purple-500/50 text-purple-600 bg-purple-50 dark:bg-purple-950/30'
-                                    : 'border-gray-500/50 text-gray-600 bg-gray-50 dark:bg-gray-950/30'
-                                }`}
-                              >
-                                {(user.department === 'sewing' || user.role === 'sewing') && <Layers className="h-3 w-3 mr-1" />}
-                                {(user.department === 'finishing' || user.role === 'finishing') && <PackageCheck className="h-3 w-3 mr-1" />}
-                                {(user.department === 'cutting' || user.role === 'cutting') && <Scissors className="h-3 w-3 mr-1" />}
-                                {(user.department === 'storage' || user.role === 'storage') && <Warehouse className="h-3 w-3 mr-1" />}
-                                {user.department === 'both' && '⚡'}
-                                {(user.department === 'sewing' || user.role === 'sewing') ? 'Sewing' 
-                                  : (user.department === 'finishing' || user.role === 'finishing') ? 'Finishing' 
-                                  : (user.department === 'cutting' || user.role === 'cutting') ? 'Cutting' 
-                                  : (user.department === 'storage' || user.role === 'storage') ? 'Storage' 
-                                  : 'Both'}
-                              </Badge>
+                          <p className="font-medium">
+                            {user.full_name}
+                            {user.id === currentUser?.id && (
+                              <span className="text-muted-foreground text-xs ml-2">(you)</span>
                             )}
-                          </div>
+                          </p>
                           <p className="text-xs text-muted-foreground">{user.email}</p>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <StatusBadge variant={getRoleBadgeVariant(user.role) as any} size="sm">
-                        {user.role === 'storage' ? (
-                          <Warehouse className="h-3 w-3 mr-1" />
-                        ) : user.role === 'cutting' ? (
-                          <Scissors className="h-3 w-3 mr-1" />
-                        ) : user.role === 'sewing' ? (
-                          <Layers className="h-3 w-3 mr-1" />
-                        ) : user.role === 'finishing' ? (
-                          <PackageCheck className="h-3 w-3 mr-1" />
-                        ) : user.role === 'buyer' ? (
-                          <Building2 className="h-3 w-3 mr-1" />
-                        ) : (
-                          <Shield className="h-3 w-3 mr-1" />
-                        )}
-                        {ROLE_LABELS[user.role as keyof typeof ROLE_LABELS] || 'Worker'}
-                      </StatusBadge>
+                      {(() => {
+                        // If worker role with a department, show the department as the role
+                        const effectiveRole = (user.role === 'worker' && user.department && user.department !== 'both')
+                          ? user.department
+                          : user.role;
+                        return (
+                          <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-md ${getRoleBadgeClass(effectiveRole)}`}>
+                            <Shield className="h-3 w-3" />
+                            {ROLE_LABELS[effectiveRole as keyof typeof ROLE_LABELS] || 'Manager'}
+                          </span>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
@@ -413,11 +363,20 @@ export default function UsersPage() {
                     </TableCell>
                     <TableCell className="text-center">
                       {user.invitation_status === 'pending' ? (
-                        <StatusBadge variant="warning" size="sm">Pending</StatusBadge>
+                        <span className="inline-flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                          Pending
+                        </span>
                       ) : user.is_active ? (
-                        <StatusBadge variant="success" size="sm">Active</StatusBadge>
+                        <span className="inline-flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          Active
+                        </span>
                       ) : (
-                        <StatusBadge variant="default" size="sm">Inactive</StatusBadge>
+                        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
+                          Inactive
+                        </span>
                       )}
                     </TableCell>
                     {isAdminOrHigher() && (

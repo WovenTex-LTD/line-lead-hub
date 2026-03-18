@@ -137,15 +137,15 @@ main {
     --chart-4: 0 72% 51%;
     --chart-5: 262 83% 58%;
     
-    /* Sidebar - Deep slate */
-    --sidebar-background: 222 47% 11%;
+    /* Sidebar - Deep blue */
+    --sidebar-background: 226 58% 15%;
     --sidebar-foreground: 214 32% 91%;
-    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary: 217 91% 65%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 45% 24%;
+    --sidebar-accent: 224 50% 24%;
     --sidebar-accent-foreground: 214 32% 97%;
-    --sidebar-border: 217 33% 17%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-border: 224 40% 20%;
+    --sidebar-ring: 217 91% 65%;
     
     /* Custom tokens */
     --factory-slate: 222 47% 11%;
@@ -205,14 +205,14 @@ main {
     --input: 217 33% 17%;
     --ring: 217 91% 60%;
     
-    --sidebar-background: 222 47% 5%;
+    --sidebar-background: 226 58% 9%;
     --sidebar-foreground: 214 32% 91%;
-    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary: 217 91% 65%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 45% 19%;
+    --sidebar-accent: 224 50% 18%;
     --sidebar-accent-foreground: 214 32% 97%;
-    --sidebar-border: 217 33% 12%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-border: 224 40% 14%;
+    --sidebar-ring: 217 91% 65%;
     
     --factory-slate: 222 47% 5%;
     --factory-slate-light: 217 33% 12%;

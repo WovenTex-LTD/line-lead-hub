@@ -308,15 +308,15 @@ export default function CuttingAllSubmissions() {
   }
 
   return (
-    <div className="container py-4 px-4 pb-8 space-y-6">
+    <div className="py-3 md:py-4 lg:py-6 space-y-5 md:space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Scissors className="h-5 w-5 text-primary" />
+          <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+            <Scissors className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">{t('cutting.allCuttingSubmissions')}</h1>
+            <h1 className="text-xl md:text-2xl font-bold">{t('cutting.allCuttingSubmissions')}</h1>
             <p className="text-sm text-muted-foreground">{t('cutting.viewTargetsAndActuals')}</p>
           </div>
         </div>
@@ -333,83 +333,63 @@ export default function CuttingAllSubmissions() {
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardContent className="pt-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label>{t('cutting.from')}</Label>
-              <Input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{t('cutting.to')}</Label>
-              <Input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{t('cutting.line')}</Label>
-              <Select value={selectedLine} onValueChange={setSelectedLine}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('cutting.allLines')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('cutting.allLines')}</SelectItem>
-                  {lines.map(l => (
-                    <SelectItem key={l.id} value={l.id}>{l.name || l.line_id}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>{t('cutting.po')}</Label>
-              <Select value={selectedPO} onValueChange={setSelectedPO}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('cutting.allPOs')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('cutting.allPOs')}</SelectItem>
-                  {uniquePOs.map(po => (
-                    <SelectItem key={po} value={po}>{po}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">{t('cutting.from')}</Label>
+          <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">{t('cutting.to')}</Label>
+          <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">{t('cutting.line')}</Label>
+          <Select value={selectedLine} onValueChange={setSelectedLine}>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder={t('cutting.allLines')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('cutting.allLines')}</SelectItem>
+              {lines.map(l => (
+                <SelectItem key={l.id} value={l.id}>{l.name || l.line_id}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">{t('cutting.po')}</Label>
+          <Select value={selectedPO} onValueChange={setSelectedPO}>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder={t('cutting.allPOs')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('cutting.allPOs')}</SelectItem>
+              {uniquePOs.map(po => (
+                <SelectItem key={po} value={po}>{po}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-primary">
-          <CardContent className="pt-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">{t('cutting.targetsToday')}</p>
-            <p className="text-2xl font-bold">{stats.targetsToday}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-l-4 border-l-success">
-          <CardContent className="pt-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">{t('cutting.actualsToday')}</p>
-            <p className="text-2xl font-bold">{stats.actualsToday}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-l-4 border-l-info">
-          <CardContent className="pt-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Target Cutting</p>
-            <p className="text-2xl font-bold">{stats.targetCuttingToday.toLocaleString()}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-l-4 border-l-warning">
-          <CardContent className="pt-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Actual Cutting</p>
-            <p className="text-2xl font-bold">{stats.actualCuttingToday.toLocaleString()}</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        <div className="relative overflow-hidden rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50 via-white to-green-50/50 dark:from-emerald-950/40 dark:via-card dark:to-green-950/20 p-4 transition-all duration-300 hover:shadow-lg">
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-emerald-600/70 dark:text-emerald-400/70">{t('cutting.targetsToday')}</p>
+          <p className="font-mono text-2xl font-bold tracking-tight text-emerald-900 dark:text-emerald-100 mt-1">{stats.targetsToday}</p>
+        </div>
+        <div className="relative overflow-hidden rounded-xl border border-blue-200/60 dark:border-blue-800/40 bg-gradient-to-br from-blue-50 via-white to-blue-50/50 dark:from-blue-950/40 dark:via-card dark:to-blue-950/20 p-4 transition-all duration-300 hover:shadow-lg">
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-blue-600/70 dark:text-blue-400/70">{t('cutting.actualsToday')}</p>
+          <p className="font-mono text-2xl font-bold tracking-tight text-blue-900 dark:text-blue-100 mt-1">{stats.actualsToday}</p>
+        </div>
+        <div className="relative overflow-hidden rounded-xl border border-indigo-200/60 dark:border-indigo-800/40 bg-gradient-to-br from-indigo-50 via-white to-indigo-50/50 dark:from-indigo-950/40 dark:via-card dark:to-indigo-950/20 p-4 transition-all duration-300 hover:shadow-lg">
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-indigo-600/70 dark:text-indigo-400/70">{t('cutting.targetDailyOutput')}</p>
+          <p className="font-mono text-2xl font-bold tracking-tight text-indigo-900 dark:text-indigo-100 mt-1">{stats.targetCuttingToday.toLocaleString()}</p>
+        </div>
+        <div className="relative overflow-hidden rounded-xl border border-amber-200/60 dark:border-amber-800/40 bg-gradient-to-br from-amber-50 via-white to-orange-50/50 dark:from-amber-950/40 dark:via-card dark:to-orange-950/20 p-4 transition-all duration-300 hover:shadow-lg">
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-amber-600/70 dark:text-amber-400/70">{t('cutting.actualDailyOutput')}</p>
+          <p className="font-mono text-2xl font-bold tracking-tight text-amber-900 dark:text-amber-100 mt-1">{stats.actualCuttingToday.toLocaleString()}</p>
+        </div>
       </div>
 
       {/* Tabs */}

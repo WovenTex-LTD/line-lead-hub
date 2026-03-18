@@ -1126,18 +1126,18 @@ export default function Dashboard() {
             return (
               <>
                 <Link to="/today" className="block">
-                  <div className={`relative overflow-hidden ${showFinancials ? 'rounded-t-xl' : 'rounded-xl'} border bg-emerald-50 dark:bg-emerald-950/30 p-4 md:p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5`}>
-                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-600" />
-                    <div className="flex items-start justify-between">
+                  <div className={`relative overflow-hidden ${showFinancials ? 'rounded-t-xl' : 'rounded-xl'} border border-emerald-200/60 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50 via-white to-teal-50/50 dark:from-emerald-950/40 dark:via-card dark:to-teal-950/20 p-4 md:p-5 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 group`}>
+                    <div className="absolute top-0 right-0 w-28 h-28 bg-gradient-to-bl from-emerald-500/8 to-transparent rounded-bl-full pointer-events-none" />
+                    <div className="relative flex items-start justify-between">
                       <div className="space-y-1">
-                        <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground">{t('dashboard.updatesToday')}</p>
-                        <p className="font-mono text-2xl md:text-3xl font-bold tracking-tight">
+                        <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-emerald-600/70 dark:text-emerald-400/70">{t('dashboard.updatesToday')}</p>
+                        <p className="font-mono text-2xl md:text-3xl font-bold tracking-tight text-emerald-900 dark:text-emerald-100">
                           <AnimatedNumber value={stats.updatesToday} />
                         </p>
                         <p className="text-[10px] md:text-xs text-muted-foreground">{stats.totalLines} {t('dashboard.linesTracked')}</p>
                       </div>
-                      <div className="rounded-xl bg-emerald-500/10 p-2.5">
-                        <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                      <div className="rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 p-2.5 shadow-lg shadow-emerald-500/25 group-hover:shadow-emerald-500/40 transition-shadow">
+                        <TrendingUp className="h-5 w-5 text-white" />
                       </div>
                     </div>
                   </div>
@@ -1146,7 +1146,7 @@ export default function Dashboard() {
                   <div className="rounded-b-xl border border-t-0 bg-blue-50/80 dark:bg-blue-950/20 px-3 py-2 space-y-1">
                     {dayRevenue != null && (
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] md:text-xs text-muted-foreground">Sewing Value</span>
+                        <span className="text-[10px] md:text-xs text-muted-foreground">Output Value</span>
                         <span className="font-mono text-xs md:text-sm font-semibold text-emerald-700 dark:text-emerald-400">
                           ${dayRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
@@ -1154,7 +1154,7 @@ export default function Dashboard() {
                     )}
                     {costConfigured && totalDayCost != null && (
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] md:text-xs text-muted-foreground">Sewing Cost</span>
+                        <span className="text-[10px] md:text-xs text-muted-foreground">Operating Cost</span>
                         <span className="font-mono text-xs md:text-sm font-semibold text-red-600 dark:text-red-400">
                           {headcountCost.currency === 'BDT' && bdtToUsd
                             ? `$${(totalDayCost * bdtToUsd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -1167,7 +1167,7 @@ export default function Dashboard() {
                       <>
                         <div className="border-t border-blue-200 dark:border-blue-800 my-0.5" />
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] md:text-xs font-semibold text-foreground">Sewing Profit</span>
+                          <span className="text-[10px] md:text-xs font-semibold text-foreground">Operating Margin</span>
                           <span className={`font-mono text-xs md:text-sm font-bold ${dayProfit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                             {dayProfit >= 0 ? '+' : '-'}${Math.abs(dayProfit).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
@@ -1183,18 +1183,18 @@ export default function Dashboard() {
 
         {/* Day Sewing Output */}
         <motion.div variants={fadeUp}>
-          <div className="relative overflow-hidden rounded-xl border bg-blue-50 dark:bg-blue-950/30 p-4 md:p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 group">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-600" />
-            <div className="flex items-start justify-between">
+          <div className="relative overflow-hidden rounded-xl border border-blue-200/60 dark:border-blue-800/40 bg-gradient-to-br from-blue-50 via-white to-blue-50/50 dark:from-blue-950/40 dark:via-card dark:to-blue-950/20 p-4 md:p-5 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 group">
+            <div className="absolute top-0 right-0 w-28 h-28 bg-gradient-to-bl from-blue-500/8 to-transparent rounded-bl-full pointer-events-none" />
+            <div className="relative flex items-start justify-between">
               <div className="space-y-1">
-                <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground">{t('dashboard.daySewingOutput')}</p>
-                <p className="font-mono text-2xl md:text-3xl font-bold tracking-tight">
+                <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-blue-600/70 dark:text-blue-400/70">{t('dashboard.daySewingOutput')}</p>
+                <p className="font-mono text-2xl md:text-3xl font-bold tracking-tight text-blue-900 dark:text-blue-100">
                   <AnimatedNumber value={stats.daySewingOutput} />
                 </p>
                 <p className="text-[10px] md:text-xs text-muted-foreground">{t('dashboard.pcsProduced')}</p>
               </div>
-              <div className="rounded-xl bg-blue-500/10 p-2.5">
-                <SewingMachine className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div className="rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 p-2.5 shadow-lg shadow-blue-500/25 group-hover:shadow-blue-500/40 transition-shadow">
+                <SewingMachine className="h-5 w-5 text-white" />
               </div>
             </div>
             <button
@@ -1208,18 +1208,18 @@ export default function Dashboard() {
 
         {/* Day Finishing Output */}
         <motion.div variants={fadeUp}>
-          <div className="relative overflow-hidden rounded-xl border bg-violet-50 dark:bg-violet-950/30 p-4 md:p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 group">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-500 to-purple-600" />
-            <div className="flex items-start justify-between">
+          <div className="relative overflow-hidden rounded-xl border border-violet-200/60 dark:border-violet-800/40 bg-gradient-to-br from-violet-50 via-white to-purple-50/50 dark:from-violet-950/40 dark:via-card dark:to-purple-950/20 p-4 md:p-5 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 group">
+            <div className="absolute top-0 right-0 w-28 h-28 bg-gradient-to-bl from-violet-500/8 to-transparent rounded-bl-full pointer-events-none" />
+            <div className="relative flex items-start justify-between">
               <div className="space-y-1">
-                <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground">{t('dashboard.dayFinishingOutput')}</p>
-                <p className="font-mono text-2xl md:text-3xl font-bold tracking-tight">
+                <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-violet-600/70 dark:text-violet-400/70">{t('dashboard.dayFinishingOutput')}</p>
+                <p className="font-mono text-2xl md:text-3xl font-bold tracking-tight text-violet-900 dark:text-violet-100">
                   <AnimatedNumber value={stats.dayFinishingOutput} />
                 </p>
                 <p className="text-[10px] md:text-xs text-muted-foreground">{t('dashboard.pcsFinished')}</p>
               </div>
-              <div className="rounded-xl bg-violet-500/10 p-2.5">
-                <Package className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+              <div className="rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 p-2.5 shadow-lg shadow-violet-500/25 group-hover:shadow-violet-500/40 transition-shadow">
+                <Package className="h-5 w-5 text-white" />
               </div>
             </div>
             <button
@@ -1234,18 +1234,18 @@ export default function Dashboard() {
         {/* Blockers Today */}
         <motion.div variants={fadeUp}>
           <Link to="/blockers" className="block">
-            <div className="relative overflow-hidden rounded-xl border bg-red-50 dark:bg-red-950/30 p-4 md:p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 to-rose-600" />
-              <div className="flex items-start justify-between">
+            <div className="relative overflow-hidden rounded-xl border border-amber-200/60 dark:border-amber-800/40 bg-gradient-to-br from-amber-50 via-white to-orange-50/50 dark:from-amber-950/40 dark:via-card dark:to-orange-950/20 p-4 md:p-5 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 group">
+              <div className="absolute top-0 right-0 w-28 h-28 bg-gradient-to-bl from-amber-500/8 to-transparent rounded-bl-full pointer-events-none" />
+              <div className="relative flex items-start justify-between">
                 <div className="space-y-1">
-                  <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground">{t('dashboard.blockersToday')}</p>
-                  <p className="font-mono text-2xl md:text-3xl font-bold tracking-tight">
+                  <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-amber-600/70 dark:text-amber-400/70">{t('dashboard.blockersToday')}</p>
+                  <p className="font-mono text-2xl md:text-3xl font-bold tracking-tight text-amber-900 dark:text-amber-100">
                     <AnimatedNumber value={stats.blockersToday} />
                   </p>
                   <p className="text-[10px] md:text-xs text-muted-foreground">{stats.blockersToday > 0 ? t('dashboard.requiresAttention') : t('dashboard.allClear')}</p>
                 </div>
-                <div className="rounded-xl bg-red-500/10 p-2.5">
-                  <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                <div className="rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 p-2.5 shadow-lg shadow-amber-500/25 group-hover:shadow-amber-500/40 transition-shadow">
+                  <AlertTriangle className="h-5 w-5 text-white" />
                 </div>
               </div>
             </div>
@@ -1363,11 +1363,12 @@ export default function Dashboard() {
         <TabsContent value="cutting" className="space-y-4 md:space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
             {/* Cutting Morning Targets Card */}
-            <Card className="relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-green-500" />
+            <Card className="relative overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border-t-2" style={{ borderTopColor: '#10b981' }}>
               <CardHeader className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 pb-2">
                 <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                  <Target className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 dark:text-emerald-400" />
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 shadow-md shadow-emerald-500/20 flex items-center justify-center">
+                    <Target className="h-3.5 w-3.5 text-white" />
+                  </div>
                   Morning Targets
                 </CardTitle>
                 <div className="flex gap-1 sm:gap-2">
@@ -1393,7 +1394,7 @@ export default function Dashboard() {
                     ))}
                   </div>
                 ) : cuttingTargets.length > 0 ? (
-                  <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
                     {cuttingTargets.map((target) => (
                       <div
                         key={target.id}
@@ -1401,16 +1402,15 @@ export default function Dashboard() {
                           setSelectedCuttingTarget(target);
                           setCuttingTargetModalOpen(true);
                         }}
-                        className="flex items-center justify-between p-3 rounded-lg bg-primary/5 hover:bg-primary/10 transition-colors cursor-pointer border border-primary/20"
+                        className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/60 border border-transparent hover:border-border/50 transition-all duration-200 cursor-pointer"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-lg flex items-center justify-center bg-primary/10">
-                            <Target className="h-5 w-5 text-primary" />
+                          <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-emerald-100 dark:bg-emerald-500/15">
+                            <Target className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
                               <span className="font-medium">{target.line_name}</span>
-                              <StatusBadge variant="info" size="sm">Target</StatusBadge>
                             </div>
                             <p className="text-sm text-muted-foreground">
                               {target.po_number || 'No PO'} • {target.style || 'No style'}
@@ -1418,8 +1418,8 @@ export default function Dashboard() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-mono font-bold text-lg text-primary">{target.cutting_capacity?.toLocaleString() || 0}</p>
-                          <p className="text-xs text-muted-foreground">capacity</p>
+                          <p className="font-mono font-bold text-lg text-emerald-700 dark:text-emerald-300">{target.cutting_capacity?.toLocaleString() || 0}</p>
+                          <p className="text-[11px] text-muted-foreground">capacity</p>
                         </div>
                       </div>
                     ))}
@@ -1439,11 +1439,12 @@ export default function Dashboard() {
             </Card>
 
             {/* Cutting End of Day Card */}
-            <Card className="relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-green-500" />
+            <Card className="relative overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border-t-2" style={{ borderTopColor: '#10b981' }}>
               <CardHeader className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 pb-2">
                 <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                  <ClipboardCheck className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 dark:text-emerald-400" />
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 shadow-md shadow-emerald-500/20 flex items-center justify-center">
+                    <ClipboardCheck className="h-3.5 w-3.5 text-white" />
+                  </div>
                   End of Day
                 </CardTitle>
                 <div className="flex gap-1 sm:gap-2">
@@ -1469,7 +1470,7 @@ export default function Dashboard() {
                     ))}
                   </div>
                 ) : cuttingSubmissions.length > 0 ? (
-                  <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
                     {cuttingSubmissions.map((cutting) => (
                       <div
                         key={cutting.id}
@@ -1477,16 +1478,15 @@ export default function Dashboard() {
                           setSelectedCutting(cutting);
                           setCuttingModalOpen(true);
                         }}
-                        className="flex items-center justify-between p-3 rounded-lg bg-success/5 hover:bg-success/10 transition-colors cursor-pointer border border-success/20"
+                        className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/60 border border-transparent hover:border-border/50 transition-all duration-200 cursor-pointer"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-lg flex items-center justify-center bg-success/10">
-                            <ClipboardCheck className="h-5 w-5 text-success" />
+                          <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-emerald-100 dark:bg-emerald-500/15">
+                            <ClipboardCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                           </div>
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-medium">{cutting.line_name}</span>
-                              <StatusBadge variant="success" size="sm">Actual</StatusBadge>
                               {cutting.leftover_recorded && (
                                 <StatusBadge variant="warning" size="sm">
                                   Left Over: {cutting.leftover_quantity} {cutting.leftover_unit}
@@ -1499,8 +1499,8 @@ export default function Dashboard() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-mono font-bold text-lg text-success">{cutting.day_cutting.toLocaleString()}</p>
-                          <p className="text-xs text-muted-foreground">cut today</p>
+                          <p className="font-mono font-bold text-lg text-emerald-700 dark:text-emerald-300">{cutting.day_cutting.toLocaleString()}</p>
+                          <p className="text-[11px] text-muted-foreground">cut today</p>
                         </div>
                       </div>
                     ))}
@@ -1522,11 +1522,12 @@ export default function Dashboard() {
         </TabsContent>
 
         <TabsContent value="storage" className="space-y-4 md:space-y-6">
-          <Card className="relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-amber-500" />
+          <Card className="relative overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border-t-2" style={{ borderTopColor: '#f97316' }}>
             <CardHeader className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 pb-2">
               <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                <Warehouse className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 dark:text-orange-400" />
+                <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 shadow-md shadow-orange-500/20 flex items-center justify-center">
+                  <Warehouse className="h-3.5 w-3.5 text-white" />
+                </div>
                 Bin Cards
               </CardTitle>
               <Link to="/today?tab=storage">
@@ -1546,7 +1547,7 @@ export default function Dashboard() {
               ) : storageDisplayItems.length > 0 ? (
                 <TooltipProvider>
                 <div className="w-full overflow-x-auto">
-                  <div className="space-y-3 max-h-[500px] overflow-y-auto min-w-[320px]">
+                  <div className="space-y-2 max-h-[500px] overflow-y-auto min-w-[320px]">
                     {storageDisplayItems.map((item) => (
                       <div
                         key={item.key}
@@ -1580,14 +1581,14 @@ export default function Dashboard() {
                             setStorageModalOpen(true);
                           }
                         }}
-                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
+                        className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/60 border border-transparent hover:border-border/50 transition-all duration-200 cursor-pointer"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="h-10 w-10 rounded-lg flex items-center justify-center bg-primary/10 shrink-0">
+                          <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-orange-100 dark:bg-orange-500/15 shrink-0">
                             {item.type === 'group' && item.cards.length > 1 ? (
-                              <Layers className="h-5 w-5 text-primary" />
+                              <Layers className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                             ) : (
-                              <Warehouse className="h-5 w-5 text-primary" />
+                              <Warehouse className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                             )}
                           </div>
                           <div className="min-w-0">
@@ -1628,8 +1629,8 @@ export default function Dashboard() {
                           </div>
                         </div>
                         <div className="text-right shrink-0 ml-3">
-                          <p className="font-mono font-bold text-lg">{item.totalBalance.toLocaleString()}</p>
-                          <p className="text-xs text-muted-foreground">balance</p>
+                          <p className="font-mono font-bold text-lg text-orange-700 dark:text-orange-300">{item.totalBalance.toLocaleString()}</p>
+                          <p className="text-[11px] text-muted-foreground">balance</p>
                         </div>
                       </div>
                     ))}

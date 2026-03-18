@@ -198,20 +198,31 @@ export function FinishingDailySheetsTable({
 
   // Daily output trend chart data
   const finishingDailyTrend = useMemo(() => {
-    const outputLogs = logs.filter(l => l.log_type === "OUTPUT");
-    if (outputLogs.length === 0) return [];
-    const byDate: Record<string, { carton: number; poly: number }> = {};
-    for (const l of outputLogs) {
+    if (logs.length === 0) return [];
+    // Collect dates that have OUTPUT logs (actuals)
+    const datesWithOutput = new Set(
+      logs.filter(l => l.log_type === "OUTPUT").map(l => l.production_date)
+    );
+    const byDate: Record<string, { carton: number; poly: number; targetPoly: number }> = {};
+    for (const l of logs) {
       const d = l.production_date;
-      if (!byDate[d]) byDate[d] = { carton: 0, poly: 0 };
-      byDate[d].carton += effectiveCarton(l.carton, l.actual_hours, l.ot_hours_actual);
-      byDate[d].poly += effectivePoly(l.poly, l.actual_hours, l.ot_hours_actual);
+      if (!byDate[d]) byDate[d] = { carton: 0, poly: 0, targetPoly: 0 };
+      if (l.log_type === "TARGET") {
+        // Only include targets for dates that have matching outputs
+        if (!datesWithOutput.has(d)) continue;
+        const plannedHrs = l.planned_hours || 1;
+        byDate[d].targetPoly += (l.poly || 0) * plannedHrs;
+      } else {
+        byDate[d].carton += effectiveCarton(l.carton, l.actual_hours, l.ot_hours_actual);
+        byDate[d].poly += effectivePoly(l.poly, l.actual_hours, l.ot_hours_actual);
+      }
     }
     return Object.entries(byDate)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, vals]) => ({
         date,
         displayDate: new Date(date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        targetPoly: vals.targetPoly,
         carton: vals.carton,
         poly: vals.poly,
       }));
@@ -309,71 +320,71 @@ export function FinishingDailySheetsTable({
   return (
     <div className="space-y-4">
           {/* Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <ClipboardList className="h-5 w-5 text-primary" />
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <Card className="bg-gradient-to-br from-violet-50 via-white to-violet-50/50 dark:from-violet-950/40 dark:via-card dark:to-violet-950/20 border-violet-200/60 dark:border-violet-800/40 hover:shadow-lg transition-all duration-300">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/20 flex items-center justify-center">
+                    <ClipboardList className="h-3.5 w-3.5 text-white" />
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold">{totalLogs}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {activeTab === "targets" ? "Targets" : "Outputs"}
-                    </p>
-                  </div>
+                  <p className="text-[11px] text-muted-foreground font-medium">
+                    {activeTab === "targets" ? "Targets" : "Outputs"}
+                  </p>
                 </div>
+                <div className="text-xl font-bold text-violet-700 dark:text-violet-300">{totalLogs}</div>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center">
-                    <Package className="h-5 w-5 text-success" />
+            <Card className="bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 dark:from-emerald-950/40 dark:via-card dark:to-emerald-950/20 border-emerald-200/60 dark:border-emerald-800/40 hover:shadow-lg transition-all duration-300">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 shadow-md shadow-emerald-500/20 flex items-center justify-center">
+                    <Package className="h-3.5 w-3.5 text-white" />
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-success">{totalPoly.toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">Total Poly</p>
-                  </div>
+                  <p className="text-[11px] text-muted-foreground font-medium">Total Poly</p>
                 </div>
+                <div className="text-xl font-bold text-emerald-700 dark:text-emerald-300 font-mono tabular-nums">{totalPoly.toLocaleString()}</div>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
-                    <Package className="h-5 w-5 text-muted-foreground" />
+            <Card className="bg-gradient-to-br from-amber-50 via-white to-amber-50/50 dark:from-amber-950/40 dark:via-card dark:to-amber-950/20 border-amber-200/60 dark:border-amber-800/40 hover:shadow-lg transition-all duration-300">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 shadow-md shadow-amber-500/20 flex items-center justify-center">
+                    <Package className="h-3.5 w-3.5 text-white" />
                   </div>
-                  <div>
-                    <p className="text-xl font-semibold text-muted-foreground">{totalCarton.toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">Total Cartons</p>
-                  </div>
+                  <p className="text-[11px] text-muted-foreground font-medium">Total Cartons</p>
                 </div>
+                <div className="text-xl font-bold text-amber-700 dark:text-amber-300 font-mono tabular-nums">{totalCarton.toLocaleString()}</div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Daily Output Trend Chart */}
+          {/* Target vs Actual Chart */}
           {finishingDailyTrend.length > 1 && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-primary" />
-                  Daily Output Trend
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/20 flex items-center justify-center">
+                    <TrendingUp className="h-3.5 w-3.5 text-white" />
+                  </div>
+                  Target vs Actual (Poly)
                 </CardTitle>
               </CardHeader>
               <CardContent className="pb-4">
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={220}>
                   <AreaChart data={finishingDailyTrend}>
                     <defs>
                       <linearGradient id="colorFinishingPoly" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorFinishingTarget" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis dataKey="displayDate" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} />
-                    <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} width={40} />
+                    <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} width={45} />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: 'hsl(var(--card))',
@@ -384,20 +395,20 @@ export function FinishingDailySheetsTable({
                     />
                     <Area
                       type="monotone"
-                      dataKey="poly"
-                      name="Poly"
-                      stroke="hsl(var(--primary))"
-                      fill="url(#colorFinishingPoly)"
+                      dataKey="targetPoly"
+                      name="Target"
+                      stroke="#10b981"
+                      fill="url(#colorFinishingTarget)"
                       strokeWidth={2}
+                      strokeDasharray="5 3"
                     />
                     <Area
                       type="monotone"
-                      dataKey="carton"
-                      name="Carton"
-                      stroke="hsl(var(--muted-foreground))"
-                      fill="hsl(var(--muted-foreground))"
-                      fillOpacity={0.1}
-                      strokeWidth={1.5}
+                      dataKey="poly"
+                      name="Actual"
+                      stroke="#8b5cf6"
+                      fill="url(#colorFinishingPoly)"
+                      strokeWidth={2}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -421,9 +432,13 @@ export function FinishingDailySheetsTable({
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 {activeTab === "targets" ? (
-                  <Target className="h-4 w-4 text-primary" />
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/20 flex items-center justify-center">
+                    <Target className="h-3.5 w-3.5 text-white" />
+                  </div>
                 ) : (
-                  <Package className="h-4 w-4 text-violet-600" />
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/20 flex items-center justify-center">
+                    <Package className="h-3.5 w-3.5 text-white" />
+                  </div>
                 )}
                 {activeTab === "targets" ? "Finishing Targets" : "Finishing End of Day"}
                 <Badge variant="secondary" className="ml-2">

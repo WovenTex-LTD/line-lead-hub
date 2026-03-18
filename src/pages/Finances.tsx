@@ -787,13 +787,13 @@ export default function Finances() {
       {/* ── Page header ─────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="flex-1 flex items-center gap-4">
-          <div className="h-11 w-11 rounded-xl bg-violet-100 dark:bg-violet-950/50 flex items-center justify-center shrink-0 shadow-sm">
+          <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">
             <DollarSign className="h-5 w-5 text-violet-600 dark:text-violet-400" />
           </div>
           <div>
             <div className="flex items-baseline gap-3">
-              <h1 className="text-2xl font-bold tracking-tight">
-                Financial Operations
+              <h1 className="text-xl md:text-2xl font-bold">
+                Finances
               </h1>
               {isBDT && bdtToUsd && (
                 <span className="text-[10px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">

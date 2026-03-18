@@ -3,7 +3,6 @@ import { TableRow, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatShortDate } from "@/lib/date-utils";
-import { HealthBadge } from "./HealthBadge";
 import { POQuickActions } from "./POQuickActions";
 import type { POControlRoomData } from "./types";
 
@@ -25,7 +24,7 @@ export function POTableRow({ po, isExpanded, onToggle, onViewExtras, showVelocit
       onClick={onToggle}
     >
       {/* Expand chevron */}
-      <TableCell className="w-8 pr-0">
+      <TableCell className="w-7 pr-0 pl-3">
         {isExpanded ? (
           <ChevronDown className="h-4 w-4 text-muted-foreground" />
         ) : (
@@ -77,7 +76,7 @@ export function POTableRow({ po, isExpanded, onToggle, onViewExtras, showVelocit
       </TableCell>
 
       {/* Sewing output + green bar */}
-      <TableCell className="min-w-[100px]">
+      <TableCell className="min-w-[80px]">
         <p className="font-mono text-sm font-medium text-right">
           {po.sewingOutput > 0 ? po.sewingOutput.toLocaleString() : <span className="text-muted-foreground">—</span>}
         </p>
@@ -95,7 +94,7 @@ export function POTableRow({ po, isExpanded, onToggle, onViewExtras, showVelocit
       </TableCell>
 
       {/* Finishing output + purple bar */}
-      <TableCell className="min-w-[100px]">
+      <TableCell className="min-w-[80px]">
         <p className="font-mono text-sm font-medium text-right">
           {po.finishedOutput > 0 ? po.finishedOutput.toLocaleString() : <span className="text-muted-foreground">—</span>}
         </p>
@@ -128,11 +127,6 @@ export function POTableRow({ po, isExpanded, onToggle, onViewExtras, showVelocit
         ) : (
           <span className="text-muted-foreground">—</span>
         )}
-      </TableCell>
-
-      {/* Health */}
-      <TableCell>
-        <HealthBadge health={po.health} />
       </TableCell>
 
       {/* Ex-Factory */}

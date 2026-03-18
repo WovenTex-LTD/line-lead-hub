@@ -324,28 +324,28 @@ export default function CuttingSummary() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-primary">
+        <Card className="bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 border-emerald-200/60 dark:border-emerald-800/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
           <CardContent className="pt-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">Submissions Today</p>
             <p className="text-2xl font-bold">{stats.submissionsToday}</p>
             <p className="text-xs text-muted-foreground">Today's entries</p>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-success">
+        <Card className="bg-gradient-to-br from-green-50 via-white to-green-50/50 border-green-200/60 dark:border-green-800/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
           <CardContent className="pt-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">Cutting Today</p>
             <p className="text-2xl font-bold">{stats.cuttingToday.toLocaleString()}</p>
             <p className="text-xs text-muted-foreground">Total pieces</p>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-info">
+        <Card className="bg-gradient-to-br from-teal-50 via-white to-teal-50/50 border-teal-200/60 dark:border-teal-800/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
           <CardContent className="pt-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">Input Today</p>
             <p className="text-2xl font-bold">{stats.inputToday.toLocaleString()}</p>
             <p className="text-xs text-muted-foreground">Total pieces</p>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-warning">
+        <Card className="bg-gradient-to-br from-amber-50 via-white to-amber-50/50 border-amber-200/60 dark:border-amber-800/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
           <CardContent className="pt-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">Under QTY Today</p>
             <p className="text-2xl font-bold">{stats.underQtyToday.toLocaleString()}</p>

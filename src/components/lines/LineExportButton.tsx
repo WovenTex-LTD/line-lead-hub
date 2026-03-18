@@ -265,10 +265,11 @@ async function exportPdf(lines: LinePerformanceData[], timeRange: TimeRange, dat
     return badgeW;
   };
 
-  // Sort lines by achievement for ranking
+  // Sort lines by number
+  const { compareLineNames: cmpLines } = await import("@/lib/sort-lines");
   const ranked = [...lines]
     .filter((l) => l.isActive)
-    .sort((a, b) => b.achievementPct - a.achievementPct);
+    .sort((a, b) => cmpLines(a.name || a.lineId, b.name || b.lineId));
 
   // ========== PAGE 1: COVER ==========
   doc.setFillColor(...blue);

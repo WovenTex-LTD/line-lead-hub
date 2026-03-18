@@ -112,7 +112,8 @@ export default function FinishingDailySummary() {
         .eq("is_active", true)
         .order("line_id");
 
-      setLines(linesData || []);
+      const { sortByLineName } = await import("@/lib/sort-lines");
+      setLines(sortByLineName(linesData || [], l => l.name || l.line_id));
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {

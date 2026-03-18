@@ -65,7 +65,7 @@ export function POClusterSection({
 }: Props) {
   const meta = CLUSTER_META[cluster];
   // velocity columns + existing = 13 total
-  const colSpan = 13;
+  const colSpan = 12;
 
   return (
     <div className="rounded-lg border overflow-hidden">
@@ -79,23 +79,22 @@ export function POClusterSection({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
-        <Table>
+      <div>
+        <Table className="w-full">
           <TableHeader>
             <TableRow>
+              <TableHead className="w-7" />
+              <TableHead className="whitespace-nowrap">PO Number</TableHead>
+              <TableHead className="whitespace-nowrap">Buyer / Style</TableHead>
+              <TableHead className="whitespace-nowrap">Line</TableHead>
+              <TableHead className="text-right whitespace-nowrap">PO Qty</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Sewing</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Finishing</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Remaining</TableHead>
+              <TableHead className="whitespace-nowrap">Ex-Factory</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Avg/day</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Need/day</TableHead>
               <TableHead className="w-8" />
-              <TableHead>PO Number</TableHead>
-              <TableHead>Buyer / Style</TableHead>
-              <TableHead>Line</TableHead>
-              <TableHead className="text-right">PO Qty</TableHead>
-              <TableHead className="text-right">Sewing</TableHead>
-              <TableHead className="text-right">Finishing</TableHead>
-              <TableHead className="text-right">Remaining</TableHead>
-              <TableHead>Health</TableHead>
-              <TableHead>Ex-Factory</TableHead>
-              <TableHead className="text-right">Sewing Avg/day</TableHead>
-              <TableHead className="text-right">Sewing Need/day</TableHead>
-              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -111,7 +110,7 @@ export function POClusterSection({
                 />
                 {expandedId === po.id && (
                   <TableRow key={`${po.id}-detail`}>
-                    <TableCell colSpan={colSpan} className="p-0 bg-muted/30">
+                    <TableCell colSpan={colSpan} className="p-0 border-b border-border/60 bg-card">
                       <POExpandedPanel
                         po={po}
                         detailData={detailData}

@@ -346,28 +346,40 @@ export default function Blockers() {
   }
 
   return (
-    <div className="py-4 lg:py-6 space-y-6">
+    <div className="py-3 md:py-4 lg:py-6 space-y-5 md:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <AlertTriangle className="h-6 w-6 text-warning" />
-            Blockers
-          </h1>
-          <p className="text-muted-foreground">Track and resolve production blockers</p>
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold">Blockers</h1>
+            <p className="text-sm text-muted-foreground">Track and resolve production blockers</p>
+          </div>
         </div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 gap-4">
-        <Card className="border-destructive/30 bg-destructive/5">
+        <Card className="bg-gradient-to-br from-amber-50 via-white to-amber-50/50 border-amber-200/60 dark:border-amber-800/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
           <CardContent className="p-4 text-center">
+            <div className="flex justify-center mb-2">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/25 group-hover:shadow-amber-500/40 transition-shadow flex items-center justify-center">
+                <span className="text-white font-bold text-lg">{openBlockers.length}</span>
+              </div>
+            </div>
             <p className="text-3xl font-bold text-destructive">{openBlockers.length}</p>
             <p className="text-sm text-muted-foreground">Open</p>
           </CardContent>
         </Card>
-        <Card className="border-success/30 bg-success/5">
+        <Card className="bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 border-emerald-200/60 dark:border-emerald-800/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
           <CardContent className="p-4 text-center">
+            <div className="flex justify-center mb-2">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 shadow-lg shadow-emerald-500/25 group-hover:shadow-emerald-500/40 transition-shadow flex items-center justify-center">
+                <span className="text-white font-bold text-lg">{resolvedBlockers.length}</span>
+              </div>
+            </div>
             <p className="text-3xl font-bold text-success">{resolvedBlockers.length}</p>
             <p className="text-sm text-muted-foreground">Resolved</p>
           </CardContent>

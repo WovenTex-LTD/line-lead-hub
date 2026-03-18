@@ -103,7 +103,9 @@
     "cutting": "裁剪",
     "cuttingMorningTargets": "裁剪早间目标",
     "cuttingEndOfDay": "裁剪日终汇报",
-    "cuttingSubmissions": "裁剪提交记录"
+    "cuttingSubmissions": "裁剪提交记录",
+    "cuttingHandoffs": "裁剪交接",
+    "finances": "财务"
   },
   "roles": {
     "worker": "主管",
@@ -482,8 +484,8 @@
     "submitTargets": "提交目标",
     "submitActuals": "提交实际数据",
     "submitting": "提交中...",
-    "sewingMorningTargets": "缝纫 — 早间目标",
-    "finishingMorningTargets": "后整 — 早间目标",
+    "sewingMorningTargets": "缝纫早间目标",
+    "finishingMorningTargets": "后整早间目标",
     "endOfDayOutput": "日终产量",
     "sewing": "缝纫",
     "finishing": "后整",
@@ -1250,5 +1252,51 @@
     "entry": "条记录",
     "cards": "张卡",
     "of": "/"
+  },
+
+  "sewingMySubmissions": {
+    "title": "我的提交",
+    "description": "您的缝纫目标和日终报告",
+    "targetsThisWeek": "本周目标",
+    "eodThisWeek": "本周日终",
+    "avgPerHourTarget": "平均每小时目标",
+    "totalGoodOutput": "总良品产出",
+    "searchPlaceholder": "按采购订单、款式、买家、产线搜索...",
+    "filterByDate": "按日期筛选",
+    "allTime": "所有时间",
+    "today": "今天",
+    "thisWeek": "本周",
+    "morningTargets": "早间目标",
+    "endOfDay": "日终",
+    "endOfDayReports": "日终报告",
+    "noTargetsFound": "未找到目标",
+    "noEodFound": "未找到日终报告",
+    "tryAdjustingFilters": "请调整筛选条件",
+    "submitTargetsToStart": "提交早间目标以开始跟踪",
+    "submitEodToTrack": "提交日终报告以跟踪实际产量",
+    "date": "日期",
+    "time": "时间",
+    "line": "产线",
+    "poStyle": "采购订单 / 款式",
+    "targetHr": "目标/小时",
+    "manpower": "人力",
+    "good": "良品",
+    "reject": "次品",
+    "rework": "返工",
+    "cumulative": "累计",
+    "editSubmission": "编辑提交"
+  },
+
+  "cuttingHandoffsPage": {
+    "cuttingToday": "今日裁剪",
+    "inputToday": "今日投入",
+    "cuttingHandoffs": "裁剪交接",
+    "handoffDetails": "裁剪交接详情",
+    "productionData": "生产数据",
+    "transferInfo": "转移信息",
+    "from": "来自",
+    "to": "转至",
+    "acknowledgedOn": "确认时间",
+    "acknowledging": "确认中..."
   }
 }

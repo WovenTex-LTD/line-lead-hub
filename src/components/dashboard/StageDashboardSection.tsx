@@ -72,10 +72,10 @@ const STAGE_CONFIGS: Record<"sewing" | "finishing", StageConfig> = {
     viewAllEodLink: "/today?tab=sewing",
     eodMetricLabel: "output",
     targetMetricLabel: "per hour",
-    targetIconColor: "text-blue-600 dark:text-blue-400",
-    targetIconBg: "bg-blue-500/10",
-    eodIconColor: "text-blue-600 dark:text-blue-400",
-    eodIconBg: "bg-blue-500/10",
+    targetIconColor: "text-white",
+    targetIconBg: "bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/20",
+    eodIconColor: "text-white",
+    eodIconBg: "bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/20",
     targetIsDaily: false,
     cardAccent: "from-blue-500 to-indigo-500",
   },
@@ -86,10 +86,10 @@ const STAGE_CONFIGS: Record<"sewing" | "finishing", StageConfig> = {
     viewAllEodLink: "/today?tab=finishing",
     eodMetricLabel: "poly",
     targetMetricLabel: "poly",
-    targetIconColor: "text-violet-600 dark:text-violet-400",
-    targetIconBg: "bg-violet-500/10",
-    eodIconColor: "text-violet-600 dark:text-violet-400",
-    eodIconBg: "bg-violet-500/10",
+    targetIconColor: "text-white",
+    targetIconBg: "bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/20",
+    eodIconColor: "text-white",
+    eodIconBg: "bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/20",
     targetIsDaily: true,
     cardAccent: "from-violet-500 to-purple-500",
   },
@@ -143,11 +143,12 @@ export function StageDashboardSection<
     <>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Morning Targets Card */}
-        <Card className="relative overflow-hidden">
-          <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${config.cardAccent}`} />
+        <Card className="relative overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border-t-2" style={{ borderTopColor: isFinishing ? '#8b5cf6' : '#3b82f6' }}>
           <CardHeader className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 pb-2">
             <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-              <TargetIcon className={`h-4 w-4 sm:h-5 sm:w-5 ${config.targetIconColor}`} />
+              <div className={`h-7 w-7 rounded-lg ${config.targetIconBg} flex items-center justify-center`}>
+                <TargetIcon className={`h-3.5 w-3.5 ${config.targetIconColor}`} />
+              </div>
               Morning Targets
             </CardTitle>
             <div className="flex gap-1 sm:gap-2">
@@ -177,16 +178,16 @@ export function StageDashboardSection<
             {loading ? (
               skeletonRows
             ) : targets.length > 0 ? (
-              <div className="space-y-3 max-h-[400px] overflow-y-auto">
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
                 {targets.map((target) => (
                   <div
                     key={target.id}
                     onClick={() => onTargetClick(target)}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
+                    className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/60 border border-transparent hover:border-border/50 transition-all duration-200 cursor-pointer group/row"
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${config.targetIconBg}`}>
-                        <TargetIcon className={`h-5 w-5 ${config.targetIconColor}`} />
+                      <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${isFinishing ? 'bg-violet-100 dark:bg-violet-500/15' : 'bg-blue-100 dark:bg-blue-500/15'}`}>
+                        <TargetIcon className={`h-4 w-4 ${isFinishing ? 'text-violet-600 dark:text-violet-400' : 'text-blue-600 dark:text-blue-400'}`} />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
@@ -211,10 +212,10 @@ export function StageDashboardSection<
                         renderTargetMetric(target)
                       ) : (
                         <>
-                          <p className="font-mono font-bold text-lg">
-                            {target.per_hour_target}
+                          <p className={`font-mono font-bold text-lg ${isFinishing ? 'text-violet-700 dark:text-violet-300' : 'text-blue-700 dark:text-blue-300'}`}>
+                            {target.per_hour_target.toLocaleString()}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-[11px] text-muted-foreground">
                             {config.targetMetricLabel}
                           </p>
                         </>
@@ -238,11 +239,12 @@ export function StageDashboardSection<
         </Card>
 
         {/* End of Day Card */}
-        <Card className="relative overflow-hidden">
-          <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${config.cardAccent}`} />
+        <Card className="relative overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border-t-2" style={{ borderTopColor: isFinishing ? '#8b5cf6' : '#3b82f6' }}>
           <CardHeader className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 pb-2">
             <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-              <ClipboardCheck className={`h-4 w-4 sm:h-5 sm:w-5 ${config.eodIconColor}`} />
+              <div className={`h-7 w-7 rounded-lg ${config.eodIconBg} flex items-center justify-center`}>
+                <ClipboardCheck className={`h-3.5 w-3.5 ${config.eodIconColor}`} />
+              </div>
               End of Day
             </CardTitle>
             <div className="flex gap-1 sm:gap-2">
@@ -272,16 +274,16 @@ export function StageDashboardSection<
             {loading ? (
               skeletonRows
             ) : endOfDay.length > 0 ? (
-              <div className="space-y-3 max-h-[400px] overflow-y-auto">
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
                 {endOfDay.map((update) => (
                   <div
                     key={update.id}
                     onClick={() => onEodClick(update)}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
+                    className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/60 border border-transparent hover:border-border/50 transition-all duration-200 cursor-pointer group/row"
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${config.eodIconBg}`}>
-                        <ClipboardCheck className={`h-5 w-5 ${config.eodIconColor}`} />
+                      <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${isFinishing ? 'bg-violet-100 dark:bg-violet-500/15' : 'bg-blue-100 dark:bg-blue-500/15'}`}>
+                        <ClipboardCheck className={`h-4 w-4 ${isFinishing ? 'text-violet-600 dark:text-violet-400' : 'text-blue-600 dark:text-blue-400'}`} />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
@@ -310,10 +312,10 @@ export function StageDashboardSection<
                       update.total_carton > 0 ? (
                         <div className="flex gap-3">
                           <div>
-                            <p className="font-mono font-bold text-lg">
+                            <p className="font-mono font-bold text-lg text-violet-700 dark:text-violet-300">
                               {update.output.toLocaleString()}
                             </p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-[11px] text-muted-foreground">
                               {config.eodMetricLabel}
                             </p>
                           </div>
@@ -321,17 +323,17 @@ export function StageDashboardSection<
                             <p className="font-mono font-semibold text-base text-muted-foreground">
                               {update.total_carton.toLocaleString()}
                             </p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-[11px] text-muted-foreground">
                               cartons
                             </p>
                           </div>
                         </div>
                       ) : (
                         <>
-                          <p className="font-mono font-bold text-lg">
+                          <p className={`font-mono font-bold text-lg ${isFinishing ? 'text-violet-700 dark:text-violet-300' : 'text-blue-700 dark:text-blue-300'}`}>
                             {update.output.toLocaleString()}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-[11px] text-muted-foreground">
                             {config.eodMetricLabel}
                           </p>
                         </>

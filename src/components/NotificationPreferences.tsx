@@ -81,7 +81,7 @@ const ALL_NOTIFICATION_TYPES: NotificationType[] = [
     label: "Cutting Handoff",
     description: "Get notified when cutting submits material for your sewing line",
     icon: Scissors,
-    roles: ["worker", "supervisor", "admin", "owner", "superadmin"], // Sewing roles
+    roles: ["worker"], // Sewing line leads only
   },
   {
     type: "target_achieved",

@@ -261,7 +261,7 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
       return Math.round(c * 100) / 100;
     };
     const toU = (v: number) => isBDT && bdtRate ? Math.round(v * bdtRate * 100) / 100 : v;
-    const numSort = (n: string) => parseInt(n.replace(/\D/g, "")) || 9999;
+    const { compareLineNames: cmpLines } = await import("@/lib/sort-lines");
 
     // ── Header ──
     R.push(["DAILY PRODUCTION REPORT"]);
@@ -290,7 +290,7 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
 
       const byLine: Record<string, typeof data.sewing> = {};
       data.sewing.forEach(s => { if (!byLine[s.lineName]) byLine[s.lineName] = []; byLine[s.lineName].push(s); });
-      const lineKeys = Object.keys(byLine).sort((a, b) => numSort(a) - numSort(b));
+      const lineKeys = Object.keys(byLine).sort((a, b) => cmpLines(a, b));
 
       let deptOutput = 0, deptReject = 0, deptRework = 0, deptCostN = 0, deptCostU = 0;
 
@@ -447,7 +447,7 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
       if (otMp && otHrs) c += hcRate * otMp * otHrs;
       return Math.round(c * 100) / 100;
     };
-    const numSort = (n: string) => parseInt(n.replace(/\D/g, "")) || 9999;
+    const { compareLineNames: cmpLines2 } = await import("@/lib/sort-lines");
     const fmtDate = (d: string) => { const p = d.split("-"); return `${p[2]}.${p[1]}`; };
 
     const R: (string | number | null)[][] = [];
@@ -537,7 +537,7 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
         if (!byLine[ln]) byLine[ln] = [];
         byLine[ln].push(s);
       });
-      const lineKeys = Object.keys(byLine).sort((a, b) => numSort(a) - numSort(b));
+      const lineKeys = Object.keys(byLine).sort((a, b) => cmpLines(a, b));
       let deptOutput = 0, deptReject = 0, deptRework = 0, deptCostN = 0, deptCostU = 0;
 
       lineKeys.forEach(lineName => {
@@ -587,7 +587,7 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
         const { buyer, entries } = byPo[po];
         entries.sort((a: any, b: any) => {
           if (a.production_date !== b.production_date) return (a.production_date || "").localeCompare(b.production_date || "");
-          return numSort(a.lines?.name || "") - numSort(b.lines?.name || "");
+          return cmpLines2(a.lines?.name || "", b.lines?.name || "");
         });
         R.push([`>>> PO: ${po} — Buyer: ${buyer}`]);
         R.push(["Day", "Line", "Colour", "Day Cut", "Day Input", "Total Cut", "Balance", "MP", "Hrs", "OT MP", "OT Hrs", `Cost (${costCur})`, "Cost ($)"]);

@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Radar, Search, Archive, Loader2, SlidersHorizontal } from "lucide-react";
+import { Receipt, Search, Archive, Loader2, SlidersHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -94,33 +94,38 @@ export default function WorkOrdersView() {
   }
 
   return (
-    <div className="py-4 lg:py-6 space-y-6">
+    <div className="py-3 md:py-4 lg:py-6 space-y-5 md:space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Radar className="h-6 w-6" />
-          PO Control Room
-        </h1>
-        <p className="text-muted-foreground">
-          Track active work orders, health, and production pipeline
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
+            <Receipt className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl md:text-2xl font-bold">Work Orders</h1>
+              <span className="text-xs font-medium bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded-full px-2 py-0.5">
+                {kpis.activeOrders} active
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground">Track health, pipeline, and production progress</p>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => setShowExtrasOverview(true)}
+          className="gap-2"
+        >
+          <Archive className="h-4 w-4" />
+          View All Leftovers
+        </Button>
       </div>
 
       {/* KPI Cards */}
       <POControlRoomKPIs kpis={kpis} />
 
-      {/* Extras Overview + Search + Filters */}
+      {/* Search + Filters */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-        <Button
-          variant="default"
-          onClick={() => setShowExtrasOverview(true)}
-          className="gap-2"
-          size="lg"
-        >
-          <Archive className="h-5 w-5" />
-          View All Leftovers
-        </Button>
-
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input

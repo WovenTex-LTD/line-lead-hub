@@ -252,86 +252,78 @@ export default function CuttingHandoffs() {
   }
 
   return (
-    <div className="container py-4 px-4 space-y-6 pb-8">
+    <div className="py-3 md:py-4 lg:py-6 space-y-5 md:space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Scissors className="h-5 w-5 text-primary" />
+          <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+            <Scissors className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">{t('cutting.cuttingHandoffs')}</h1>
-            <p className="text-sm text-muted-foreground">
-              {t('cutting.cutBundlesTransferred')}
-            </p>
+            <h1 className="text-xl md:text-2xl font-bold">{t('cutting.cuttingHandoffs')}</h1>
+            <p className="text-sm text-muted-foreground">{t('cutting.cutBundlesTransferred')}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={fetchHandoffs}>
+          <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
+            <SelectTrigger className="w-[140px] h-9">
+              <SelectValue placeholder="Date Range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="today">{t('sewingMySubmissions.today')}</SelectItem>
+              <SelectItem value="7days">{t('cutting.last7Days')}</SelectItem>
+              <SelectItem value="30days">{t('cutting.last30Days')}</SelectItem>
+              {isAdminOrHigher() && <SelectItem value="all">{t('cutting.allTime')}</SelectItem>}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="icon" className="h-9 w-9" onClick={fetchHandoffs}>
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Date Range" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="7days">{t('cutting.last7Days')}</SelectItem>
-            <SelectItem value="30days">{t('cutting.last30Days')}</SelectItem>
-            {isAdminOrHigher() && <SelectItem value="all">{t('cutting.allTime')}</SelectItem>}
-          </SelectContent>
-        </Select>
-      </div>
-
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">{t('cutting.todaysHandoffs')}</p>
-            <p className="text-2xl font-bold">{stats.todayCount}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">{t('cutting.unacknowledged')}</p>
-            <p className="text-2xl font-bold text-amber-500">{stats.unacknowledgedCount}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Cutting Today</p>
-            <p className="text-2xl font-bold">{stats.totalCutting.toLocaleString()}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Input Today</p>
-            <p className="text-2xl font-bold">{stats.totalInput.toLocaleString()}</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <div className="relative overflow-hidden rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50 via-white to-green-50/50 dark:from-emerald-950/40 dark:via-card dark:to-green-950/20 p-4 transition-all duration-300 hover:shadow-lg">
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-emerald-600/70 dark:text-emerald-400/70">{t('cutting.todaysHandoffs')}</p>
+          <p className="font-mono text-2xl font-bold tracking-tight text-emerald-900 dark:text-emerald-100 mt-1">{stats.todayCount}</p>
+        </div>
+        <div className="relative overflow-hidden rounded-xl border border-amber-200/60 dark:border-amber-800/40 bg-gradient-to-br from-amber-50 via-white to-orange-50/50 dark:from-amber-950/40 dark:via-card dark:to-orange-950/20 p-4 transition-all duration-300 hover:shadow-lg">
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-amber-600/70 dark:text-amber-400/70">{t('cutting.unacknowledged')}</p>
+          <p className="font-mono text-2xl font-bold tracking-tight text-amber-900 dark:text-amber-100 mt-1">{stats.unacknowledgedCount}</p>
+        </div>
+        <div className="relative overflow-hidden rounded-xl border border-blue-200/60 dark:border-blue-800/40 bg-gradient-to-br from-blue-50 via-white to-blue-50/50 dark:from-blue-950/40 dark:via-card dark:to-blue-950/20 p-4 transition-all duration-300 hover:shadow-lg">
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-blue-600/70 dark:text-blue-400/70">{t('cuttingHandoffsPage.cuttingToday')}</p>
+          <p className="font-mono text-2xl font-bold tracking-tight text-blue-900 dark:text-blue-100 mt-1">{stats.totalCutting.toLocaleString()}</p>
+        </div>
+        <div className="relative overflow-hidden rounded-xl border border-slate-200/60 dark:border-slate-800/40 bg-gradient-to-br from-slate-50 via-white to-slate-50/50 dark:from-slate-950/40 dark:via-card dark:to-slate-950/20 p-4 transition-all duration-300 hover:shadow-lg">
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-slate-600/70 dark:text-slate-400/70">{t('cuttingHandoffsPage.inputToday')}</p>
+          <p className="font-mono text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 mt-1">{stats.totalInput.toLocaleString()}</p>
+        </div>
       </div>
 
       {/* Table */}
-      <Card>
+      <Card className="border-border/50">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Cutting Submissions for Your Lines</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2">
+            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 shadow-md shadow-emerald-500/20 flex items-center justify-center">
+              <Scissors className="h-3.5 w-3.5 text-white" />
+            </div>
+            {t('cuttingHandoffsPage.cuttingHandoffs')}
+            <Badge variant="secondary" className="ml-1">{handoffs.length}</Badge>
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {handoffs.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Scissors className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <div className="text-center py-12 text-muted-foreground">
+              <Scissors className="h-12 w-12 mx-auto mb-3 opacity-30" />
               <p>{t('cutting.noHandoffsFound')}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="bg-muted/50">
                     <TableHead>{t('cutting.date')}</TableHead>
                     <TableHead>{t('cutting.po')} / {t('cutting.style')}</TableHead>
                     <TableHead>{t('cutting.colour')}</TableHead>
@@ -339,49 +331,48 @@ export default function CuttingHandoffs() {
                     <TableHead className="text-right">{t('cutting.dayInput')}</TableHead>
                     <TableHead>{t('cutting.toLine')}</TableHead>
                     <TableHead>{t('cutting.status')}</TableHead>
-                    <TableHead></TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {handoffs.map((handoff) => (
-                    <TableRow 
-                      key={handoff.id} 
+                    <TableRow
+                      key={handoff.id}
                       className="cursor-pointer hover:bg-muted/50"
                       onClick={() => setSelectedHandoff(handoff)}
                     >
-                      <TableCell className="font-medium">
-                        {format(new Date(handoff.production_date), "dd MMM")}
+                      <TableCell>
+                        <p className="font-mono text-sm">{format(new Date(handoff.production_date), "dd MMM")}</p>
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm">
-                          <p className="font-medium">{handoff.po_no || "-"}</p>
-                          <p className="text-xs text-muted-foreground">{handoff.style || "-"}</p>
-                        </div>
+                        <p className="font-medium text-sm">{handoff.po_no || "-"}</p>
+                        <p className="text-xs text-muted-foreground">{handoff.style || "-"}</p>
                       </TableCell>
-                      <TableCell>{handoff.colour || "-"}</TableCell>
-                      <TableCell className="text-right font-medium">
+                      <TableCell className="text-sm">{handoff.colour || "-"}</TableCell>
+                      <TableCell className="text-right font-mono font-bold text-sm">
                         {handoff.day_cutting?.toLocaleString() || 0}
                       </TableCell>
-                      <TableCell className="text-right font-medium">
+                      <TableCell className="text-right font-mono text-sm">
                         {handoff.day_input?.toLocaleString() || 0}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-sm font-medium">
                         {handoff.transfer_line?.name || handoff.transfer_line?.line_id || "-"}
                       </TableCell>
                       <TableCell>
                         {handoff.acknowledged ? (
-                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                            <Check className="h-3 w-3 mr-1" />
+                          <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
                             {t('cutting.received')}
-                          </Badge>
+                          </span>
                         ) : (
-                          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                          <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
                             {t('cutting.pending')}
-                          </Badge>
+                          </span>
                         )}
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
                           <Eye className="h-4 w-4" />
                         </Button>
                       </TableCell>
@@ -398,7 +389,7 @@ export default function CuttingHandoffs() {
       <Dialog open={!!selectedHandoff} onOpenChange={() => setSelectedHandoff(null)}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Cutting Handoff Details</DialogTitle>
+            <DialogTitle>{t('cuttingHandoffsPage.handoffDetails')}</DialogTitle>
             <DialogDescription>
               {selectedHandoff?.po_no} - {selectedHandoff?.buyer}
             </DialogDescription>
@@ -436,7 +427,7 @@ export default function CuttingHandoffs() {
               </div>
 
               <div className="border-t pt-4">
-                <h4 className="font-medium mb-3">Production Data</h4>
+                <h4 className="font-medium mb-3">{t('cuttingHandoffsPage.productionData')}</h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="p-3 bg-muted rounded-lg text-center">
                     <p className="text-xs text-muted-foreground">{t('cutting.dayCutting')}</p>
@@ -464,14 +455,14 @@ export default function CuttingHandoffs() {
               </div>
 
               <div className="border-t pt-4">
-                <h4 className="font-medium mb-3">Transfer Info</h4>
+                <h4 className="font-medium mb-3">{t('cuttingHandoffsPage.transferInfo')}</h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-muted-foreground">From</p>
-                    <p className="font-medium">Cutting</p>
+                    <p className="text-muted-foreground">{t('cuttingHandoffsPage.from')}</p>
+                    <p className="font-medium">{t('cutting.cuttingHandoffs').split(' ')[0]}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">To</p>
+                    <p className="text-muted-foreground">{t('cuttingHandoffsPage.to')}</p>
                     <p className="font-medium">
                       {selectedHandoff.transfer_line?.name || selectedHandoff.transfer_line?.line_id || "-"}
                     </p>
@@ -496,7 +487,7 @@ export default function CuttingHandoffs() {
                       <p className="font-medium text-green-800">{t('cutting.received')}</p>
                       {selectedHandoff.acknowledged_at && (
                         <p className="text-xs text-green-600">
-                          Acknowledged on {format(new Date(selectedHandoff.acknowledged_at), "dd MMM yyyy, hh:mm a")}
+                          {t('cuttingHandoffsPage.acknowledgedOn')} {format(new Date(selectedHandoff.acknowledged_at), "dd MMM yyyy, hh:mm a")}
                         </p>
                       )}
                     </div>
@@ -510,7 +501,7 @@ export default function CuttingHandoffs() {
                     {acknowledging ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Acknowledging...
+                        {t('cuttingHandoffsPage.acknowledging')}
                       </>
                     ) : (
                       <>

@@ -718,7 +718,7 @@ export async function downloadInsightsPdf(d: ExportData) {
   // ========== PAGE 4: LINE PERFORMANCE ==========
   if (d.linePerformance.length > 0) {
     doc.addPage();
-    y = drawPageHeader("Line Performance", `Ranked by efficiency across ${d.linePerformance.length} production lines`);
+    y = drawPageHeader("Line Performance", `${d.linePerformance.length} production lines`);
 
     // Summary badges
     drawStatusBadge(m, y, `${linesActive} ACTIVE`, blue, blueLight);

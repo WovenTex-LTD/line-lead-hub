@@ -4,9 +4,10 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Search, Scissors, ClipboardCheck, ChevronDown, ChevronRight, Package } from "lucide-react";
+import { Loader2, Search, ClipboardCheck, ChevronDown, ChevronRight, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// Card kept for collapsible leftover section and cumulative totals
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -483,18 +484,16 @@ export default function CuttingEndOfDay() {
   }
 
   return (
-    <div className="container max-w-2xl py-4 px-4 pb-8">
+    <div className="container max-w-2xl py-3 md:py-4 lg:py-6 px-4 pb-8">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-          <ClipboardCheck className="h-5 w-5 text-primary" />
+        <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+          <ClipboardCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold">{t('cutting.cuttingEndOfDay')}</h1>
-            {isEditing && (
-              <Badge variant="secondary">{t('cutting.editing')}</Badge>
-            )}
+            <h1 className="text-xl md:text-2xl font-bold">{t('cutting.cuttingEndOfDay')}</h1>
+            {isEditing && <Badge variant="secondary">{t('cutting.editing')}</Badge>}
           </div>
           <p className="text-sm text-muted-foreground">
             {new Date(getTodayInTimezone(factory?.timezone || "Asia/Dhaka") + "T00:00:00").toLocaleDateString(dateLocale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
@@ -502,13 +501,13 @@ export default function CuttingEndOfDay() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Line Selector */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">{t('cutting.lineNo')}</CardTitle>
-          </CardHeader>
-          <CardContent>
+      <form onSubmit={handleSubmit}>
+      <div className="rounded-xl border border-border/50 bg-card p-5 md:p-6 space-y-6">
+        {/* Line & PO */}
+        <div className="space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground">{t('cutting.lineNo')} & PO</p>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">{t('cutting.lineNo')} *</Label>
             <Popover open={lineSearchOpen} onOpenChange={setLineSearchOpen}>
               <PopoverTrigger asChild>
                 <Button 
@@ -521,7 +520,7 @@ export default function CuttingEndOfDay() {
                     : t('cutting.selectALine')}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[350px] p-0" align="start">
+              <PopoverContent className="w-[min(350px,calc(100vw-2rem))] p-0" align="start">
                 <Command shouldFilter={true}>
                   <CommandInput placeholder={t('cutting.searchLines')} />
                   <CommandList>
@@ -545,16 +544,10 @@ export default function CuttingEndOfDay() {
                 </Command>
               </PopoverContent>
             </Popover>
-            {errors.line && <p className="text-sm text-destructive mt-1">{errors.line}</p>}
-          </CardContent>
-        </Card>
-
-        {/* PO Selector */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">{t('cutting.selectPO')}</CardTitle>
-          </CardHeader>
-          <CardContent>
+            {errors.line && <p className="text-xs text-destructive mt-1">{errors.line}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">{t('cutting.selectPO')} *</Label>
             <Popover open={searchOpen} onOpenChange={setSearchOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -570,7 +563,7 @@ export default function CuttingEndOfDay() {
                   </span>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[350px] p-0" align="start">
+              <PopoverContent className="w-[min(350px,calc(100vw-2rem))] p-0" align="start">
                 <Command shouldFilter={true}>
                   <CommandInput placeholder={t('cutting.searchPOLong')} />
                   <CommandList>
@@ -599,185 +592,94 @@ export default function CuttingEndOfDay() {
                 </Command>
               </PopoverContent>
             </Popover>
-            {errors.workOrder && <p className="text-sm text-destructive mt-1">{errors.workOrder}</p>}
-          </CardContent>
-        </Card>
+            {errors.workOrder && <p className="text-xs text-destructive mt-1">{errors.workOrder}</p>}
+          </div>
+        </div>
 
-        {/* Auto-filled Details */}
+        {/* Order Details */}
         {selectedWorkOrder && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">{t('cutting.orderDetails')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">{t('cutting.buyerLabel')}</span>
-                  <p className="font-medium">{selectedWorkOrder.buyer}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">{t('cutting.styleLabel')}</span>
-                  <p className="font-medium">{selectedWorkOrder.style}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">{t('cutting.poNoLabel')}</span>
-                  <p className="font-medium">{selectedWorkOrder.po_number}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">{t('cutting.colourLabel')}</span>
-                  <p className="font-medium">{selectedWorkOrder.color || "-"}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">{t('cutting.orderQtyLabel')}</span>
-                  <p className="font-medium">{selectedWorkOrder.order_qty.toLocaleString()}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="rounded-lg bg-muted/30 border border-border/40 px-4 py-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2 text-sm">
+              <div><span className="text-[11px] text-muted-foreground">{t('cutting.buyer')}</span><p className="font-medium">{selectedWorkOrder.buyer}</p></div>
+              <div><span className="text-[11px] text-muted-foreground">{t('cutting.style')}</span><p className="font-medium">{selectedWorkOrder.style}</p></div>
+              <div><span className="text-[11px] text-muted-foreground">{t('cutting.orderQtyLabel')}</span><p className="font-medium font-mono">{selectedWorkOrder.order_qty.toLocaleString()}</p></div>
+            </div>
+          </div>
         )}
 
+        <div className="border-t border-border/40" />
+
         {/* Actual Capacities */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Scissors className="h-4 w-4" />
-              {t('cutting.actualCapacities')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>{t('cutting.manPower')} *</Label>
-              <Input
-                type="number"
-                value={manPower}
-                onChange={(e) => setManPower(e.target.value)}
-                placeholder="0"
-                className={errors.manPower ? "border-destructive" : ""}
-              />
-              {errors.manPower && <p className="text-sm text-destructive">{errors.manPower}</p>}
+        <div className="space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground">{t('cutting.actualCapacities')}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t('cutting.manPower')} *</Label>
+              <Input type="number" value={manPower} onChange={(e) => setManPower(e.target.value)} placeholder="0" className={`h-10 ${errors.manPower ? "border-destructive" : ""}`} />
+              {errors.manPower && <p className="text-xs text-destructive">{errors.manPower}</p>}
             </div>
-
-            <div className="space-y-2">
-              <Label>{t('cutting.markerCapacity')} *</Label>
-              <Input
-                type="number"
-                value={markerCapacity}
-                onChange={(e) => setMarkerCapacity(e.target.value)}
-                placeholder="0"
-                className={errors.markerCapacity ? "border-destructive" : ""}
-              />
-              {errors.markerCapacity && <p className="text-sm text-destructive">{errors.markerCapacity}</p>}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t('cutting.markerCapacity')} *</Label>
+              <Input type="number" value={markerCapacity} onChange={(e) => setMarkerCapacity(e.target.value)} placeholder="0" className={`h-10 ${errors.markerCapacity ? "border-destructive" : ""}`} />
+              {errors.markerCapacity && <p className="text-xs text-destructive">{errors.markerCapacity}</p>}
             </div>
-
-            <div className="space-y-2">
-              <Label>{t('cutting.layCapacity')} *</Label>
-              <Input
-                type="number"
-                value={layCapacity}
-                onChange={(e) => setLayCapacity(e.target.value)}
-                placeholder="0"
-                className={errors.layCapacity ? "border-destructive" : ""}
-              />
-              {errors.layCapacity && <p className="text-sm text-destructive">{errors.layCapacity}</p>}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t('cutting.layCapacity')} *</Label>
+              <Input type="number" value={layCapacity} onChange={(e) => setLayCapacity(e.target.value)} placeholder="0" className={`h-10 ${errors.layCapacity ? "border-destructive" : ""}`} />
+              {errors.layCapacity && <p className="text-xs text-destructive">{errors.layCapacity}</p>}
             </div>
-
-            <div className="space-y-2">
-              <Label>{t('cutting.cuttingCapacity')} *</Label>
-              <Input
-                type="number"
-                value={cuttingCapacity}
-                onChange={(e) => setCuttingCapacity(e.target.value)}
-                placeholder="0"
-                className={errors.cuttingCapacity ? "border-destructive" : ""}
-              />
-              {errors.cuttingCapacity && <p className="text-sm text-destructive">{errors.cuttingCapacity}</p>}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t('cutting.cuttingCapacity')} *</Label>
+              <Input type="number" value={cuttingCapacity} onChange={(e) => setCuttingCapacity(e.target.value)} placeholder="0" className={`h-10 ${errors.cuttingCapacity ? "border-destructive" : ""}`} />
+              {errors.cuttingCapacity && <p className="text-xs text-destructive">{errors.cuttingCapacity}</p>}
             </div>
-
-            <div className="space-y-2">
-              <Label>{t('cutting.underQty')}</Label>
-              <Input
-                type="number"
-                value={underQty}
-                onChange={(e) => setUnderQty(e.target.value)}
-                placeholder="0"
-              />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t('cutting.underQty')}</Label>
+              <Input type="number" value={underQty} onChange={(e) => setUnderQty(e.target.value)} placeholder="0" className="h-10" />
             </div>
-
-            <div className="space-y-2">
-              <Label>{t('cutting.hoursActual')} *</Label>
-              <Input
-                type="number"
-                step="0.5"
-                min="0"
-                max="24"
-                value={hoursActual}
-                onChange={(e) => setHoursActual(e.target.value)}
-                placeholder="0"
-                className={errors.hoursActual ? "border-destructive" : ""}
-              />
-              {errors.hoursActual && <p className="text-sm text-destructive">{errors.hoursActual}</p>}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t('cutting.hoursActual')} *</Label>
+              <Input type="number" step="0.5" min="0" max="24" value={hoursActual} onChange={(e) => setHoursActual(e.target.value)} placeholder="0" className={`h-10 ${errors.hoursActual ? "border-destructive" : ""}`} />
+              {errors.hoursActual && <p className="text-xs text-destructive">{errors.hoursActual}</p>}
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>{t('cutting.otHoursActual')}</Label>
-                <Input
-                  type="number"
-                  step="0.5"
-                  value={otHoursActual}
-                  onChange={(e) => setOtHoursActual(e.target.value)}
-                  placeholder="0"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>{t('cutting.otManpowerActual')}</Label>
-                <Input
-                  type="number"
-                  value={otManpowerActual}
-                  onChange={(e) => setOtManpowerActual(e.target.value)}
-                  placeholder="0"
-                />
-              </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t('cutting.otHoursActual')}</Label>
+              <Input type="number" step="0.5" value={otHoursActual} onChange={(e) => setOtHoursActual(e.target.value)} placeholder="0" className="h-10" />
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t('cutting.otManpowerActual')}</Label>
+              <Input type="number" value={otManpowerActual} onChange={(e) => setOtManpowerActual(e.target.value)} placeholder="0" className="h-10" />
+            </div>
+          </div>
+          <EstimatedCostDisplay manpower={manPower} hours={hoursActual} />
+        </div>
 
-            <EstimatedCostDisplay manpower={manPower} hours={hoursActual} />
-          </CardContent>
-        </Card>
+        <div className="border-t border-border/40" />
 
         {/* Actual Daily Output */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Scissors className="h-4 w-4" />
-              {t('cutting.actualDailyOutput')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>{t('cutting.dayCutting')} *</Label>
-              <Input
-                type="number"
-                value={dayCutting}
-                onChange={(e) => setDayCutting(e.target.value)}
-                placeholder="0"
-                className={errors.dayCutting ? "border-destructive" : ""}
-              />
-              {errors.dayCutting && <p className="text-sm text-destructive">{errors.dayCutting}</p>}
+        <div className="space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground">{t('cutting.actualDailyOutput')}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t('cutting.dayCutting')} *</Label>
+              <Input type="number" value={dayCutting} onChange={(e) => setDayCutting(e.target.value)} placeholder="0" className={`h-10 ${errors.dayCutting ? "border-destructive" : ""}`} />
+              {errors.dayCutting && <p className="text-xs text-destructive">{errors.dayCutting}</p>}
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t('cutting.dayInput')} *</Label>
+              <Input type="number" value={dayInput} onChange={(e) => setDayInput(e.target.value)} placeholder="0" className={`h-10 ${errors.dayInput ? "border-destructive" : ""}`} />
+              {errors.dayInput && <p className="text-xs text-destructive">{errors.dayInput}</p>}
+            </div>
+          </div>
+        </div>
 
-            <div className="space-y-2">
-              <Label>{t('cutting.dayInput')} *</Label>
-              <Input
-                type="number"
-                value={dayInput}
-                onChange={(e) => setDayInput(e.target.value)}
-                placeholder="0"
-                className={errors.dayInput ? "border-destructive" : ""}
-              />
-              {errors.dayInput && <p className="text-sm text-destructive">{errors.dayInput}</p>}
-            </div>
-          </CardContent>
-        </Card>
+      </div>
 
         {/* Computed Totals (only on End of Day form) */}
         {selectedWorkOrder && (
@@ -864,7 +766,7 @@ export default function CuttingEndOfDay() {
                     </div>
 
                     {/* Unit and Quantity */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Unit *</Label>
                         <Select value={leftoverUnit} onValueChange={setLeftoverUnit}>
@@ -924,22 +826,14 @@ export default function CuttingEndOfDay() {
           </Collapsible>
         </Card>
 
-        {/* Submit Button */}
-        <Button 
-          type="submit" 
-          className="w-full" 
-          size="lg"
-          disabled={submitting}
-        >
+        {/* Submit */}
+        <Button type="submit" className="w-full h-11 font-semibold mt-5" disabled={submitting}>
           {submitting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Submitting...
-            </>
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('cutting.submitting')}</>
           ) : isEditing ? (
-            "Update End-of-Day Actuals"
+            t('cutting.updateEndOfDayActuals')
           ) : (
-            "Submit End-of-Day Actuals"
+            t('cutting.submitEndOfDayActuals')
           )}
         </Button>
       </form>

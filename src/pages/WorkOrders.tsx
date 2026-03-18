@@ -17,7 +17,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "sonner";
 import { 
   Loader2, 
-  ClipboardList, 
+  Receipt,
   Plus,
   Pencil,
   Trash2,
@@ -84,11 +84,11 @@ const workOrderSchema = z.object({
 
 const getStatusColor = (status: string) => {
   switch (status) {
-    case 'not_started': return 'bg-muted text-muted-foreground';
-    case 'in_progress': return 'bg-info/10 text-info';
-    case 'completed': return 'bg-success/10 text-success';
-    case 'on_hold': return 'bg-warning/10 text-warning';
-    default: return 'bg-muted text-muted-foreground';
+    case 'not_started': return 'bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/40';
+    case 'in_progress': return 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 border border-blue-200/60 dark:border-blue-700/40';
+    case 'completed': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-700/40';
+    case 'on_hold': return 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-200/60 dark:border-amber-700/40';
+    default: return 'bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/40';
   }
 };
 
@@ -608,7 +608,7 @@ export default function WorkOrders() {
   if (!profile?.factory_id) {
     return (
       <EmptyState
-        icon={ClipboardList}
+        icon={Receipt}
         title="No Factory Assigned"
         description="You need to be assigned to a factory first."
         action={{ label: "Go to Setup", onClick: () => navigate('/setup') }}
@@ -629,24 +629,29 @@ export default function WorkOrders() {
   }
 
   return (
-    <div className="py-4 lg:py-6">
+    <div className="py-3 md:py-4 lg:py-6 space-y-5 md:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/setup')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/setup')} className="shrink-0">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <ClipboardList className="h-5 w-5 text-primary" />
+          <div className="h-10 w-10 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0">
+            <Receipt className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">Work Orders / PO Master</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl md:text-2xl font-bold">PO Master</h1>
+              <span className="text-xs font-medium bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded-full px-2 py-0.5">
+                {workOrders.filter(w => w.is_active).length} active
+              </span>
+            </div>
             <p className="text-sm text-muted-foreground">
-              {workOrders.length} work orders • {workOrders.filter(w => w.is_active).length} active
+              Manage {workOrders.length} work orders
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={downloadTemplate}>
             <Download className="h-4 w-4 mr-2" />
             Template
@@ -669,28 +674,57 @@ export default function WorkOrders() {
         </div>
       </div>
 
+      {/* KPI Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <div className="relative overflow-hidden rounded-xl border border-indigo-200/60 dark:border-indigo-800/40 bg-gradient-to-br from-indigo-50 via-white to-blue-50/50 dark:from-indigo-950/40 dark:via-card dark:to-blue-950/20 p-4 transition-all duration-300 hover:shadow-lg group">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-indigo-500 opacity-[0.06] rounded-bl-full pointer-events-none" />
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-indigo-600/70 dark:text-indigo-400/70">Total Orders</p>
+          <p className="font-mono text-2xl font-bold tracking-tight text-indigo-900 dark:text-indigo-100 mt-1">{workOrders.length}</p>
+        </div>
+        <div className="relative overflow-hidden rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50 via-white to-green-50/50 dark:from-emerald-950/40 dark:via-card dark:to-green-950/20 p-4 transition-all duration-300 hover:shadow-lg group">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-emerald-500 opacity-[0.06] rounded-bl-full pointer-events-none" />
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-emerald-600/70 dark:text-emerald-400/70">In Progress</p>
+          <p className="font-mono text-2xl font-bold tracking-tight text-emerald-900 dark:text-emerald-100 mt-1">{workOrders.filter(w => w.status === 'in_progress').length}</p>
+        </div>
+        <div className="relative overflow-hidden rounded-xl border border-amber-200/60 dark:border-amber-800/40 bg-gradient-to-br from-amber-50 via-white to-orange-50/50 dark:from-amber-950/40 dark:via-card dark:to-orange-950/20 p-4 transition-all duration-300 hover:shadow-lg group">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-amber-500 opacity-[0.06] rounded-bl-full pointer-events-none" />
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-amber-600/70 dark:text-amber-400/70">On Hold</p>
+          <p className="font-mono text-2xl font-bold tracking-tight text-amber-900 dark:text-amber-100 mt-1">{workOrders.filter(w => w.status === 'on_hold').length}</p>
+        </div>
+        <div className="relative overflow-hidden rounded-xl border border-slate-200/60 dark:border-slate-800/40 bg-gradient-to-br from-slate-50 via-white to-slate-50/50 dark:from-slate-950/40 dark:via-card dark:to-slate-950/20 p-4 transition-all duration-300 hover:shadow-lg group">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-slate-500 opacity-[0.06] rounded-bl-full pointer-events-none" />
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-slate-600/70 dark:text-slate-400/70">Completed</p>
+          <p className="font-mono text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 mt-1">{workOrders.filter(w => w.status === 'completed').length}</p>
+        </div>
+      </div>
+
       {/* Search */}
-      <Card className="mb-6">
-        <CardContent className="pt-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by PO, buyer, style, or item..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by PO, buyer, style, or item..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+        />
+      </div>
 
       {/* Table */}
-      <Card>
-        <CardContent className="pt-4">
+      <Card className="border-border/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 shadow-md shadow-indigo-500/20 flex items-center justify-center">
+              <Receipt className="h-3.5 w-3.5 text-white" />
+            </div>
+            Work Orders
+            <Badge variant="secondary" className="ml-1">{filteredWorkOrders.length}</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-muted/50">
                   <TableHead>PO Number</TableHead>
                   <TableHead>Buyer</TableHead>
                   <TableHead>Style</TableHead>
@@ -707,13 +741,15 @@ export default function WorkOrders() {
               <TableBody>
                 {filteredWorkOrders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center text-muted-foreground">
-                      No work orders found. Add your first work order.
+                    <TableCell colSpan={11} className="text-center py-12 text-muted-foreground">
+                      <Receipt className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                      <p>No work orders found</p>
+                      <p className="text-xs mt-1">Add your first work order to get started</p>
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredWorkOrders.map((wo) => (
-                    <TableRow key={wo.id}>
+                    <TableRow key={wo.id} className="hover:bg-muted/50">
                       <TableCell className="font-mono font-medium">{wo.po_number}</TableCell>
                       <TableCell>{wo.buyer}</TableCell>
                       <TableCell>{wo.style}</TableCell>

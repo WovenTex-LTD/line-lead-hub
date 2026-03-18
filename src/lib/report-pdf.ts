@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import { format } from "date-fns";
 import { effectivePoly } from "@/lib/finishing-utils";
+import { compareLineNames } from "@/lib/sort-lines";
 
 // ── Types ──
 
@@ -57,7 +58,7 @@ export function generateProductionReportPdf(input: ReportPdfInput) {
     if (otMp && otHrs) c += rate * otMp * otHrs;
     return Math.round(c * 100) / 100;
   };
-  const numFromName = (name: string) => parseInt(name.replace(/\D/g, "")) || 9999;
+  const cmpLines = compareLineNames;
   const fmtDate = (d: string) => { const p = d.split("-"); return `${p[2]}.${p[1]}`; };
   const isDaily = reportType === "daily";
   const typeLabel = reportType === "daily" ? "DAILY" : reportType === "weekly" ? "WEEKLY" : "MONTHLY";
@@ -291,7 +292,7 @@ export function generateProductionReportPdf(input: ReportPdfInput) {
         if (!sewByLine[ln]) sewByLine[ln] = [];
         sewByLine[ln].push(s);
       });
-      const sewLineKeys = Object.keys(sewByLine).sort((a, b) => numFromName(a) - numFromName(b));
+      const sewLineKeys = Object.keys(sewByLine).sort(cmpLines);
 
       let sewDeptCostNat = 0, sewDeptCostUsd = 0, sewDeptOutput = 0;
 
@@ -374,7 +375,7 @@ export function generateProductionReportPdf(input: ReportPdfInput) {
         const { buyer, entries } = cutByPo[po];
         entries.sort((a: any, b: any) => {
           if ((a.production_date || "") !== (b.production_date || "")) return (a.production_date || "").localeCompare(b.production_date || "");
-          return numFromName(a.lines?.name || "") - numFromName(b.lines?.name || "");
+          return cmpLines(a.lines?.name || "", b.lines?.name || "");
         });
 
         y = groupHeader(`PO: ${po} — Buyer: ${buyer}`, "CUTTING — PO WISE DETAIL");

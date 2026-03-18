@@ -5,9 +5,8 @@ import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, Crosshair } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -354,25 +353,30 @@ export default function SewingMorningTargets() {
   }
 
   return (
-    <div className="container max-w-2xl py-4 px-4 pb-8">
-      <div className="mb-6">
-        <h1 className="text-xl font-bold">{t("forms.sewingMorningTargets")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {new Date(getTodayInTimezone(factory?.timezone || "Asia/Dhaka") + "T00:00:00").toLocaleDateString(dateLocale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-        </p>
+    <div className="container max-w-2xl py-3 md:py-4 lg:py-6 px-4 pb-8">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+          <Crosshair className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+        </div>
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold">{t("forms.sewingMorningTargets")}</h1>
+          <p className="text-sm text-muted-foreground">
+            {new Date(getTodayInTimezone(factory?.timezone || "Asia/Dhaka") + "T00:00:00").toLocaleDateString(dateLocale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Line & PO Selection */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">{t("forms.selectLinePO")}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>{t("forms.lineNo")} *</Label>
+      <form onSubmit={handleSubmit}>
+      <div className="rounded-xl border border-border/50 bg-card p-5 md:p-6 space-y-6">
+        {/* ── Line & PO ── */}
+        <div className="space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground">{t("forms.selectLinePO")}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t("forms.lineNo")} *</Label>
               <Select value={selectedLineId} onValueChange={setSelectedLineId}>
-                <SelectTrigger className={errors.line ? "border-destructive" : ""}>
+                <SelectTrigger className={`h-10 ${errors.line ? "border-destructive" : ""}`}>
                   <SelectValue placeholder={t("forms.selectLine")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -383,31 +387,31 @@ export default function SewingMorningTargets() {
                   ))}
                 </SelectContent>
               </Select>
-              {errors.line && <p className="text-sm text-destructive">{errors.line}</p>}
+              {errors.line && <p className="text-xs text-destructive">{errors.line}</p>}
             </div>
 
-            <div className="space-y-2">
-              <Label>{t("forms.poNumber")} *</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t("forms.poNumber")} *</Label>
               <Popover open={poSearchOpen} onOpenChange={setPoSearchOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     role="combobox"
                     disabled={!selectedLineId}
-                    className={`w-full justify-start ${errors.workOrder ? 'border-destructive' : ''}`}
+                    className={`w-full h-10 justify-start ${errors.workOrder ? 'border-destructive' : ''}`}
                   >
-                    <Search className="mr-2 h-4 w-4 shrink-0" />
-                    <span className="truncate">
+                    <Search className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate text-sm">
                       {selectedWorkOrderId
                         ? (() => {
                             const wo = filteredWorkOrders.find(w => w.id === selectedWorkOrderId);
-                            return wo ? `${wo.po_number} - ${wo.style}` : (selectedLineId ? t("forms.selectPO") : "Select a line first");
+                            return wo ? `${wo.po_number} - ${wo.style}` : t("forms.selectPO");
                           })()
                         : (selectedLineId ? t("forms.selectPO") : "Select a line first")}
                     </span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[350px] p-0" align="start">
+                <PopoverContent className="w-[min(350px,calc(100vw-2rem))] p-0" align="start">
                   <Command shouldFilter={true}>
                     <CommandInput placeholder={t("forms.selectPO")} />
                     <CommandList>
@@ -417,10 +421,7 @@ export default function SewingMorningTargets() {
                           <CommandItem
                             key={wo.id}
                             value={`${wo.po_number} ${wo.buyer} ${wo.style} ${wo.item || ''}`}
-                            onSelect={() => {
-                              setSelectedWorkOrderId(wo.id);
-                              setPoSearchOpen(false);
-                            }}
+                            onSelect={() => { setSelectedWorkOrderId(wo.id); setPoSearchOpen(false); }}
                           >
                             <div className="flex flex-col">
                               <span className="font-medium">{wo.po_number} - {wo.style}</span>
@@ -433,204 +434,133 @@ export default function SewingMorningTargets() {
                   </Command>
                 </PopoverContent>
               </Popover>
-              {errors.workOrder && <p className="text-sm text-destructive">{errors.workOrder}</p>}
+              {errors.workOrder && <p className="text-xs text-destructive">{errors.workOrder}</p>}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Auto-filled Details */}
         {selectedWorkOrder && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">{t("forms.orderDetailsAuto")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">{t("forms.buyer")}:</span>
-                  <p className="font-medium">{selectedWorkOrder.buyer}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">{t("forms.style")}:</span>
-                  <p className="font-medium">{selectedWorkOrder.style}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">{t("forms.item")}:</span>
-                  <p className="font-medium">{selectedWorkOrder.item || "-"}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">{t("forms.orderQty")}:</span>
-                  <p className="font-medium">{selectedWorkOrder.order_qty.toLocaleString()}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">{t("forms.unit")}:</span>
-                  <p className="font-medium">{unitName || "-"}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">{t("forms.floor")}:</span>
-                  <p className="font-medium">{floorName || "-"}</p>
-                </div>
+          <div className="rounded-lg bg-muted/30 border border-border/40 px-4 py-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2 text-sm">
+              <div>
+                <span className="text-[11px] text-muted-foreground">{t("forms.buyer")}</span>
+                <p className="font-medium">{selectedWorkOrder.buyer}</p>
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <span className="text-[11px] text-muted-foreground">{t("forms.style")}</span>
+                <p className="font-medium">{selectedWorkOrder.style}</p>
+              </div>
+              <div>
+                <span className="text-[11px] text-muted-foreground">{t("forms.orderQty")}</span>
+                <p className="font-medium font-mono">{selectedWorkOrder.order_qty.toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
         )}
 
-        {/* Target Fields */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">{t("forms.todaysTargets")}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>{t("forms.perHourTarget")} *</Label>
-                <Input
-                  type="number"
-                  value={perHourTarget}
-                  onChange={(e) => setPerHourTarget(e.target.value)}
-                  placeholder="0"
-                  className={errors.perHourTarget ? "border-destructive" : ""}
-                />
-                {errors.perHourTarget && <p className="text-sm text-destructive">{errors.perHourTarget}</p>}
-              </div>
+        <div className="border-t border-border/40" />
 
-              <div className="space-y-2">
-                <Label>{t("forms.manpowerPlanned")} *</Label>
-                <Input
-                  type="number"
-                  value={manpowerPlanned}
-                  onChange={(e) => setManpowerPlanned(e.target.value)}
-                  placeholder="0"
-                  className={errors.manpowerPlanned ? "border-destructive" : ""}
-                />
-                {errors.manpowerPlanned && <p className="text-sm text-destructive">{errors.manpowerPlanned}</p>}
-              </div>
+        {/* ── Targets ── */}
+        <div className="space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground">{t("forms.todaysTargets")}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t("forms.perHourTarget")} *</Label>
+              <Input type="number" value={perHourTarget} onChange={(e) => setPerHourTarget(e.target.value)} placeholder="0" className={`h-10 ${errors.perHourTarget ? "border-destructive" : ""}`} />
+              {errors.perHourTarget && <p className="text-xs text-destructive">{errors.perHourTarget}</p>}
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Hours Planned *</Label>
-                <Input
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  max="24"
-                  value={hoursPlanned}
-                  onChange={(e) => setHoursPlanned(e.target.value)}
-                  placeholder="0"
-                  className={errors.hoursPlanned ? "border-destructive" : ""}
-                />
-                {errors.hoursPlanned && <p className="text-sm text-destructive">{errors.hoursPlanned}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label>{t("forms.otHoursPlanned")} *</Label>
-                <Input
-                  type="number"
-                  step="0.5"
-                  value={otHoursPlanned}
-                  onChange={(e) => setOtHoursPlanned(e.target.value)}
-                  placeholder="0"
-                  className={errors.otHoursPlanned ? "border-destructive" : ""}
-                />
-                {errors.otHoursPlanned && <p className="text-sm text-destructive">{errors.otHoursPlanned}</p>}
-              </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t("forms.manpowerPlanned")} *</Label>
+              <Input type="number" value={manpowerPlanned} onChange={(e) => setManpowerPlanned(e.target.value)} placeholder="0" className={`h-10 ${errors.manpowerPlanned ? "border-destructive" : ""}`} />
+              {errors.manpowerPlanned && <p className="text-xs text-destructive">{errors.manpowerPlanned}</p>}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Hours Planned *</Label>
+              <Input type="number" step="0.5" min="0" max="24" value={hoursPlanned} onChange={(e) => setHoursPlanned(e.target.value)} placeholder="0" className={`h-10 ${errors.hoursPlanned ? "border-destructive" : ""}`} />
+              {errors.hoursPlanned && <p className="text-xs text-destructive">{errors.hoursPlanned}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t("forms.otHoursPlanned")} *</Label>
+              <Input type="number" step="0.5" value={otHoursPlanned} onChange={(e) => setOtHoursPlanned(e.target.value)} placeholder="0" className={`h-10 ${errors.otHoursPlanned ? "border-destructive" : ""}`} />
+              {errors.otHoursPlanned && <p className="text-xs text-destructive">{errors.otHoursPlanned}</p>}
+            </div>
+          </div>
+        </div>
 
-        {/* Stage & Progress */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">{t("forms.stageProgress")}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>{t("forms.plannedStage")} *</Label>
+        <div className="border-t border-border/40" />
+
+        {/* ── Stage & Progress ── */}
+        <div className="space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground">{t("forms.stageProgress")}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t("forms.plannedStage")} *</Label>
               <Select value={plannedStageId} onValueChange={setPlannedStageId}>
-                <SelectTrigger className={errors.plannedStage ? "border-destructive" : ""}>
+                <SelectTrigger className={`h-10 ${errors.plannedStage ? "border-destructive" : ""}`}>
                   <SelectValue placeholder={t("forms.selectStage")} />
                 </SelectTrigger>
                 <SelectContent>
                   {stages.map((stage) => (
-                    <SelectItem key={stage.id} value={stage.id}>
-                      {stage.name}
-                    </SelectItem>
+                    <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {errors.plannedStage && <p className="text-sm text-destructive">{errors.plannedStage}</p>}
+              {errors.plannedStage && <p className="text-xs text-destructive">{errors.plannedStage}</p>}
             </div>
-
-            <div className="space-y-2">
-              <Label>{t("forms.stageProgressLabel")} *</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t("forms.stageProgressLabel")} *</Label>
               <Select value={plannedStageProgress} onValueChange={setPlannedStageProgress}>
-                <SelectTrigger className={errors.plannedStageProgress ? "border-destructive" : ""}>
+                <SelectTrigger className={`h-10 ${errors.plannedStageProgress ? "border-destructive" : ""}`}>
                   <SelectValue placeholder={t("forms.selectProgress")} />
                 </SelectTrigger>
                 <SelectContent>
                   {progressOptions.map((opt) => (
-                    <SelectItem key={opt.id} value={opt.label}>
-                      {opt.label}
-                    </SelectItem>
+                    <SelectItem key={opt.id} value={opt.label}>{opt.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {errors.plannedStageProgress && <p className="text-sm text-destructive">{errors.plannedStageProgress}</p>}
+              {errors.plannedStageProgress && <p className="text-xs text-destructive">{errors.plannedStageProgress}</p>}
             </div>
-
-            <div className="space-y-2">
-              <Label>{t("forms.nextMilestone")} *</Label>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t("forms.nextMilestone")} *</Label>
               <Select value={nextMilestone} onValueChange={setNextMilestone}>
-                <SelectTrigger className={errors.nextMilestone ? "border-destructive" : ""}>
+                <SelectTrigger className={`h-10 ${errors.nextMilestone ? "border-destructive" : ""}`}>
                   <SelectValue placeholder={t("forms.selectMilestone")} />
                 </SelectTrigger>
                 <SelectContent>
                   {milestoneOptions.map((opt) => (
-                    <SelectItem key={opt.id} value={opt.label}>
-                      {opt.label}
-                    </SelectItem>
+                    <SelectItem key={opt.id} value={opt.label}>{opt.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {errors.nextMilestone && <p className="text-sm text-destructive">{errors.nextMilestone}</p>}
+              {errors.nextMilestone && <p className="text-xs text-destructive">{errors.nextMilestone}</p>}
             </div>
-
-            <div className="space-y-2">
-              <Label>{t("forms.estimatedExFactory")}</Label>
-              <Input
-                type="date"
-                value={estimatedExFactory}
-                onChange={(e) => setEstimatedExFactory(e.target.value)}
-              />
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t("forms.estimatedExFactory")}</Label>
+              <Input type="date" value={estimatedExFactory} onChange={(e) => setEstimatedExFactory(e.target.value)} className="h-10" />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        {/* Optional Fields */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">{t("forms.optional")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Label>{t("forms.remarks")}</Label>
-              <Textarea
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                placeholder={t("forms.addAnyNotes")}
-                rows={3}
-              />
-            </div>
-          </CardContent>
-        </Card>
+        <div className="border-t border-border/40" />
 
-        <Button type="submit" className="w-full" disabled={submitting}>
+        {/* ── Remarks ── */}
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">{t("forms.remarks")}</Label>
+          <Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder={t("forms.addAnyNotes")} rows={2} />
+        </div>
+
+      </div>
+
+        {/* Submit */}
+        <Button type="submit" className="w-full h-11 font-semibold mt-5" disabled={submitting}>
           {submitting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {t("forms.submitting")}
-            </>
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("forms.submitting")}</>
           ) : (
             t("forms.submitTargets")
           )}

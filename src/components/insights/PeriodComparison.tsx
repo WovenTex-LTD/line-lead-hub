@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowUp, ArrowDown, Minus, TrendingUp, TrendingDown, Target, Package, Users, AlertTriangle } from "lucide-react";
+import { ArrowUp, ArrowDown, Minus, TrendingUp, Target, Package, Users, AlertTriangle, GitCompareArrows } from "lucide-react";
+import { SewingMachine } from "@/components/icons/SewingMachine";
 
 interface PeriodData {
   totalOutput: number;
@@ -25,27 +26,6 @@ function calculateChange(current: number, previous: number): { value: number; tr
   };
 }
 
-function TrendBadge({ trend, value, inverse = false }: { trend: 'up' | 'down' | 'stable'; value: number; inverse?: boolean }) {
-  const isPositive = inverse ? trend === 'down' : trend === 'up';
-  const isNegative = inverse ? trend === 'up' : trend === 'down';
-  
-  if (trend === 'stable') {
-    return (
-      <div className="flex items-center gap-1 text-muted-foreground text-sm">
-        <Minus className="h-4 w-4" />
-        <span>No change</span>
-      </div>
-    );
-  }
-  
-  return (
-    <div className={`flex items-center gap-1 text-sm ${isPositive ? 'text-success' : isNegative ? 'text-destructive' : 'text-muted-foreground'}`}>
-      {trend === 'up' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
-      <span>{value}%</span>
-    </div>
-  );
-}
-
 export function PeriodComparison({ currentPeriod, previousPeriod, periodDays }: PeriodComparisonProps) {
   const outputChange = calculateChange(currentPeriod.totalOutput, previousPeriod.totalOutput);
   const qcPassChange = calculateChange(currentPeriod.totalQcPass, previousPeriod.totalQcPass);
@@ -55,20 +35,26 @@ export function PeriodComparison({ currentPeriod, previousPeriod, periodDays }: 
 
   const metrics = [
     {
-      label: "Total Sewing Output",
-      icon: TrendingUp,
+      label: "Sewing Output",
+      icon: SewingMachine,
       current: currentPeriod.totalOutput,
       previous: previousPeriod.totalOutput,
       change: outputChange,
       format: (v: number) => v.toLocaleString(),
+      gradient: 'from-blue-500 to-blue-600',
+      lightBg: 'from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20',
+      borderColor: 'border-blue-200/60 dark:border-blue-800/40',
     },
     {
-      label: "Total Finishing Output",
+      label: "Finishing Output",
       icon: Package,
       current: currentPeriod.totalQcPass,
       previous: previousPeriod.totalQcPass,
       change: qcPassChange,
       format: (v: number) => v.toLocaleString(),
+      gradient: 'from-violet-500 to-purple-600',
+      lightBg: 'from-violet-50 to-purple-100/50 dark:from-violet-950/30 dark:to-purple-900/20',
+      borderColor: 'border-violet-200/60 dark:border-violet-800/40',
     },
     {
       label: "Avg Efficiency",
@@ -77,6 +63,9 @@ export function PeriodComparison({ currentPeriod, previousPeriod, periodDays }: 
       previous: previousPeriod.avgEfficiency,
       change: efficiencyChange,
       format: (v: number) => `${v}%`,
+      gradient: 'from-emerald-500 to-green-600',
+      lightBg: 'from-emerald-50 to-green-100/50 dark:from-emerald-950/30 dark:to-green-900/20',
+      borderColor: 'border-emerald-200/60 dark:border-emerald-800/40',
     },
     {
       label: "Blockers",
@@ -86,6 +75,9 @@ export function PeriodComparison({ currentPeriod, previousPeriod, periodDays }: 
       change: blockerChange,
       format: (v: number) => v.toString(),
       inverse: true,
+      gradient: 'from-amber-500 to-orange-500',
+      lightBg: 'from-amber-50 to-orange-100/50 dark:from-amber-950/30 dark:to-orange-900/20',
+      borderColor: 'border-amber-200/60 dark:border-amber-800/40',
     },
     {
       label: "Avg Manpower",
@@ -94,41 +86,69 @@ export function PeriodComparison({ currentPeriod, previousPeriod, periodDays }: 
       previous: previousPeriod.avgManpower,
       change: manpowerChange,
       format: (v: number) => v.toString(),
+      gradient: 'from-slate-500 to-slate-600',
+      lightBg: 'from-slate-50 to-slate-100/50 dark:from-slate-950/30 dark:to-slate-900/20',
+      borderColor: 'border-slate-200/60 dark:border-slate-800/40',
     },
   ];
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="shadow-sm overflow-hidden bg-gradient-to-br from-card via-card to-muted/10">
+      <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
-          <TrendingUp className="h-5 w-5 text-primary" />
+          <div className="h-7 w-7 rounded-md bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center shadow-sm">
+            <GitCompareArrows className="h-3.5 w-3.5 text-white" />
+          </div>
           Period Comparison
-          <span className="text-sm font-normal text-muted-foreground ml-2">
-            Current {periodDays} days vs Previous {periodDays} days
+          <span className="text-[10px] font-semibold text-muted-foreground ml-1 bg-muted/60 px-2.5 py-1 rounded-full uppercase tracking-wider">
+            {periodDays}d vs prev {periodDays}d
           </span>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {metrics.map((metric) => {
             const Icon = metric.icon;
+            const isPositive = metric.inverse ? metric.change.trend === 'down' : metric.change.trend === 'up';
+            const isNegative = metric.inverse ? metric.change.trend === 'up' : metric.change.trend === 'down';
+
             return (
-              <div key={metric.label} className="space-y-2 p-3 rounded-lg bg-muted/30">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                  <Icon className="h-4 w-4" />
-                  <span>{metric.label}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Current</p>
-                    <p className="text-lg font-bold font-mono">{metric.format(metric.current)}</p>
+              <div key={metric.label} className={`relative p-3.5 rounded-xl bg-gradient-to-br ${metric.lightBg} border ${metric.borderColor} hover:shadow-md transition-all duration-200 overflow-hidden`}>
+                {/* Decorative gradient corner */}
+                <div className={`absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl ${metric.gradient} opacity-[0.06] rounded-bl-full`} />
+
+                {/* Header with icon */}
+                <div className="flex items-center gap-2 mb-3">
+                  <div className={`h-6 w-6 rounded-md bg-gradient-to-br ${metric.gradient} flex items-center justify-center shadow-sm`}>
+                    <Icon className="h-3 w-3 text-white" />
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Previous</p>
-                    <p className="text-lg font-mono text-muted-foreground">{metric.format(metric.previous)}</p>
-                  </div>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{metric.label}</span>
                 </div>
-                <TrendBadge trend={metric.change.trend} value={metric.change.value} inverse={metric.inverse} />
+
+                {/* Current Value */}
+                <p className="text-2xl font-bold font-mono tracking-tight">
+                  {metric.format(metric.current)}
+                </p>
+
+                {/* Previous + Change */}
+                <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border/50">
+                  <span className="text-xs text-foreground/60 font-mono font-medium">
+                    was <span className="text-foreground/80 font-semibold">{metric.format(metric.previous)}</span>
+                  </span>
+                  {metric.change.trend === 'stable' ? (
+                    <span className="flex items-center gap-0.5 text-xs text-muted-foreground bg-muted/80 px-2 py-1 rounded-full font-semibold">
+                      <Minus className="h-3.5 w-3.5" />
+                      ~0%
+                    </span>
+                  ) : (
+                    <span className={`flex items-center gap-0.5 text-xs font-bold px-2 py-1 rounded-full ${
+                      isPositive ? 'text-emerald-800 dark:text-emerald-200 bg-emerald-500/20' : isNegative ? 'text-red-800 dark:text-red-200 bg-red-500/20' : 'text-muted-foreground bg-muted/80'
+                    }`}>
+                      {metric.change.trend === 'up' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />}
+                      {metric.change.value}%
+                    </span>
+                  )}
+                </div>
               </div>
             );
           })}

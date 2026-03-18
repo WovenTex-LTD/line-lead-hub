@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getTodayInTimezone } from "@/lib/date-utils";
 import { supabase } from "@/integrations/supabase/client";
+import { compareLineNames } from "@/lib/sort-lines";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -10,12 +11,12 @@ import {
   Loader2, TrendingUp, TrendingDown, Target, Users, AlertTriangle,
   Package, BarChart3, Calendar, ArrowUp, ArrowDown,
   Minus, Zap, Clock, CheckCircle2, XCircle, ChevronRight, Box, Archive,
-  DollarSign, Wallet, PiggyBank, Percent
+  DollarSign, Wallet, PiggyBank, Percent, Activity, Layers, Award, Factory
 } from "lucide-react";
 import { SewingMachine } from "@/components/icons/SewingMachine";
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, Sector,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine
 } from "recharts";
 import { PeriodComparison } from "@/components/insights/PeriodComparison";
 import { LineDrillDown } from "@/components/insights/LineDrillDown";
@@ -26,6 +27,8 @@ import { InteractiveChart } from "@/components/ui/interactive-chart";
 import { useHeadcountCost } from "@/hooks/useHeadcountCost";
 import { ReportExportDialog } from "@/components/ReportExportDialog";
 import { InsightsReportDialog } from "@/components/insights/InsightsReportDialog";
+import { AnimatedNumber } from "@/components/ui/animated-number";
+import { ProgressRing } from "@/components/ui/progress-ring";
 
 interface DailyData {
   date: string;
@@ -119,7 +122,7 @@ interface FinancialData {
 export default function Insights() {
   const { profile, factory } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState<'7' | '14' | '21' | '30'>('7');
+  const [period, setPeriod] = useState<'7' | '14' | '21' | '30' | '90' | '180' | '365'>('7');
   const [dailyData, setDailyData] = useState<DailyData[]>([]);
   const [linePerformance, setLinePerformance] = useState<LinePerformance[]>([]);
   const [blockerBreakdown, setBlockerBreakdown] = useState<BlockerBreakdown[]>([]);
@@ -193,18 +196,28 @@ export default function Insights() {
   const [finishingYMin, setFinishingYMin] = useState(0);
   const [finishingYMax, setFinishingYMax] = useState<number | 'auto'>('auto');
 
+  // Filter daily data per section: exclude days with 0 submissions (factory closed)
+  const sewingDailyData = useMemo(() =>
+    dailyData.filter(d => d.sewingOutput > 0 || d.sewingTarget > 0),
+    [dailyData]
+  );
+  const finishingDailyData = useMemo(() =>
+    dailyData.filter(d => d.finishingPolyOutput > 0 || d.finishingPolyTarget > 0),
+    [dailyData]
+  );
+
   // Compute auto Y-max from data
   const sewingAutoMax = useMemo(() => {
-    if (dailyData.length === 0) return 1000;
-    const max = Math.max(...dailyData.map(d => Math.max(d.sewingOutput, d.sewingTarget)));
+    if (sewingDailyData.length === 0) return 1000;
+    const max = Math.max(...sewingDailyData.map(d => Math.max(d.sewingOutput, d.sewingTarget)));
     return Math.ceil(max / 500) * 500 || 1000;
-  }, [dailyData]);
+  }, [sewingDailyData]);
 
   const finishingAutoMax = useMemo(() => {
-    if (dailyData.length === 0) return 1000;
-    const max = Math.max(...dailyData.map(d => Math.max(d.finishingPolyOutput, d.finishingPolyTarget)));
+    if (finishingDailyData.length === 0) return 1000;
+    const max = Math.max(...finishingDailyData.map(d => Math.max(d.finishingPolyOutput, d.finishingPolyTarget)));
     return Math.ceil(max / 500) * 500 || 1000;
-  }, [dailyData]);
+  }, [finishingDailyData]);
 
   const effectiveSewingYMax = sewingYMax === 'auto' ? sewingAutoMax : sewingYMax;
   const effectiveFinishingYMax = finishingYMax === 'auto' ? finishingAutoMax : finishingYMax;
@@ -255,14 +268,14 @@ export default function Insights() {
       // Fetch previous period sewing data
       const { data: prevSewingActuals } = await supabase
         .from('sewing_actuals')
-        .select('good_today, manpower_actual, has_blocker, production_date')
+        .select('good_today, manpower_actual, has_blocker, production_date, line_id')
         .eq('factory_id', profile.factory_id)
         .gte('production_date', prevStartDateStr)
         .lt('production_date', startDateStr);
 
       const { data: prevSewingTargets } = await supabase
         .from('sewing_targets')
-        .select('per_hour_target')
+        .select('per_hour_target, line_id, production_date')
         .eq('factory_id', profile.factory_id)
         .gte('production_date', prevStartDateStr)
         .lt('production_date', startDateStr);
@@ -396,10 +409,11 @@ export default function Insights() {
         dailyMap.set(t.production_date, existing);
       });
 
-      // Calculate daily efficiency
+      // Calculate daily efficiency (only for days with sewing data)
       const dailyDataArray = Array.from(dailyMap.values()).map(d => ({
         ...d,
-        efficiency: d.sewingTarget > 0 ? Math.round((d.sewingOutput / d.sewingTarget) * 100) : 0,
+        // Only compute efficiency for days with sewing submissions; 0 submissions = factory closed
+        efficiency: d.sewingTarget > 0 && d.sewingOutput > 0 ? Math.round((d.sewingOutput / d.sewingTarget) * 100) : 0,
       })).sort((a, b) => a.date.localeCompare(b.date));
 
       setDailyData(dailyDataArray);
@@ -450,7 +464,7 @@ export default function Insights() {
         ...l,
         efficiency: l.totalTarget > 0 ? Math.round((l.totalOutput / l.totalTarget) * 100) : 0,
         avgManpower: l.submissions > 0 ? Math.round(l.avgManpower / l.submissions) : 0,
-      })).sort((a, b) => b.efficiency - a.efficiency);
+      })).sort((a, b) => compareLineNames(a.lineName, b.lineName));
 
       setLinePerformance(linePerformanceArray);
 
@@ -509,7 +523,14 @@ export default function Insights() {
       const totalManpower = sewingActualsData?.reduce((sum, u) => sum + (u.manpower_actual || 0), 0) || 0;
 
       const prevTotalOutput = prevSewingActuals?.reduce((sum, u) => sum + (u.good_today || 0), 0) || 0;
-      const prevTotalTarget = prevSewingTargets?.reduce((sum, t) => sum + ((t.per_hour_target || 0) * 8), 0) || 0;
+      // Only count previous-period targets that have matching actuals
+      const prevActualKeys = new Set(
+        prevSewingActuals?.map(u => `${u.line_id}_${u.production_date}`) || []
+      );
+      const pairedPrevTargets = prevSewingTargets?.filter(t =>
+        prevActualKeys.has(`${t.line_id}_${t.production_date}`)
+      ) || [];
+      const prevTotalTarget = pairedPrevTargets.reduce((sum, t) => sum + ((t.per_hour_target || 0) * 8), 0) || 0;
       const prevTotalQcPass = prevFinishingDailyLogs?.reduce((sum, u) => sum + ((u as any).poly || 0) + ((u as any).carton || 0), 0) || 0;
       const prevEfficiency = prevTotalTarget > 0 ? (prevTotalOutput / prevTotalTarget) * 100 : 0;
       const prevTotalBlockers = prevSewingActuals?.filter(u => u.has_blocker).length || 0;
@@ -539,17 +560,21 @@ export default function Insights() {
       if (totalSewingOutput > prevTotalOutput * 1.1) outputTrend = 'up';
       else if (totalSewingOutput < prevTotalOutput * 0.9) outputTrend = 'down';
 
+      // Count days with actual submissions per section (0 submissions = factory closed)
+      const sewingDaysWithData = dailyDataArray.filter(d => d.sewingOutput > 0 || d.sewingTarget > 0).length;
+      const finishingDaysWithData = dailyDataArray.filter(d => d.finishingQcPass > 0 || d.finishingPolyTarget > 0).length;
+
       setSummary({
         totalSewingOutput,
         totalFinishingQcPass,
-        avgDailyOutput: dailyDataArray.length > 0 ? Math.round(totalSewingOutput / dailyDataArray.length) : 0,
-        avgDailyQcPass: dailyDataArray.length > 0 ? Math.round(totalFinishingQcPass / dailyDataArray.length) : 0,
+        avgDailyOutput: sewingDaysWithData > 0 ? Math.round(totalSewingOutput / sewingDaysWithData) : 0,
+        avgDailyQcPass: finishingDaysWithData > 0 ? Math.round(totalFinishingQcPass / finishingDaysWithData) : 0,
         avgEfficiency: Math.round(avgEfficiency),
         totalBlockers: allBlockers.length,
         openBlockers,
         resolvedBlockers,
         avgManpower: sewingActualsData && sewingActualsData.length > 0 ? Math.round(totalManpower / sewingActualsData.length) : 0,
-        daysWithData: dailyDataArray.length,
+        daysWithData: sewingDaysWithData,
         topPerformingLine: linePerformanceArray[0]?.lineName || null,
         worstPerformingLine: linePerformanceArray[linePerformanceArray.length - 1]?.lineName || null,
         mostCommonBlockerType: blockerBreakdownArray[0]?.type || null,
@@ -845,19 +870,25 @@ export default function Insights() {
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <TrendingUp className="h-6 w-6 text-primary" />
-            Production Insights
-          </h1>
-          <p className="text-muted-foreground">Deep-dive analytics and performance trends</p>
-        </div>
         <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
+            <TrendingUp className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+          </div>
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold">Insights</h1>
+            <p className="text-[13px] text-muted-foreground mt-0.5">
+              {factory?.name && <span className="text-foreground font-medium">{factory.name}</span>}
+              {factory?.name && <span className="mx-1.5 text-muted-foreground/50">&middot;</span>}
+              Performance analytics & trends
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
           <InsightsReportDialog />
           <ReportExportDialog />
-          <Select value={period} onValueChange={(v) => setPeriod(v as '7' | '14' | '21' | '30')}>
-            <SelectTrigger className="w-[160px]">
-              <Calendar className="h-4 w-4 mr-2" />
+          <Select value={period} onValueChange={(v) => setPeriod(v as '7' | '14' | '21' | '30' | '90' | '180' | '365')}>
+            <SelectTrigger className="w-[155px] text-sm">
+              <Calendar className="h-3.5 w-3.5 mr-1.5 opacity-80" />
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -865,6 +896,9 @@ export default function Insights() {
               <SelectItem value="14">Last 14 days</SelectItem>
               <SelectItem value="21">Last 21 days</SelectItem>
               <SelectItem value="30">Last 30 days</SelectItem>
+              <SelectItem value="90">Last 3 months</SelectItem>
+              <SelectItem value="180">Last 6 months</SelectItem>
+              <SelectItem value="365">Last 12 months</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -872,79 +906,122 @@ export default function Insights() {
 
       {/* Key Metrics Overview */}
       <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <Card className="relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-primary/5 rounded-bl-full" />
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <SewingMachine className="h-4 w-4" />
-              Total Sewing Output
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-end gap-2">
-              <p className="text-2xl md:text-3xl font-bold font-mono">{summary.totalSewingOutput.toLocaleString()}</p>
-              <TrendIcon trend={summary.outputTrend} />
+        {/* Sewing Output */}
+        <Card className="relative overflow-hidden animate-fade-in group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-br from-blue-50 via-white to-blue-50/50 dark:from-blue-950/40 dark:via-card dark:to-blue-950/20 border-blue-200/60 dark:border-blue-800/40">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-blue-500/10 to-transparent rounded-bl-full" />
+          <div className="absolute bottom-0 left-0 w-20 h-20 bg-gradient-to-tr from-blue-500/5 to-transparent rounded-tr-full" />
+          <CardContent className="relative pt-5 pb-4">
+            <div className="flex items-start justify-between">
+              <div className="space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-600/70 dark:text-blue-400/70 flex items-center gap-1.5">
+                  <SewingMachine className="h-3.5 w-3.5" />
+                  Sewing Output
+                </p>
+                <p className="text-2xl md:text-3xl font-bold font-mono tracking-tight text-blue-900 dark:text-blue-100">
+                  <AnimatedNumber value={summary.totalSewingOutput} />
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-semibold text-blue-700 dark:text-blue-300">{summary.avgDailyOutput.toLocaleString()}</span> avg/day
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-2">
+                <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/25 group-hover:shadow-blue-500/40 transition-shadow">
+                  <SewingMachine className="h-5 w-5 text-white" />
+                </div>
+                <TrendIcon trend={summary.outputTrend} />
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {summary.avgDailyOutput.toLocaleString()} avg/day
-            </p>
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-info/5 rounded-bl-full" />
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Package className="h-4 w-4" />
-              Total Finishing Output
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl md:text-3xl font-bold font-mono">{summary.totalFinishingQcPass.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {summary.avgDailyQcPass.toLocaleString()} avg/day
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-success/5 rounded-bl-full" />
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Target className="h-4 w-4" />
-              Avg Efficiency
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-end gap-2">
-              <p className={`text-2xl md:text-3xl font-bold ${summary.avgEfficiency >= 90 ? 'text-success' : summary.avgEfficiency >= 70 ? 'text-warning' : 'text-destructive'}`}>
-                {summary.avgEfficiency}%
-              </p>
-              <TrendIcon trend={summary.efficiencyTrend} />
+        {/* Finishing Output */}
+        <Card className="relative overflow-hidden animate-fade-in group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-br from-violet-50 via-white to-purple-50/50 dark:from-violet-950/40 dark:via-card dark:to-purple-950/20 border-violet-200/60 dark:border-violet-800/40" style={{ animationDelay: '50ms' }}>
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-violet-500/10 to-transparent rounded-bl-full" />
+          <div className="absolute bottom-0 left-0 w-20 h-20 bg-gradient-to-tr from-violet-500/5 to-transparent rounded-tr-full" />
+          <CardContent className="relative pt-5 pb-4">
+            <div className="flex items-start justify-between">
+              <div className="space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-violet-600/70 dark:text-violet-400/70 flex items-center gap-1.5">
+                  <Package className="h-3.5 w-3.5" />
+                  Finishing Output
+                </p>
+                <p className="text-2xl md:text-3xl font-bold font-mono tracking-tight text-violet-900 dark:text-violet-100">
+                  <AnimatedNumber value={summary.totalFinishingQcPass} />
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-semibold text-violet-700 dark:text-violet-300">{summary.avgDailyQcPass.toLocaleString()}</span> avg/day
+                </p>
+              </div>
+              <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/25 group-hover:shadow-violet-500/40 transition-shadow">
+                <Package className="h-5 w-5 text-white" />
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              vs {summary.previousPeriodEfficiency}% prev period
-            </p>
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-warning/5 rounded-bl-full" />
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" />
-              Blockers
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl md:text-3xl font-bold">{summary.totalBlockers}</p>
-            <div className="flex flex-wrap items-center gap-1.5 mt-1">
-              <Badge variant="outline" className="text-[10px] md:text-xs bg-warning/10 text-warning border-warning/30">
-                {summary.openBlockers} open
-              </Badge>
-              <Badge variant="outline" className="text-[10px] md:text-xs bg-success/10 text-success border-success/30">
-                {summary.resolvedBlockers} resolved
-              </Badge>
+        {/* Efficiency with ProgressRing */}
+        <Card className={`relative overflow-hidden animate-fade-in group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ${
+          summary.avgEfficiency >= 90
+            ? 'bg-gradient-to-br from-emerald-50 via-white to-green-50/50 dark:from-emerald-950/40 dark:via-card dark:to-green-950/20 border-emerald-200/60 dark:border-emerald-800/40'
+            : summary.avgEfficiency >= 70
+            ? 'bg-gradient-to-br from-amber-50 via-white to-yellow-50/50 dark:from-amber-950/40 dark:via-card dark:to-yellow-950/20 border-amber-200/60 dark:border-amber-800/40'
+            : 'bg-gradient-to-br from-red-50 via-white to-rose-50/50 dark:from-red-950/40 dark:via-card dark:to-rose-950/20 border-red-200/60 dark:border-red-800/40'
+        }`} style={{ animationDelay: '100ms' }}>
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-emerald-500/8 to-transparent rounded-bl-full" />
+          <CardContent className="relative pt-5 pb-4">
+            <div className="flex items-start justify-between">
+              <div className="space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Target className="h-3.5 w-3.5" />
+                  Avg Efficiency
+                </p>
+                <div className="flex items-end gap-2">
+                  <p className={`text-2xl md:text-3xl font-bold ${summary.avgEfficiency >= 90 ? 'text-emerald-700 dark:text-emerald-300' : summary.avgEfficiency >= 70 ? 'text-amber-700 dark:text-amber-300' : 'text-red-700 dark:text-red-300'}`}>
+                    <AnimatedNumber value={summary.avgEfficiency} formatFn={(n) => `${n}%`} />
+                  </p>
+                  <TrendIcon trend={summary.efficiencyTrend} />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  vs <span className="font-semibold">{summary.previousPeriodEfficiency}%</span> prev period
+                </p>
+              </div>
+              <ProgressRing
+                value={Math.min(summary.avgEfficiency, 100)}
+                size={56}
+                strokeWidth={5}
+                color={summary.avgEfficiency >= 90 ? '#059669' : summary.avgEfficiency >= 70 ? '#d97706' : '#dc2626'}
+              >
+                <span className="text-[11px] font-bold">{summary.avgEfficiency}%</span>
+              </ProgressRing>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Blockers */}
+        <Card className="relative overflow-hidden animate-fade-in group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-br from-amber-50 via-white to-orange-50/50 dark:from-amber-950/40 dark:via-card dark:to-orange-950/20 border-amber-200/60 dark:border-amber-800/40" style={{ animationDelay: '150ms' }}>
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-amber-500/10 to-transparent rounded-bl-full" />
+          <CardContent className="relative pt-5 pb-4">
+            <div className="flex items-start justify-between">
+              <div className="space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-600/70 dark:text-amber-400/70 flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Blockers
+                </p>
+                <p className="text-2xl md:text-3xl font-bold font-mono tracking-tight text-amber-900 dark:text-amber-100">
+                  <AnimatedNumber value={summary.totalBlockers} />
+                </p>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Badge className="text-[10px] md:text-xs bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-400/30 font-semibold">
+                    {summary.openBlockers} open
+                  </Badge>
+                  <Badge className="text-[10px] md:text-xs bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-400/30 font-semibold">
+                    {summary.resolvedBlockers} resolved
+                  </Badge>
+                </div>
+              </div>
+              <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25 group-hover:shadow-amber-500/40 transition-shadow">
+                <AlertTriangle className="h-5 w-5 text-white" />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -966,26 +1043,34 @@ export default function Insights() {
 
       {/* Trends Section */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <TrendingUp className="h-5 w-5 text-primary" />
-          Trends
-        </h2>
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <TrendingUp className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight">Production Trends</h2>
+            <p className="text-xs text-muted-foreground">Output and efficiency over time</p>
+          </div>
+          <div className="flex-1 h-px bg-gradient-to-r from-primary/20 to-transparent ml-2" />
+        </div>
 
         {/* Sewing Output Trend Chart */}
-        <Card className="w-full overflow-hidden">
+        <Card className="w-full overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border-t-2 border-t-blue-500">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <SewingMachine className="h-5 w-5 text-primary" />
+              <div className="h-7 w-7 rounded-md bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
+                <SewingMachine className="h-3.5 w-3.5 text-white" />
+              </div>
               Sewing Output vs Target
             </CardTitle>
             <CardDescription>Daily sewing output compared to target over time</CardDescription>
           </CardHeader>
           <CardContent className="p-2 sm:p-6">
             <InteractiveChart
-              data={dailyData}
+              data={sewingDailyData}
               height={300}
               activePeriod={parseInt(period)}
-              onPeriodChange={(days) => setPeriod(String(days) as '7' | '14' | '30')}
+              onPeriodChange={(days) => setPeriod(String(days) as '7' | '14' | '30' | '90' | '180' | '365')}
               yDomain={[sewingYMin, effectiveSewingYMax]}
               onYDomainChange={([min, max]) => { setSewingYMin(min); setSewingYMax(max); }}
               onYReset={() => { setSewingYMin(0); setSewingYMax('auto'); }}
@@ -994,12 +1079,12 @@ export default function Insights() {
             >
               <defs>
                 <linearGradient id="colorSewingOutput" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
                 </linearGradient>
                 <linearGradient id="colorSewingTarget" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.15}/>
-                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#93c5fd" stopOpacity={0.15}/>
+                  <stop offset="95%" stopColor="#93c5fd" stopOpacity={0}/>
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -1013,28 +1098,30 @@ export default function Insights() {
                 }}
               />
               <Legend wrapperStyle={{ paddingTop: '8px' }} />
-              <Area type="monotone" dataKey="sewingTarget" name="Target" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorSewingTarget)" strokeWidth={2} strokeDasharray="5 5" />
-              <Area type="monotone" dataKey="sewingOutput" name="Output" stroke="#22c55e" fillOpacity={1} fill="url(#colorSewingOutput)" strokeWidth={2} />
+              <Area type="monotone" dataKey="sewingTarget" name="Target" stroke="#93c5fd" fillOpacity={1} fill="url(#colorSewingTarget)" strokeWidth={2} strokeDasharray="5 5" />
+              <Area type="monotone" dataKey="sewingOutput" name="Output" stroke="#2563eb" fillOpacity={1} fill="url(#colorSewingOutput)" strokeWidth={2} />
             </InteractiveChart>
           </CardContent>
         </Card>
 
         {/* Finishing Poly Trend Chart */}
-        <Card className="w-full overflow-hidden">
+        <Card className="w-full overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border-t-2 border-t-violet-500">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Package className="h-5 w-5 text-violet-600" />
+              <div className="h-7 w-7 rounded-md bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-sm">
+                <Package className="h-3.5 w-3.5 text-white" />
+              </div>
               Finishing Poly Output vs Target
             </CardTitle>
             <CardDescription>Daily finishing poly output compared to target over time</CardDescription>
           </CardHeader>
           <CardContent className="p-2 sm:p-6">
-            {dailyData.some(d => d.finishingPolyOutput > 0 || d.finishingPolyTarget > 0) ? (
+            {finishingDailyData.length > 0 ? (
               <InteractiveChart
-                data={dailyData}
+                data={finishingDailyData}
                 height={300}
                 activePeriod={parseInt(period)}
-                onPeriodChange={(days) => setPeriod(String(days) as '7' | '14' | '30')}
+                onPeriodChange={(days) => setPeriod(String(days) as '7' | '14' | '30' | '90' | '180' | '365')}
                 yDomain={[finishingYMin, effectiveFinishingYMax]}
                 onYDomainChange={([min, max]) => { setFinishingYMin(min); setFinishingYMax(max); }}
                 onYReset={() => { setFinishingYMin(0); setFinishingYMax('auto'); }}
@@ -1043,12 +1130,12 @@ export default function Insights() {
               >
                 <defs>
                   <linearGradient id="colorFinPolyOutput" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#7c3aed" stopOpacity={0}/>
                   </linearGradient>
                   <linearGradient id="colorFinPolyTarget" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.15}/>
-                    <stop offset="95%" stopColor="#7c3aed" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#c4b5fd" stopOpacity={0.15}/>
+                    <stop offset="95%" stopColor="#c4b5fd" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -1062,8 +1149,8 @@ export default function Insights() {
                   }}
                 />
                 <Legend wrapperStyle={{ paddingTop: '8px' }} />
-                <Area type="monotone" dataKey="finishingPolyTarget" name="Poly Target" stroke="#7c3aed" fillOpacity={1} fill="url(#colorFinPolyTarget)" strokeWidth={2} strokeDasharray="5 5" />
-                <Area type="monotone" dataKey="finishingPolyOutput" name="Poly Output" stroke="#22c55e" fillOpacity={1} fill="url(#colorFinPolyOutput)" strokeWidth={2} />
+                <Area type="monotone" dataKey="finishingPolyTarget" name="Poly Target" stroke="#c4b5fd" fillOpacity={1} fill="url(#colorFinPolyTarget)" strokeWidth={2} strokeDasharray="5 5" />
+                <Area type="monotone" dataKey="finishingPolyOutput" name="Poly Output" stroke="#7c3aed" fillOpacity={1} fill="url(#colorFinPolyOutput)" strokeWidth={2} />
               </InteractiveChart>
             ) : (
               <div className="h-[300px] flex items-center justify-center text-muted-foreground">
@@ -1075,32 +1162,36 @@ export default function Insights() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Efficiency Trend */}
-          <Card className="w-full overflow-hidden">
+          <Card className="w-full overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border-t-2 border-t-amber-500">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <Zap className="h-5 w-5 text-warning" />
+                <div className="h-7 w-7 rounded-md bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-sm">
+                  <Zap className="h-3.5 w-3.5 text-white" />
+                </div>
                 Daily Efficiency %
               </CardTitle>
               <CardDescription>Target achievement rate by day</CardDescription>
             </CardHeader>
             <CardContent className="p-2 sm:p-6">
-              {dailyData.length > 0 ? (
+              {sewingDailyData.length > 0 ? (
                 <div className="w-full overflow-hidden">
                   <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={dailyData}>
+                    <BarChart data={sewingDailyData}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                       <XAxis dataKey="displayDate" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} />
-                      <YAxis domain={[0, 150]} className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} width={30} />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'hsl(var(--card))', 
+                      <YAxis domain={[0, 150]} className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} width={35} tickFormatter={(v) => `${v}%`} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
                           border: '1px solid hsl(var(--border))',
                           borderRadius: '8px'
-                        }} 
+                        }}
+                        formatter={(value: number) => [`${value}%`, 'Efficiency']}
                       />
-                      <Bar 
-                        dataKey="efficiency" 
-                        name="Efficiency %" 
+                      <ReferenceLine y={100} stroke="hsl(var(--success))" strokeDasharray="4 4" strokeOpacity={0.6} label={{ value: '100%', position: 'right', fill: 'hsl(var(--success))', fontSize: 10 }} />
+                      <Bar
+                        dataKey="efficiency"
+                        name="Efficiency %"
                         radius={[4, 4, 0, 0]}
                         fill="hsl(var(--primary))"
                       />
@@ -1116,11 +1207,13 @@ export default function Insights() {
           </Card>
 
           {/* Finishing vs Sewing Comparison */}
-          <Card className="w-full overflow-hidden">
+          <Card className="w-full overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border-t-2 border-t-primary">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-info" />
-                Sewing Output vs Finishing QC Pass
+                <div className="h-7 w-7 rounded-md bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center shadow-sm">
+                  <Layers className="h-3.5 w-3.5 text-white" />
+                </div>
+                Sewing vs Finishing
               </CardTitle>
               <CardDescription>Daily comparison of production stages</CardDescription>
             </CardHeader>
@@ -1140,8 +1233,8 @@ export default function Insights() {
                         }} 
                       />
                       <Legend wrapperStyle={{ paddingTop: '8px' }} />
-                      <Bar dataKey="sewingOutput" name="Sewing" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="finishingQcPass" name="Finishing QC" fill="hsl(var(--info))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="sewingOutput" name="Sewing" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="finishingQcPass" name="Finishing QC" fill="#7c3aed" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -1157,50 +1250,69 @@ export default function Insights() {
 
       {/* Lines Section */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <SewingMachine className="h-5 w-5 text-primary" />
-          Line Performance
-        </h2>
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Layers className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight">Line Performance</h2>
+            <p className="text-xs text-muted-foreground">Efficiency and output by production line</p>
+          </div>
+          <div className="flex-1 h-px bg-gradient-to-r from-primary/20 to-transparent ml-2" />
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Line Efficiency Ranking */}
-          <Card>
+          <Card className="shadow-sm hover:shadow-lg transition-all duration-300 border-t-2 border-t-emerald-500">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-success" />
-                Line Performance Ranking
+                <div className="h-7 w-7 rounded-md bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-sm">
+                  <Award className="h-3.5 w-3.5 text-white" />
+                </div>
+                Line Ranking
               </CardTitle>
               <CardDescription>Click on a line to see daily breakdown</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2">
               {linePerformance.length > 0 ? linePerformance.map((line, idx) => (
-                <div 
-                  key={line.lineId} 
-                  className="space-y-2 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors border border-transparent hover:border-border"
+                <div
+                  key={line.lineId}
+                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-all duration-200 border border-transparent hover:border-border group"
                   onClick={() => handleLineDrillDown(line.lineId, line.lineName)}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                        idx === 0 ? 'bg-success/20 text-success' : 
-                        idx === linePerformance.length - 1 ? 'bg-destructive/20 text-destructive' : 
-                        'bg-muted text-muted-foreground'
-                      }`}>
-                        {idx + 1}
-                      </span>
-                      <span className="font-medium">{line.lineName}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm text-muted-foreground">
+                  {/* Rank */}
+                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                    idx === 0 ? 'bg-gradient-to-br from-yellow-400/30 to-amber-500/20 text-amber-700 dark:text-amber-400 ring-1 ring-amber-400/30' :
+                    idx === 1 ? 'bg-gradient-to-br from-slate-300/30 to-slate-400/20 text-slate-600 dark:text-slate-300 ring-1 ring-slate-400/30' :
+                    idx === 2 ? 'bg-gradient-to-br from-orange-400/20 to-orange-500/10 text-orange-700 dark:text-orange-400 ring-1 ring-orange-400/30' :
+                    idx === linePerformance.length - 1 ? 'bg-destructive/15 text-destructive ring-1 ring-destructive/20' :
+                    'bg-muted text-muted-foreground'
+                  }`}>
+                    {idx + 1}
+                  </span>
+
+                  {/* Line Name + Output */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium truncate">{line.lineName}</span>
+                      <span className="text-xs text-muted-foreground font-mono ml-2">
                         {line.totalOutput.toLocaleString()} pcs
                       </span>
-                      <Badge variant={line.efficiency >= 90 ? 'default' : line.efficiency >= 70 ? 'secondary' : 'destructive'}>
-                        {line.efficiency}%
-                      </Badge>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </div>
+                    <Progress value={Math.min(line.efficiency, 100)} className="h-1.5 mt-1.5" />
                   </div>
-                  <Progress value={Math.min(line.efficiency, 100)} className="h-2" />
+
+                  {/* Efficiency Ring */}
+                  <ProgressRing
+                    value={Math.min(line.efficiency, 100)}
+                    size={38}
+                    strokeWidth={3.5}
+                    color={line.efficiency >= 90 ? 'hsl(var(--success))' : line.efficiency >= 70 ? 'hsl(var(--warning))' : 'hsl(var(--destructive))'}
+                  >
+                    <span className="text-[9px] font-bold">{line.efficiency}%</span>
+                  </ProgressRing>
+
+                  <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                 </div>
               )) : (
                 <div className="text-center py-8 text-muted-foreground">
@@ -1211,10 +1323,12 @@ export default function Insights() {
           </Card>
 
           {/* Line Output Chart */}
-          <Card className="w-full overflow-hidden">
+          <Card className="w-full overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border-t-2 border-t-blue-500">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-primary" />
+                <div className="h-7 w-7 rounded-md bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
+                  <BarChart3 className="h-3.5 w-3.5 text-white" />
+                </div>
                 Output by Line
               </CardTitle>
               <CardDescription>Total output comparison</CardDescription>
@@ -1255,7 +1369,7 @@ export default function Insights() {
         </div>
 
         {/* Line Stats Table */}
-        <Card>
+        <Card className="shadow-sm hover:shadow-md transition-shadow duration-300">
           <CardHeader>
             <CardTitle className="text-base">Detailed Line Statistics</CardTitle>
             <CardDescription>Click on a row for daily breakdown</CardDescription>
@@ -1311,10 +1425,16 @@ export default function Insights() {
 
       {/* Blockers Section */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <AlertTriangle className="h-5 w-5 text-warning" />
-          Blockers Analysis
-        </h2>
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-warning/10 flex items-center justify-center">
+            <AlertTriangle className="h-4 w-4 text-warning" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight">Blockers Analysis</h2>
+            <p className="text-xs text-muted-foreground">Production issues and resolution tracking</p>
+          </div>
+          <div className="flex-1 h-px bg-gradient-to-r from-warning/20 to-transparent ml-2" />
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Blocker Type Distribution - Premium 3D Design */}
@@ -1535,43 +1655,61 @@ export default function Insights() {
 
       {/* Work Orders Section */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Package className="h-5 w-5 text-primary" />
-          Work Order Progress
-        </h2>
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Box className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight">Work Order Progress</h2>
+            <p className="text-xs text-muted-foreground">Active orders and completion tracking</p>
+          </div>
+          <div className="flex-1 h-px bg-gradient-to-r from-primary/20 to-transparent ml-2" />
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Active Orders and Completion Status</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <Card className="shadow-sm">
+          <CardContent className="pt-6">
             {workOrderProgress.length > 0 ? (
-              <div className="space-y-4">
-                {workOrderProgress.map(wo => (
-                  <div key={wo.poNumber} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">{wo.poNumber}</p>
-                        <p className="text-sm text-muted-foreground">{wo.buyer} • {wo.style}</p>
+              <div className="space-y-1">
+                {workOrderProgress.map((wo, idx) => (
+                  <div key={wo.poNumber} className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted/30 transition-colors">
+                    {/* Progress Ring */}
+                    <ProgressRing
+                      value={Math.min(wo.progress, 100)}
+                      size={44}
+                      strokeWidth={4}
+                      color={wo.progress >= 100 ? 'hsl(var(--success))' : wo.progress >= 50 ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))'}
+                    >
+                      <span className="text-[9px] font-bold">{wo.progress}%</span>
+                    </ProgressRing>
+
+                    {/* Order Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm truncate">{wo.poNumber}</p>
+                          <p className="text-xs text-muted-foreground truncate">{wo.buyer} &middot; {wo.style}</p>
+                        </div>
+                        <div className="text-right shrink-0 ml-3">
+                          <p className="font-mono text-sm font-bold">
+                            {wo.totalOutput.toLocaleString()} <span className="text-muted-foreground font-normal">/ {wo.orderQty.toLocaleString()}</span>
+                          </p>
+                          {wo.lineName && (
+                            <Badge variant="outline" className="text-[10px] mt-0.5">{wo.lineName}</Badge>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-mono font-bold">{wo.totalOutput.toLocaleString()} / {wo.orderQty.toLocaleString()}</p>
-                        <p className="text-xs text-muted-foreground">{wo.lineName || 'Unassigned'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Progress value={Math.min(wo.progress, 100)} className="h-2 flex-1" />
-                      <span className={`text-sm font-medium ${wo.progress >= 100 ? 'text-success' : wo.progress >= 50 ? 'text-warning' : 'text-muted-foreground'}`}>
-                        {wo.progress}%
-                      </span>
+                      <Progress value={Math.min(wo.progress, 100)} className="h-1.5 mt-2" />
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>No work order progress data available</p>
+              <div className="text-center py-12 text-muted-foreground">
+                <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
+                  <Package className="h-8 w-8 opacity-40" />
+                </div>
+                <p className="font-medium">No active work orders</p>
+                <p className="text-sm mt-1">Work order progress will appear here once data is submitted</p>
               </div>
             )}
           </CardContent>
@@ -1581,100 +1719,135 @@ export default function Insights() {
       {/* ── Financial Insights Section ── */}
       {financialData.hasData && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-emerald-600" />
-            Financial Insights
-          </h2>
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+              <DollarSign className="h-4 w-4 text-emerald-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">Financial Insights</h2>
+              <p className="text-xs text-muted-foreground">Output value, operating cost, and margin analysis</p>
+            </div>
+            <div className="flex-1 h-px bg-gradient-to-r from-emerald-500/20 to-transparent ml-2" />
+          </div>
 
           {/* Financial KPI Cards */}
           <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-            <Card className="relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-500/5 rounded-bl-full" />
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <DollarSign className="h-4 w-4" />
-                  Total Revenue
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-end gap-2">
-                  <p className="text-2xl md:text-3xl font-bold font-mono text-emerald-600">
-                    ${financialData.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                  </p>
-                  {financialData.prevRevenue > 0 && (
-                    financialData.totalRevenue > financialData.prevRevenue
-                      ? <ArrowUp className="h-4 w-4 text-success" />
-                      : financialData.totalRevenue < financialData.prevRevenue
-                      ? <ArrowDown className="h-4 w-4 text-destructive" />
-                      : <Minus className="h-4 w-4 text-muted-foreground" />
-                  )}
+            <Card className="relative overflow-hidden animate-fade-in group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-br from-emerald-50 via-white to-green-50/50 dark:from-emerald-950/40 dark:via-card dark:to-green-950/20 border-emerald-200/60 dark:border-emerald-800/40">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-emerald-500/10 to-transparent rounded-bl-full" />
+              <CardContent className="relative pt-5 pb-4">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-600/70 dark:text-emerald-400/70 flex items-center gap-1.5">
+                      <DollarSign className="h-3.5 w-3.5" />
+                      Output Value
+                    </p>
+                    <div className="flex items-end gap-2">
+                      <p className="text-2xl md:text-3xl font-bold font-mono text-emerald-700 dark:text-emerald-300 tracking-tight">
+                        ${financialData.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      </p>
+                      {financialData.prevRevenue > 0 && (
+                        financialData.totalRevenue > financialData.prevRevenue
+                          ? <ArrowUp className="h-4 w-4 text-success" />
+                          : financialData.totalRevenue < financialData.prevRevenue
+                          ? <ArrowDown className="h-4 w-4 text-destructive" />
+                          : <Minus className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      <span className="font-semibold text-emerald-700 dark:text-emerald-300">${financialData.revenuePerPiece.toFixed(2)}</span> per piece
+                    </p>
+                  </div>
+                  <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/25 group-hover:shadow-emerald-500/40 transition-shadow">
+                    <DollarSign className="h-5 w-5 text-white" />
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  ${financialData.revenuePerPiece.toFixed(2)} per piece
-                </p>
               </CardContent>
             </Card>
 
-            <Card className="relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500/5 rounded-bl-full" />
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Wallet className="h-4 w-4" />
-                  Total Cost
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl md:text-3xl font-bold font-mono text-orange-600">
-                  ${financialData.totalCost.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  ${financialData.costPerPiece.toFixed(2)} per piece
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/5 rounded-bl-full" />
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <PiggyBank className="h-4 w-4" />
-                  Profit
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-end gap-2">
-                  <p className={`text-2xl md:text-3xl font-bold font-mono ${financialData.profit >= 0 ? 'text-success' : 'text-destructive'}`}>
-                    {financialData.profit < 0 ? '-' : ''}${Math.abs(financialData.profit).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                  </p>
-                  {financialData.prevProfit !== 0 && (
-                    financialData.profit > financialData.prevProfit
-                      ? <ArrowUp className="h-4 w-4 text-success" />
-                      : financialData.profit < financialData.prevProfit
-                      ? <ArrowDown className="h-4 w-4 text-destructive" />
-                      : <Minus className="h-4 w-4 text-muted-foreground" />
-                  )}
+            <Card className="relative overflow-hidden animate-fade-in group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-br from-orange-50 via-white to-amber-50/50 dark:from-orange-950/40 dark:via-card dark:to-amber-950/20 border-orange-200/60 dark:border-orange-800/40" style={{ animationDelay: '50ms' }}>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-orange-500/10 to-transparent rounded-bl-full" />
+              <CardContent className="relative pt-5 pb-4">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-600/70 dark:text-orange-400/70 flex items-center gap-1.5">
+                      <Wallet className="h-3.5 w-3.5" />
+                      Operating Cost
+                    </p>
+                    <p className="text-2xl md:text-3xl font-bold font-mono text-orange-700 dark:text-orange-300 tracking-tight">
+                      ${financialData.totalCost.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      <span className="font-semibold text-orange-700 dark:text-orange-300">${financialData.costPerPiece.toFixed(2)}</span> per piece
+                    </p>
+                  </div>
+                  <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-500/25 group-hover:shadow-orange-500/40 transition-shadow">
+                    <Wallet className="h-5 w-5 text-white" />
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  vs ${financialData.prevProfit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} prev period
-                </p>
               </CardContent>
             </Card>
 
-            <Card className="relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-violet-500/5 rounded-bl-full" />
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Percent className="h-4 w-4" />
-                  Profit Margin
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className={`text-2xl md:text-3xl font-bold ${financialData.margin >= 20 ? 'text-success' : financialData.margin >= 0 ? 'text-warning' : 'text-destructive'}`}>
-                  {financialData.margin.toFixed(1)}%
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  vs {financialData.prevMargin.toFixed(1)}% prev period
-                </p>
+            <Card className={`relative overflow-hidden animate-fade-in group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ${
+              financialData.profit >= 0
+                ? 'bg-gradient-to-br from-emerald-50 via-white to-teal-50/50 dark:from-emerald-950/40 dark:via-card dark:to-teal-950/20 border-emerald-200/60 dark:border-emerald-800/40'
+                : 'bg-gradient-to-br from-red-50 via-white to-rose-50/50 dark:from-red-950/40 dark:via-card dark:to-rose-950/20 border-red-200/60 dark:border-red-800/40'
+            }`} style={{ animationDelay: '100ms' }}>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-blue-500/8 to-transparent rounded-bl-full" />
+              <CardContent className="relative pt-5 pb-4">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <PiggyBank className="h-3.5 w-3.5" />
+                      Operating Margin
+                    </p>
+                    <div className="flex items-end gap-2">
+                      <p className={`text-2xl md:text-3xl font-bold font-mono tracking-tight ${financialData.profit >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
+                        {financialData.profit < 0 ? '-' : ''}${Math.abs(financialData.profit).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      </p>
+                      {financialData.prevProfit !== 0 && (
+                        financialData.profit > financialData.prevProfit
+                          ? <ArrowUp className="h-4 w-4 text-success" />
+                          : financialData.profit < financialData.prevProfit
+                          ? <ArrowDown className="h-4 w-4 text-destructive" />
+                          : <Minus className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      vs <span className="font-semibold">${financialData.prevProfit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span> prev
+                    </p>
+                  </div>
+                  <div className={`h-11 w-11 rounded-xl bg-gradient-to-br ${financialData.profit >= 0 ? 'from-emerald-500 to-teal-600 shadow-emerald-500/25 group-hover:shadow-emerald-500/40' : 'from-red-500 to-rose-600 shadow-red-500/25 group-hover:shadow-red-500/40'} flex items-center justify-center shadow-lg transition-shadow`}>
+                    <PiggyBank className="h-5 w-5 text-white" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="relative overflow-hidden animate-fade-in group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-br from-violet-50 via-white to-purple-50/50 dark:from-violet-950/40 dark:via-card dark:to-purple-950/20 border-violet-200/60 dark:border-violet-800/40" style={{ animationDelay: '150ms' }}>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-violet-500/10 to-transparent rounded-bl-full" />
+              <CardContent className="relative pt-5 pb-4">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-violet-600/70 dark:text-violet-400/70 flex items-center gap-1.5">
+                      <Percent className="h-3.5 w-3.5" />
+                      Margin %
+                    </p>
+                    <p className={`text-2xl md:text-3xl font-bold tracking-tight ${financialData.margin >= 20 ? 'text-emerald-700 dark:text-emerald-300' : financialData.margin >= 0 ? 'text-amber-700 dark:text-amber-300' : 'text-red-700 dark:text-red-300'}`}>
+                      {financialData.margin.toFixed(1)}%
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      vs <span className="font-semibold">{financialData.prevMargin.toFixed(1)}%</span> prev period
+                    </p>
+                  </div>
+                  <ProgressRing
+                    value={Math.min(Math.max(financialData.margin, 0), 50) * 2}
+                    size={52}
+                    strokeWidth={5}
+                    color={financialData.margin >= 20 ? '#059669' : financialData.margin >= 0 ? '#d97706' : '#dc2626'}
+                  >
+                    <span className="text-[10px] font-bold">{financialData.margin.toFixed(0)}%</span>
+                  </ProgressRing>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -1684,9 +1857,9 @@ export default function Insights() {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <DollarSign className="h-5 w-5 text-emerald-600" />
-                Revenue vs Cost Trend
+                Output Value vs Operating Cost
               </CardTitle>
-              <CardDescription>Daily revenue, cost, and profit over time (USD)</CardDescription>
+              <CardDescription>Daily output value, operating cost, and margin over time (USD)</CardDescription>
             </CardHeader>
             <CardContent className="p-2 sm:p-6">
               {financialData.dailyFinancials.length > 0 ? (
@@ -1715,9 +1888,9 @@ export default function Insights() {
                         formatter={(value: number, name: string) => [`$${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, name]}
                       />
                       <Legend wrapperStyle={{ paddingTop: '8px' }} />
-                      <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" strokeWidth={2} />
-                      <Area type="monotone" dataKey="cost" name="Cost" stroke="#f97316" fillOpacity={1} fill="url(#colorCostArea)" strokeWidth={2} />
-                      <Line type="monotone" dataKey="profit" name="Profit" stroke="#6366f1" strokeWidth={2} dot={false} />
+                      <Area type="monotone" dataKey="revenue" name="Output Value" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" strokeWidth={2} />
+                      <Area type="monotone" dataKey="cost" name="Operating Cost" stroke="#f97316" fillOpacity={1} fill="url(#colorCostArea)" strokeWidth={2} />
+                      <Line type="monotone" dataKey="profit" name="Operating Margin" stroke="#6366f1" strokeWidth={2} dot={false} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -1735,7 +1908,7 @@ export default function Insights() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Wallet className="h-5 w-5 text-orange-600" />
-                  Cost by Work Order
+                  Operating Cost by Work Order
                 </CardTitle>
                 <CardDescription>Sewing labor cost per PO (USD)</CardDescription>
               </CardHeader>
@@ -1858,9 +2031,9 @@ export default function Insights() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <BarChart3 className="h-5 w-5 text-emerald-600" />
-                  Revenue by PO
+                  Output Value by PO
                 </CardTitle>
-                <CardDescription>Top POs by revenue (USD)</CardDescription>
+                <CardDescription>Top POs by output value (USD)</CardDescription>
               </CardHeader>
               <CardContent className="p-2 sm:p-6">
                 {financialData.revenueByPo.length > 0 ? (
@@ -1876,15 +2049,15 @@ export default function Insights() {
                             border: '1px solid hsl(var(--border))',
                             borderRadius: '8px'
                           }}
-                          formatter={(value: number) => [`$${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 'Revenue']}
+                          formatter={(value: number) => [`$${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 'Output Value']}
                         />
-                        <Bar dataKey="revenue" name="Revenue" fill="#10b981" radius={[0, 4, 4, 0]} />
+                        <Bar dataKey="revenue" name="Output Value" fill="#10b981" radius={[0, 4, 4, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                 ) : (
                   <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                    No revenue data available
+                    No output value data available
                   </div>
                 )}
               </CardContent>
@@ -1897,9 +2070,9 @@ export default function Insights() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <PiggyBank className="h-5 w-5 text-blue-600" />
-                  Profitability by PO
+                  Margin by PO
                 </CardTitle>
-                <CardDescription>Revenue, cost, profit, and margin per purchase order (USD)</CardDescription>
+                <CardDescription>Output value, operating cost, and margin per purchase order (USD)</CardDescription>
               </CardHeader>
               <CardContent className="px-4 md:px-6">
                 <div className="w-full overflow-x-auto">
@@ -1908,9 +2081,9 @@ export default function Insights() {
                       <tr className="border-b">
                         <th className="text-left py-2 md:py-3 px-2 font-medium">PO</th>
                         <th className="text-left py-2 md:py-3 px-2 font-medium hidden sm:table-cell">Buyer</th>
-                        <th className="text-right py-2 md:py-3 px-2 font-medium">Revenue</th>
-                        <th className="text-right py-2 md:py-3 px-2 font-medium">Cost</th>
-                        <th className="text-right py-2 md:py-3 px-2 font-medium">Profit</th>
+                        <th className="text-right py-2 md:py-3 px-2 font-medium">Output Value</th>
+                        <th className="text-right py-2 md:py-3 px-2 font-medium">Op. Cost</th>
+                        <th className="text-right py-2 md:py-3 px-2 font-medium">Op. Margin</th>
                         <th className="text-right py-2 md:py-3 px-2 font-medium">Margin</th>
                       </tr>
                     </thead>
@@ -1969,9 +2142,9 @@ export default function Insights() {
                     <TrendingUp className="h-4 w-4 text-success" />
                   </div>
                   <div>
-                    <p className="font-medium text-success">Most Profitable PO</p>
+                    <p className="font-medium text-success">Highest Margin PO</p>
                     <p className="text-sm text-muted-foreground">
-                      {financialData.profitByPo[0].po} — ${financialData.profitByPo[0].profit.toLocaleString()} profit ({financialData.profitByPo[0].margin.toFixed(1)}% margin)
+                      {financialData.profitByPo[0].po} — ${financialData.profitByPo[0].profit.toLocaleString()} margin ({financialData.profitByPo[0].margin.toFixed(1)}%)
                     </p>
                   </div>
                 </div>
@@ -2025,7 +2198,7 @@ export default function Insights() {
                   <div>
                     <p className="font-medium text-blue-600">Unit Economics</p>
                     <p className="text-sm text-muted-foreground">
-                      Revenue ${financialData.revenuePerPiece.toFixed(2)}/pc vs Cost ${financialData.costPerPiece.toFixed(2)}/pc
+                      Output value ${financialData.revenuePerPiece.toFixed(2)}/pc vs Operating cost ${financialData.costPerPiece.toFixed(2)}/pc
                     </p>
                   </div>
                 </div>
@@ -2042,9 +2215,9 @@ export default function Insights() {
                       <Wallet className="h-4 w-4 text-orange-600" />
                     </div>
                     <div>
-                      <p className="font-medium text-orange-600">Biggest Cost Driver</p>
+                      <p className="font-medium text-orange-600">Highest Operating Cost</p>
                       <p className="text-sm text-muted-foreground">
-                        {topPo.po} accounts for {pct}% of total sewing cost (${topPo.cost.toLocaleString(undefined, { maximumFractionDigits: 0 })})
+                        {topPo.po} accounts for {pct}% of total operating cost (${topPo.cost.toLocaleString(undefined, { maximumFractionDigits: 0 })})
                       </p>
                     </div>
                   </div>
@@ -2061,7 +2234,7 @@ export default function Insights() {
                   </div>
                   <div>
                     <p className={`font-medium ${financialData.totalRevenue > financialData.prevRevenue ? 'text-success' : 'text-warning'}`}>
-                      Revenue {financialData.totalRevenue > financialData.prevRevenue ? 'Up' : 'Down'}
+                      Output Value {financialData.totalRevenue > financialData.prevRevenue ? 'Up' : 'Down'}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       ${financialData.totalRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })} vs ${financialData.prevRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })} prev period
@@ -2082,87 +2255,120 @@ export default function Insights() {
       )}
 
       {/* Performance Summary */}
-      <Card className="bg-gradient-to-br from-primary/5 via-transparent to-info/5">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Zap className="h-5 w-5 text-primary" />
-            Key Takeaways
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Zap className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight">Key Takeaways</h2>
+            <p className="text-xs text-muted-foreground">Actionable insights from your production data</p>
+          </div>
+          <div className="flex-1 h-px bg-gradient-to-r from-primary/20 to-transparent ml-2" />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
           {summary.topPerformingLine && (
-            <div className="flex items-start gap-3 p-3 rounded-lg bg-success/10">
-              <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center shrink-0">
-                <TrendingUp className="h-4 w-4 text-success" />
-              </div>
-              <div>
-                <p className="font-medium text-success">Top Performer</p>
-                <p className="text-sm text-muted-foreground">{summary.topPerformingLine} leads with highest efficiency</p>
-              </div>
-            </div>
+            <Card className="border-l-4 border-l-success bg-success/5 hover:shadow-md transition-all duration-300">
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-success/15 flex items-center justify-center shrink-0">
+                    <Award className="h-5 w-5 text-success" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-success">Top Performer</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">{summary.topPerformingLine} leads with highest efficiency</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {summary.worstPerformingLine && summary.worstPerformingLine !== summary.topPerformingLine && linePerformance.length > 1 && (
-            <div className="flex items-start gap-3 p-3 rounded-lg bg-warning/10">
-              <div className="h-8 w-8 rounded-full bg-warning/20 flex items-center justify-center shrink-0">
-                <TrendingDown className="h-4 w-4 text-warning" />
-              </div>
-              <div>
-                <p className="font-medium text-warning">Needs Attention</p>
-                <p className="text-sm text-muted-foreground">{summary.worstPerformingLine} has lowest efficiency this period</p>
-              </div>
-            </div>
+            <Card className="border-l-4 border-l-warning bg-warning/5 hover:shadow-md transition-all duration-300">
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-warning/15 flex items-center justify-center shrink-0">
+                    <TrendingDown className="h-5 w-5 text-warning" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-warning">Needs Attention</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">{summary.worstPerformingLine} has lowest efficiency this period</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {summary.efficiencyTrend === 'up' && (
-            <div className="flex items-start gap-3 p-3 rounded-lg bg-success/10">
-              <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center shrink-0">
-                <ArrowUp className="h-4 w-4 text-success" />
-              </div>
-              <div>
-                <p className="font-medium text-success">Improving Trend</p>
-                <p className="text-sm text-muted-foreground">Efficiency is up vs previous period</p>
-              </div>
-            </div>
+            <Card className="border-l-4 border-l-success bg-success/5 hover:shadow-md transition-all duration-300">
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-success/15 flex items-center justify-center shrink-0">
+                    <TrendingUp className="h-5 w-5 text-success" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-success">Efficiency Improving</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Up from {summary.previousPeriodEfficiency}% to {summary.avgEfficiency}% vs previous period
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {summary.efficiencyTrend === 'down' && (
-            <div className="flex items-start gap-3 p-3 rounded-lg bg-destructive/10">
-              <div className="h-8 w-8 rounded-full bg-destructive/20 flex items-center justify-center shrink-0">
-                <ArrowDown className="h-4 w-4 text-destructive" />
-              </div>
-              <div>
-                <p className="font-medium text-destructive">Declining Trend</p>
-                <p className="text-sm text-muted-foreground">Efficiency is down vs previous period</p>
-              </div>
-            </div>
+            <Card className="border-l-4 border-l-destructive bg-destructive/5 hover:shadow-md transition-all duration-300">
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-destructive/15 flex items-center justify-center shrink-0">
+                    <TrendingDown className="h-5 w-5 text-destructive" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-destructive">Efficiency Declining</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Down from {summary.previousPeriodEfficiency}% to {summary.avgEfficiency}% vs previous period
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {summary.mostCommonBlockerType && (
-            <div className="flex items-start gap-3 p-3 rounded-lg bg-destructive/10">
-              <div className="h-8 w-8 rounded-full bg-destructive/20 flex items-center justify-center shrink-0">
-                <AlertTriangle className="h-4 w-4 text-destructive" />
-              </div>
-              <div>
-                <p className="font-medium text-destructive">Common Issue</p>
-                <p className="text-sm text-muted-foreground">"{summary.mostCommonBlockerType}" is the top blocker type</p>
-              </div>
-            </div>
+            <Card className="border-l-4 border-l-destructive bg-destructive/5 hover:shadow-md transition-all duration-300">
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-destructive/15 flex items-center justify-center shrink-0">
+                    <AlertTriangle className="h-5 w-5 text-destructive" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-destructive">Recurring Issue</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">"{summary.mostCommonBlockerType}" is the most common blocker type</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {summary.daysWithData < 5 && (
-            <div className="flex items-start gap-3 p-3 rounded-lg bg-muted">
-              <div className="h-8 w-8 rounded-full bg-muted-foreground/20 flex items-center justify-center shrink-0">
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="font-medium">Limited Data</p>
-                <p className="text-sm text-muted-foreground">Only {summary.daysWithData} days of data. Keep submitting for better insights!</p>
-              </div>
-            </div>
+            <Card className="border-l-4 border-l-muted-foreground bg-muted/50 hover:shadow-md transition-all duration-300">
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                    <BarChart3 className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="font-semibold">Limited Data</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">Only {summary.daysWithData} days of data. Keep submitting for better insights!</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Settings Section - Full width stacked layout */}
       <div className="space-y-6">

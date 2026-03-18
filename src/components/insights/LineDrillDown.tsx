@@ -94,7 +94,9 @@ export function LineDrillDown({ lineId, lineName, factoryId, startDate, endDate,
         dailyMap.set(u.production_date, existing);
       });
 
-      sewingTargets.forEach(t => {
+      // Only include targets for dates that have matching actuals
+      const actualDates = new Set(sewingActuals.map(u => u.production_date));
+      sewingTargets.filter(t => actualDates.has(t.production_date)).forEach(t => {
         const existing = getOrCreate(t.production_date);
         existing.target += (t.per_hour_target || 0) * 8;
         dailyMap.set(t.production_date, existing);

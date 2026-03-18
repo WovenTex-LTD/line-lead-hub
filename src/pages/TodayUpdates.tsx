@@ -28,6 +28,7 @@ import { StorageBinCardDetailModal } from "@/components/StorageBinCardDetailModa
 import { FinishingSubmissionView, FinishingTargetData, FinishingActualData } from "@/components/FinishingSubmissionView";
 import { useHeadcountCost } from "@/hooks/useHeadcountCost";
 import { DollarSign, TrendingUp as TrendingUpIcon, TrendingDown } from "lucide-react";
+import { PRODUCTION_CM_SHARE } from "@/lib/sewing-financials";
 import { DailyReportButton, DailyReportData, DailyReportSewingLine, DailyReportCuttingLine, DailyReportFinishingLine, DailyReportNote } from "@/components/DailyProductionReport";
 import { ReportExportDialog } from "@/components/ReportExportDialog";
 
@@ -692,21 +693,21 @@ export default function TodayUpdates() {
     const rate = costConfigured && headcountCost.value ? headcountCost.value : 0;
     const costCurrency = headcountCost.currency;
 
-    // Revenue: only finishing poly output × (cm_per_dozen / 12)
+    // Revenue: sewing output × (cm_per_dozen × PRODUCTION_CM_SHARE / 12)
     const revenueByPo: { po: string; buyer: string; style: string; output: number; cmDz: number; revenue: number }[] = [];
     let totalRevenue = 0;
 
     const finishingOutputLogs = finishingDailyLogs.filter(l => l.log_type === 'OUTPUT');
-    finishingOutputLogs.forEach((log) => {
-      const cm = log.work_orders?.cm_per_dozen;
-      const output = log.poly || 0;
+    sewingActuals.forEach((s) => {
+      const cm = s.work_orders?.cm_per_dozen;
+      const output = s.good_today || 0;
       if (cm && output) {
-        const rev = (cm / 12) * output;
+        const rev = (cm * PRODUCTION_CM_SHARE / 12) * output;
         totalRevenue += rev;
         revenueByPo.push({
-          po: log.work_orders?.po_number || 'Unknown',
-          buyer: log.work_orders?.buyer || '',
-          style: log.work_orders?.style || '',
+          po: s.work_orders?.po_number || 'Unknown',
+          buyer: s.work_orders?.buyer || '',
+          style: s.work_orders?.style || '',
           output,
           cmDz: cm,
           revenue: rev,
@@ -714,75 +715,40 @@ export default function TodayUpdates() {
       }
     });
 
-    // Cost by department and by PO
+    // Cost: sewing only
     let sewingCost = 0;
-    let cuttingCost = 0;
-    let finishingCost = 0;
-    const costByPoMap: Record<string, { po: string; buyer: string; style: string; sewingCost: number; cuttingCost: number; finishingCost: number }> = {};
-
-    const addPoCost = (po: string, buyer: string, style: string, dept: 'sewingCost' | 'cuttingCost' | 'finishingCost', amount: number) => {
-      if (!costByPoMap[po]) costByPoMap[po] = { po, buyer, style, sewingCost: 0, cuttingCost: 0, finishingCost: 0 };
-      costByPoMap[po][dept] += amount;
-    };
+    const costByPoMap: Record<string, { po: string; buyer: string; style: string; cost: number }> = {};
 
     if (rate > 0) {
-      // Sewing (only POs with CM price)
       sewingActuals.forEach((s) => {
         if (!s.work_orders?.cm_per_dozen) return;
         let lineCost = 0;
         if (s.manpower_actual && s.hours_actual) lineCost += rate * s.manpower_actual * s.hours_actual;
         if (s.ot_manpower_actual && s.ot_hours_actual) lineCost += rate * s.ot_manpower_actual * s.ot_hours_actual;
         sewingCost += lineCost;
-        if (lineCost > 0) addPoCost(s.work_orders?.po_number || 'Unknown', s.work_orders?.buyer || '', s.work_orders?.style || '', 'sewingCost', lineCost);
-      });
-
-      // Cutting (only POs with CM price)
-      cuttingActuals.forEach((c) => {
-        if (!c.work_orders?.cm_per_dozen) return;
-        let lineCost = 0;
-        if (c.man_power && c.hours_actual) lineCost += rate * c.man_power * c.hours_actual;
-        if (c.ot_manpower_actual && c.ot_hours_actual) lineCost += rate * c.ot_manpower_actual * c.ot_hours_actual;
-        cuttingCost += lineCost;
-        if (lineCost > 0) addPoCost(c.work_orders?.po_number || 'Unknown', c.work_orders?.buyer || '', c.work_orders?.style || '', 'cuttingCost', lineCost);
-      });
-
-      // Finishing (only POs with CM price)
-      finishingOutputLogs.forEach((log) => {
-        if (!log.work_orders?.cm_per_dozen) return;
-        let lineCost = 0;
-        if (log.m_power_actual && log.actual_hours) lineCost += rate * log.m_power_actual * log.actual_hours;
-        if (log.ot_manpower_actual && log.ot_hours_actual) lineCost += rate * log.ot_manpower_actual * log.ot_hours_actual;
-        finishingCost += lineCost;
-        if (lineCost > 0) addPoCost(log.work_orders?.po_number || 'Unknown', log.work_orders?.buyer || '', log.work_orders?.style || '', 'finishingCost', lineCost);
+        if (lineCost > 0) {
+          const po = s.work_orders?.po_number || 'Unknown';
+          if (!costByPoMap[po]) costByPoMap[po] = { po, buyer: s.work_orders?.buyer || '', style: s.work_orders?.style || '', cost: 0 };
+          costByPoMap[po].cost += lineCost;
+        }
       });
     }
 
-    const totalCostNative = sewingCost + cuttingCost + finishingCost;
-    const costByPo = Object.values(costByPoMap).map(p => ({
-      ...p,
-      totalCost: p.sewingCost + p.cuttingCost + p.finishingCost,
-    })).sort((a, b) => b.totalCost - a.totalCost);
+    const totalCostNative = sewingCost;
+    const costByPo = Object.values(costByPoMap).sort((a, b) => b.cost - a.cost);
 
     // Convert cost to USD
     let totalCostUsd = totalCostNative;
-    let sewingCostUsd = sewingCost;
-    let cuttingCostUsd = cuttingCost;
-    let finishingCostUsd = finishingCost;
     if (costCurrency === 'BDT' && bdtToUsd) {
       totalCostUsd = totalCostNative * bdtToUsd;
-      sewingCostUsd = sewingCost * bdtToUsd;
-      cuttingCostUsd = cuttingCost * bdtToUsd;
-      finishingCostUsd = finishingCost * bdtToUsd;
     }
 
     const profit = totalRevenue - totalCostUsd;
     const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
 
     // Convert costByPo to USD
-    const costByPoUsd = costByPo.map(p => {
-      const toUsd = (v: number) => costCurrency === 'BDT' && bdtToUsd ? Math.round(v * bdtToUsd * 100) / 100 : Math.round(v * 100) / 100;
-      return { po: p.po, buyer: p.buyer, style: p.style, sewingCost: toUsd(p.sewingCost), cuttingCost: toUsd(p.cuttingCost), finishingCost: toUsd(p.finishingCost), totalCost: toUsd(p.totalCost) };
-    });
+    const toUsd = (v: number) => costCurrency === 'BDT' && bdtToUsd ? Math.round(v * bdtToUsd * 100) / 100 : Math.round(v * 100) / 100;
+    const costByPoUsd = costByPo.map(p => ({ po: p.po, buyer: p.buyer, style: p.style, cost: toUsd(p.cost) }));
 
     return {
       revenueByPo,
@@ -790,9 +756,6 @@ export default function TodayUpdates() {
       totalRevenue: Math.round(totalRevenue * 100) / 100,
       totalCostNative: Math.round(totalCostNative * 100) / 100,
       totalCostUsd: Math.round(totalCostUsd * 100) / 100,
-      sewingCostUsd: Math.round(sewingCostUsd * 100) / 100,
-      cuttingCostUsd: Math.round(cuttingCostUsd * 100) / 100,
-      finishingCostUsd: Math.round(finishingCostUsd * 100) / 100,
       profit: Math.round(profit * 100) / 100,
       margin: Math.round(margin * 10) / 10,
       costCurrency,
@@ -889,9 +852,7 @@ export default function TodayUpdates() {
         costCurrency: financials.costCurrency,
         profit: financials.profit,
         margin: financials.margin,
-        sewingCostUsd: financials.sewingCostUsd,
-        cuttingCostUsd: financials.cuttingCostUsd,
-        finishingCostUsd: financials.finishingCostUsd,
+        sewingCostUsd: financials.totalCostUsd,
         bdtToUsdRate: bdtToUsd,
         revenueByPo: financials.revenueByPo,
       } : null,
@@ -1071,22 +1032,26 @@ export default function TodayUpdates() {
     <div className="py-4 lg:py-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <CalendarDays className="h-6 w-6" />
-            {isToday ? "Today's Updates" : "Updates"}
-          </h1>
-          <p className="text-muted-foreground">
-            {selectedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+            <CalendarDays className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold">Today Updates</h1>
+            <p className="text-sm text-muted-foreground">
+              {selectedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
           <Popover>
             <PopoverTrigger asChild>
-              <Button size="sm" className="mt-2 !bg-blue-600 hover:!bg-blue-700 !text-white">
+              <Button variant="outline" size="sm">
                 <CalendarIcon className="h-4 w-4 mr-1.5" />
                 {isToday ? "Today" : format(selectedDate, "MMM d, yyyy")}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
+            <PopoverContent className="w-auto p-0" align="end">
               <Calendar
                 mode="single"
                 selected={selectedDate}
@@ -1108,8 +1073,6 @@ export default function TodayUpdates() {
               )}
             </PopoverContent>
           </Popover>
-        </div>
-        <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={fetchTodayUpdates}>
             <RefreshCw className="h-4 w-4 mr-1" />
             Refresh
@@ -1121,69 +1084,65 @@ export default function TodayUpdates() {
       {/* Summary Cards - Grouped Layout */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {/* Storage */}
-        <Card className="relative overflow-hidden border-orange-500/20">
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-orange-500/0" />
-          <CardContent className="p-4 relative">
-            <div className="flex items-center justify-between mb-3">
-              <div className="h-9 w-9 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                <Warehouse className="h-4.5 w-4.5 text-orange-600" />
+        <Card className="relative overflow-hidden border-orange-200/60 dark:border-orange-800/40 bg-gradient-to-br from-orange-50 via-white to-orange-50/50 dark:from-orange-950/40 dark:via-card dark:to-orange-950/20 hover:shadow-lg transition-all duration-300 cursor-pointer" onClick={() => setActiveTab('storage')}>
+          <CardContent className="p-3 relative">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 shadow-md shadow-orange-500/20 flex items-center justify-center">
+                <Warehouse className="h-3.5 w-3.5 text-white" />
               </div>
-              <span className="text-xs font-medium text-orange-600 bg-orange-500/10 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-medium text-orange-600 bg-orange-500/10 px-1.5 py-0.5 rounded-full">
                 {(storageTransactions || []).length} txns
               </span>
             </div>
-            <p className="text-2xl font-bold font-mono tracking-tight">{totalStorageReceived.toLocaleString()}</p>
+            <p className="text-2xl font-bold font-mono tracking-tight text-orange-900 dark:text-orange-100">{totalStorageReceived.toLocaleString()}</p>
             <p className="text-xs text-muted-foreground mt-0.5">Total Received</p>
           </CardContent>
         </Card>
 
         {/* Cutting */}
-        <Card className="relative overflow-hidden border-emerald-500/20">
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-emerald-500/0" />
-          <CardContent className="p-4 relative">
-            <div className="flex items-center justify-between mb-3">
-              <div className="h-9 w-9 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                <Scissors className="h-4.5 w-4.5 text-emerald-600" />
+        <Card className="relative overflow-hidden border-emerald-200/60 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 dark:from-emerald-950/40 dark:via-card dark:to-emerald-950/20 hover:shadow-lg transition-all duration-300 cursor-pointer" onClick={() => setActiveTab('cutting')}>
+          <CardContent className="p-3 relative">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 shadow-md shadow-emerald-500/20 flex items-center justify-center">
+                <Scissors className="h-3.5 w-3.5 text-white" />
               </div>
-              <span className="text-xs font-medium text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-medium text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
                 {cuttingTargets.length + cuttingActuals.length} updates
               </span>
             </div>
-            <p className="text-2xl font-bold font-mono tracking-tight">{totalCutting.toLocaleString()}</p>
+            <p className="text-2xl font-bold font-mono tracking-tight text-emerald-900 dark:text-emerald-100">{totalCutting.toLocaleString()}</p>
             <p className="text-xs text-muted-foreground mt-0.5">Cutting Output</p>
           </CardContent>
         </Card>
 
         {/* Sewing */}
-        <Card className="relative overflow-hidden border-primary/20">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/0" />
-          <CardContent className="p-4 relative">
-            <div className="flex items-center justify-between mb-3">
-              <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                <SewingMachine className="h-4.5 w-4.5 text-primary" />
+        <Card className="relative overflow-hidden border-blue-200/60 dark:border-blue-800/40 bg-gradient-to-br from-blue-50 via-white to-blue-50/50 dark:from-blue-950/40 dark:via-card dark:to-blue-950/20 hover:shadow-lg transition-all duration-300 cursor-pointer" onClick={() => setActiveTab('sewing')}>
+          <CardContent className="p-3 relative">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/20 flex items-center justify-center">
+                <SewingMachine className="h-3.5 w-3.5 text-white" />
               </div>
-              <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
                 {sewingUpdates.length + sewingTargets.length + sewingActuals.length} updates
               </span>
             </div>
-            <p className="text-2xl font-bold font-mono tracking-tight">{totalOutput.toLocaleString()}</p>
+            <p className="text-2xl font-bold font-mono tracking-tight text-blue-900 dark:text-blue-100">{totalOutput.toLocaleString()}</p>
             <p className="text-xs text-muted-foreground mt-0.5">Sewing Output</p>
           </CardContent>
         </Card>
 
         {/* Finishing */}
-        <Card className="relative overflow-hidden border-violet-500/20">
-          <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-violet-500/0" />
-          <CardContent className="p-4 relative">
-            <div className="flex items-center justify-between mb-3">
-              <div className="h-9 w-9 rounded-xl bg-violet-500/10 flex items-center justify-center">
-                <Package className="h-4.5 w-4.5 text-violet-600" />
+        <Card className="relative overflow-hidden border-violet-200/60 dark:border-violet-800/40 bg-gradient-to-br from-violet-50 via-white to-violet-50/50 dark:from-violet-950/40 dark:via-card dark:to-violet-950/20 hover:shadow-lg transition-all duration-300 cursor-pointer" onClick={() => setActiveTab('finishing')}>
+          <CardContent className="p-3 relative">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/20 flex items-center justify-center">
+                <Package className="h-3.5 w-3.5 text-white" />
               </div>
-              <span className="text-xs font-medium text-violet-600 bg-violet-500/10 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-medium text-violet-600 bg-violet-500/10 px-1.5 py-0.5 rounded-full">
                 {finishingDailyLogs.length} updates
               </span>
             </div>
-            <p className="text-2xl font-bold font-mono tracking-tight">{totalFinishingOutput.toLocaleString()}</p>
+            <p className="text-2xl font-bold font-mono tracking-tight text-violet-900 dark:text-violet-100">{totalFinishingOutput.toLocaleString()}</p>
             <p className="text-xs text-muted-foreground mt-0.5">Finishing Output</p>
           </CardContent>
         </Card>
@@ -1210,22 +1169,22 @@ export default function TodayUpdates() {
 
           {/* Revenue / Cost / Profit cards */}
           <div className="grid grid-cols-3 gap-2 md:gap-3">
-            <Card className="relative overflow-hidden border-emerald-500/20">
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-emerald-500/0" />
+            <Card className="relative overflow-hidden border-emerald-200/60 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 dark:from-emerald-950/40 dark:via-card dark:to-emerald-950/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
               <CardContent className="p-2.5 md:p-4 relative">
-                <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Revenue</p>
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-emerald-500/8 to-transparent rounded-bl-full" />
+                <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Output Value</p>
                 <p className="font-mono text-sm md:text-2xl font-bold text-emerald-700 dark:text-emerald-400 tracking-tight truncate">
                   ${financials.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5 truncate">Finishing output</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 truncate">Sewing output</p>
               </CardContent>
             </Card>
 
-            <Card className="relative overflow-hidden border-red-500/20">
-              <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-red-500/0" />
+            <Card className="relative overflow-hidden border-orange-200/60 dark:border-orange-800/40 bg-gradient-to-br from-orange-50 via-white to-orange-50/50 dark:from-orange-950/40 dark:via-card dark:to-orange-950/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
               <CardContent className="p-2.5 md:p-4 relative">
-                <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Cost</p>
-                <p className="font-mono text-sm md:text-2xl font-bold text-red-600 dark:text-red-400 tracking-tight truncate">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-orange-500/8 to-transparent rounded-bl-full" />
+                <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Operating Cost</p>
+                <p className="font-mono text-sm md:text-2xl font-bold text-orange-600 dark:text-orange-400 tracking-tight truncate">
                   ${financials.totalCostUsd.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </p>
                 <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
@@ -1236,10 +1195,10 @@ export default function TodayUpdates() {
               </CardContent>
             </Card>
 
-            <Card className={`relative overflow-hidden ${financials.profit >= 0 ? 'border-emerald-500/20' : 'border-red-500/20'}`}>
-              <div className={`absolute inset-0 bg-gradient-to-br ${financials.profit >= 0 ? 'from-emerald-500/5 to-emerald-500/0' : 'from-red-500/5 to-red-500/0'}`} />
+            <Card className={`relative overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group ${financials.profit >= 0 ? 'border-emerald-200/60 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 dark:from-emerald-950/40 dark:via-card dark:to-emerald-950/20' : 'border-red-200/60 dark:border-red-800/40 bg-gradient-to-br from-red-50 via-white to-red-50/50 dark:from-red-950/40 dark:via-card dark:to-red-950/20'}`}>
               <CardContent className="p-2.5 md:p-4 relative">
-                <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Profit</p>
+                <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl ${financials.profit >= 0 ? 'from-emerald-500/8' : 'from-red-500/8'} to-transparent rounded-bl-full`} />
+                <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Operating Margin</p>
                 <p className={`font-mono text-sm md:text-2xl font-bold tracking-tight truncate ${financials.profit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                   {financials.profit >= 0 ? '+' : '-'}${Math.abs(financials.profit).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </p>
@@ -1262,50 +1221,18 @@ export default function TodayUpdates() {
           {financialsExpanded && (
             <Card className="border-blue-500/20">
               <CardContent className="p-3 md:p-4 space-y-4">
-                {/* Cost breakdown by department */}
-                {financials.totalCostUsd > 0 && (
-                  <div>
-                    <p className="text-[10px] md:text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Cost Breakdown</p>
-                    <div className="space-y-2">
-                      {[
-                        { label: 'Sewing', value: financials.sewingCostUsd, color: 'bg-blue-500' },
-                        { label: 'Cutting', value: financials.cuttingCostUsd, color: 'bg-emerald-500' },
-                        { label: 'Finishing', value: financials.finishingCostUsd, color: 'bg-violet-500' },
-                      ].filter(d => d.value > 0).map((dept) => (
-                        <div key={dept.label} className="flex items-center gap-2">
-                          <span className="text-[11px] text-muted-foreground w-14 shrink-0">{dept.label}</span>
-                          <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${dept.color}`}
-                              style={{ width: `${Math.min((dept.value / financials.totalCostUsd) * 100, 100)}%` }}
-                            />
-                          </div>
-                          <span className="font-mono text-[11px] font-medium shrink-0">
-                            ${Math.round(dept.value).toLocaleString()}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Cost by PO — card layout on mobile, table on desktop */}
+                {/* Sewing Cost by PO */}
                 {financials.costByPo.length > 0 && (
                   <div>
-                    <p className="text-[10px] md:text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Cost by PO</p>
+                    <p className="text-[10px] md:text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Operating Cost by PO</p>
                     <div className="space-y-2 md:hidden">
                       {financials.costByPo.map((row, i) => (
                         <div key={i} className="rounded-lg bg-muted/40 p-2.5 space-y-1">
                           <div className="flex items-center justify-between">
                             <span className="font-mono text-[11px] font-medium truncate max-w-[45%]">{row.po}</span>
-                            <span className="font-mono text-[11px] font-semibold text-red-600 dark:text-red-400">${Math.round(row.totalCost).toLocaleString()}</span>
+                            <span className="font-mono text-[11px] font-semibold text-red-600 dark:text-red-400">${Math.round(row.cost).toLocaleString()}</span>
                           </div>
                           <p className="text-[10px] text-muted-foreground">{row.buyer}</p>
-                          <div className="flex gap-3 text-[10px] text-muted-foreground">
-                            {row.sewingCost > 0 && <span>Sew: ${Math.round(row.sewingCost).toLocaleString()}</span>}
-                            {row.cuttingCost > 0 && <span>Cut: ${Math.round(row.cuttingCost).toLocaleString()}</span>}
-                            {row.finishingCost > 0 && <span>Fin: ${Math.round(row.finishingCost).toLocaleString()}</span>}
-                          </div>
                         </div>
                       ))}
                     </div>
@@ -1315,10 +1242,8 @@ export default function TodayUpdates() {
                           <tr className="border-b text-muted-foreground">
                             <th className="text-left py-1.5 font-medium">PO</th>
                             <th className="text-left py-1.5 font-medium">Buyer</th>
-                            <th className="text-right py-1.5 font-medium">Sewing</th>
-                            <th className="text-right py-1.5 font-medium">Cutting</th>
-                            <th className="text-right py-1.5 font-medium">Finishing</th>
-                            <th className="text-right py-1.5 font-medium">Total</th>
+                            <th className="text-left py-1.5 font-medium">Style</th>
+                            <th className="text-right py-1.5 font-medium">Operating Cost</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1326,11 +1251,9 @@ export default function TodayUpdates() {
                             <tr key={i} className="border-b border-muted/50">
                               <td className="py-1.5 font-mono">{row.po}</td>
                               <td className="py-1.5">{row.buyer}</td>
-                              <td className="py-1.5 text-right font-mono">{row.sewingCost > 0 ? `$${row.sewingCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</td>
-                              <td className="py-1.5 text-right font-mono">{row.cuttingCost > 0 ? `$${row.cuttingCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</td>
-                              <td className="py-1.5 text-right font-mono">{row.finishingCost > 0 ? `$${row.finishingCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</td>
+                              <td className="py-1.5">{row.style}</td>
                               <td className="py-1.5 text-right font-mono font-medium text-red-600 dark:text-red-400">
-                                ${row.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                ${row.cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </td>
                             </tr>
                           ))}
@@ -1343,7 +1266,7 @@ export default function TodayUpdates() {
                 {/* Revenue by PO — card layout on mobile, table on desktop */}
                 {financials.revenueByPo.length > 0 && (
                   <div>
-                    <p className="text-[10px] md:text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Revenue by PO</p>
+                    <p className="text-[10px] md:text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Output Value by PO</p>
                     <div className="space-y-2 md:hidden">
                       {financials.revenueByPo.map((row, i) => (
                         <div key={i} className="rounded-lg bg-muted/40 p-2.5 space-y-1">
@@ -1354,7 +1277,7 @@ export default function TodayUpdates() {
                           <p className="text-[10px] text-muted-foreground">{row.buyer}</p>
                           <div className="flex gap-3 text-[10px] text-muted-foreground">
                             <span>{row.output.toLocaleString()} pcs</span>
-                            <span>CM/Dz: ${row.cmDz.toFixed(2)}</span>
+                            <span>CM/Dz: ${(row.cmDz * PRODUCTION_CM_SHARE).toFixed(2)}</span>
                           </div>
                         </div>
                       ))}
@@ -1366,8 +1289,8 @@ export default function TodayUpdates() {
                             <th className="text-left py-1.5 font-medium">PO</th>
                             <th className="text-left py-1.5 font-medium">Buyer</th>
                             <th className="text-right py-1.5 font-medium">Output</th>
-                            <th className="text-right py-1.5 font-medium">CM/Dz</th>
-                            <th className="text-right py-1.5 font-medium">Revenue</th>
+                            <th className="text-right py-1.5 font-medium">CM/Dz (70%)</th>
+                            <th className="text-right py-1.5 font-medium">Output Value</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1376,7 +1299,7 @@ export default function TodayUpdates() {
                               <td className="py-1.5 font-mono">{row.po}</td>
                               <td className="py-1.5">{row.buyer}</td>
                               <td className="py-1.5 text-right font-mono">{row.output.toLocaleString()}</td>
-                              <td className="py-1.5 text-right font-mono">${row.cmDz.toFixed(2)}</td>
+                              <td className="py-1.5 text-right font-mono">${(row.cmDz * PRODUCTION_CM_SHARE).toFixed(2)}</td>
                               <td className="py-1.5 text-right font-mono font-medium text-emerald-700 dark:text-emerald-400">
                                 ${row.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </td>
@@ -1483,7 +1406,9 @@ export default function TodayUpdates() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <SewingMachine className="h-4 w-4 text-primary" />
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/20 flex items-center justify-center">
+                    <SewingMachine className="h-3.5 w-3.5 text-white" />
+                  </div>
                   Sewing Targets & Actuals
                 </CardTitle>
               </CardHeader>
@@ -1535,7 +1460,9 @@ export default function TodayUpdates() {
                                 {hasBlocker ? (
                                   <StatusBadge variant="danger" size="sm">Blocker</StatusBadge>
                                 ) : hasBoth ? (
-                                  <StatusBadge variant="success" size="sm">Complete</StatusBadge>
+                                  sewingPct != null && sewingPct >= 100
+                                    ? <StatusBadge variant="success" size="sm">Target Hit</StatusBadge>
+                                    : <StatusBadge variant="warning" size="sm">Target Missed</StatusBadge>
                                 ) : item.actual ? (
                                   <StatusBadge variant="warning" size="sm">No Target</StatusBadge>
                                 ) : (
@@ -1559,7 +1486,9 @@ export default function TodayUpdates() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Package className="h-4 w-4 text-info" />
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/20 flex items-center justify-center">
+                    <Package className="h-3.5 w-3.5 text-white" />
+                  </div>
                   Finishing Updates
                 </CardTitle>
               </CardHeader>
@@ -1611,7 +1540,9 @@ export default function TodayUpdates() {
                             <TableCell className="text-right font-mono text-muted-foreground">{targetCarton.toLocaleString()}</TableCell>
                             <TableCell>
                               {hasOutput && hasTarget ? (
-                                <StatusBadge variant="success" size="sm">Complete</StatusBadge>
+                                finishingPct != null && finishingPct >= 100
+                                  ? <StatusBadge variant="success" size="sm">Target Hit</StatusBadge>
+                                  : <StatusBadge variant="warning" size="sm">Target Missed</StatusBadge>
                               ) : hasOutput ? (
                                 <StatusBadge variant="warning" size="sm">No Target</StatusBadge>
                               ) : (
@@ -1634,7 +1565,9 @@ export default function TodayUpdates() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Scissors className="h-4 w-4 text-emerald-600" />
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 shadow-md shadow-emerald-500/20 flex items-center justify-center">
+                    <Scissors className="h-3.5 w-3.5 text-white" />
+                  </div>
                   Cutting Updates
                 </CardTitle>
               </CardHeader>
@@ -1682,7 +1615,9 @@ export default function TodayUpdates() {
                             <TableCell>
                               <div className="flex items-center gap-1 flex-wrap">
                                 {hasActual && hasTarget ? (
-                                  <StatusBadge variant="success" size="sm">Complete</StatusBadge>
+                                  cuttingPct != null && cuttingPct >= 100
+                                    ? <StatusBadge variant="success" size="sm">Target Hit</StatusBadge>
+                                    : <StatusBadge variant="warning" size="sm">Target Missed</StatusBadge>
                                 ) : hasActual ? (
                                   <StatusBadge variant="warning" size="sm">No Target</StatusBadge>
                                 ) : (
@@ -1709,7 +1644,9 @@ export default function TodayUpdates() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Warehouse className="h-4 w-4 text-orange-600" />
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 shadow-md shadow-orange-500/20 flex items-center justify-center">
+                    <Warehouse className="h-3.5 w-3.5 text-white" />
+                  </div>
                   Storage Transactions
                 </CardTitle>
               </CardHeader>
@@ -1798,7 +1735,9 @@ export default function TodayUpdates() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <SewingMachine className="h-4 w-4 text-primary" />
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/20 flex items-center justify-center">
+                    <SewingMachine className="h-3.5 w-3.5 text-white" />
+                  </div>
                   Sewing Updates
                 </CardTitle>
               </CardHeader>
@@ -1859,7 +1798,9 @@ export default function TodayUpdates() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <SewingMachine className="h-4 w-4 text-primary" />
+                <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/20 flex items-center justify-center">
+                  <SewingMachine className="h-3.5 w-3.5 text-white" />
+                </div>
                 Sewing Targets & Actuals
               </CardTitle>
             </CardHeader>
@@ -1914,7 +1855,9 @@ export default function TodayUpdates() {
                               {hasBlocker ? (
                                 <StatusBadge variant="danger" size="sm">Blocker</StatusBadge>
                               ) : hasBoth ? (
-                                <StatusBadge variant="success" size="sm">Complete</StatusBadge>
+                                sewingTabPct != null && sewingTabPct >= 100
+                                  ? <StatusBadge variant="success" size="sm">Target Hit</StatusBadge>
+                                  : <StatusBadge variant="warning" size="sm">Target Missed</StatusBadge>
                               ) : item.actual ? (
                                 <StatusBadge variant="warning" size="sm">No Target</StatusBadge>
                               ) : (
@@ -1944,7 +1887,9 @@ export default function TodayUpdates() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <Package className="h-4 w-4 text-violet-600" />
+                <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/20 flex items-center justify-center">
+                  <Package className="h-3.5 w-3.5 text-white" />
+                </div>
                 Finishing Targets & Outputs
               </CardTitle>
             </CardHeader>
@@ -1992,7 +1937,9 @@ export default function TodayUpdates() {
                             <TableCell className="text-right font-mono">{targetCarton > 0 ? targetCarton.toLocaleString() : '-'}</TableCell>
                             <TableCell>
                               {row.output && row.target ? (
-                                <StatusBadge variant="success" size="sm">Complete</StatusBadge>
+                                finTabPct != null && finTabPct >= 100
+                                  ? <StatusBadge variant="success" size="sm">Target Hit</StatusBadge>
+                                  : <StatusBadge variant="warning" size="sm">Target Missed</StatusBadge>
                               ) : row.output ? (
                                 <StatusBadge variant="warning" size="sm">No Target</StatusBadge>
                               ) : (
@@ -2021,7 +1968,9 @@ export default function TodayUpdates() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <Scissors className="h-4 w-4 text-emerald-600" />
+                <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 shadow-md shadow-emerald-500/20 flex items-center justify-center">
+                    <Scissors className="h-3.5 w-3.5 text-white" />
+                  </div>
                 Cutting Targets & Actuals
               </CardTitle>
             </CardHeader>
@@ -2066,7 +2015,9 @@ export default function TodayUpdates() {
                           <TableCell className="text-right font-mono">{dayInput > 0 ? dayInput.toLocaleString() : '-'}</TableCell>
                           <TableCell>
                             {row.actual && row.target ? (
-                              <StatusBadge variant="success" size="sm">Complete</StatusBadge>
+                              cutTabPct != null && cutTabPct >= 100
+                                ? <StatusBadge variant="success" size="sm">Target Hit</StatusBadge>
+                                : <StatusBadge variant="warning" size="sm">Target Missed</StatusBadge>
                             ) : row.actual ? (
                               <StatusBadge variant="warning" size="sm">No Target</StatusBadge>
                             ) : (
@@ -2095,7 +2046,9 @@ export default function TodayUpdates() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <Warehouse className="h-4 w-4 text-orange-600" />
+                <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 shadow-md shadow-orange-500/20 flex items-center justify-center">
+                    <Warehouse className="h-3.5 w-3.5 text-white" />
+                  </div>
                 Storage Transactions
               </CardTitle>
             </CardHeader>

@@ -134,6 +134,8 @@ const navLabelKeys: Record<string, string> = {
   'All Bin Cards': 'nav.allBinCards',
   'Daily Target': 'nav.finishingDailyTarget',
   'End of Day Output': 'nav.finishingDailyOutput',
+  'Cutting Handoffs': 'nav.cuttingHandoffs',
+  'Finances': 'nav.finances',
 };
 
 interface NavItem {
@@ -150,6 +152,7 @@ export function AppSidebar() {
   const location = useLocation();
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
+  const isFinanceTheme = location.pathname === '/finances';
   const [expandedMenus, setExpandedMenus] = React.useState<string[]>(['/setup']);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [appVersion, setAppVersion] = useState<string>(WEB_APP_VERSION);
@@ -373,24 +376,30 @@ export function AppSidebar() {
       
       <Sidebar
         className={cn(
-        "border-r border-sidebar-border transition-all duration-300",
+        "border-r border-white/[0.06] transition-all duration-300",
+        isFinanceTheme
+          ? "[&_[data-sidebar=sidebar]]:!bg-[linear-gradient(180deg,#2d1754_0%,#3b2068_35%,#4a2a7a_65%,#56328a_100%)]"
+          : "[&_[data-sidebar=sidebar]]:!bg-[linear-gradient(180deg,#080e1f_0%,#0c1633_35%,#111e4a_65%,#152457_100%)]",
         collapsed ? "w-16" : "w-64"
       )}
       collapsible="icon"
     >
-      <SidebarHeader className="border-b border-sidebar-border p-4">
+      <SidebarHeader className="border-b border-white/[0.08] p-4">
         <div className="flex items-center gap-3">
-          <img 
-            src={logoSvg} 
-            alt="ProductionPortal" 
-            className="h-10 w-10 shrink-0 rounded-lg"
-          />
+          <div className="relative shrink-0">
+            <img
+              src={logoSvg}
+              alt="ProductionPortal"
+              className="h-10 w-10 rounded-xl shadow-lg shadow-sidebar-primary/20"
+            />
+            <div className="absolute inset-0 rounded-xl ring-1 ring-white/10" />
+          </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="font-semibold text-sidebar-foreground">
+              <span className="font-bold text-sidebar-foreground tracking-tight">
                 {t('app.name')}
               </span>
-              <span className="text-xs text-sidebar-foreground/60 truncate max-w-[140px]">
+              <span className="text-[11px] text-sidebar-foreground/40 truncate max-w-[140px]">
                 Powered by WovenTex
               </span>
             </div>
@@ -401,7 +410,7 @@ export function AppSidebar() {
       <SidebarContent className="custom-scrollbar">
         <SidebarGroup>
           {!collapsed && (
-            <SidebarGroupLabel className="text-sidebar-foreground/50">
+            <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-[0.15em] text-sidebar-foreground/35 px-3">
               {t('common.menu')}
             </SidebarGroupLabel>
           )}
@@ -424,10 +433,10 @@ export function AppSidebar() {
                         <CollapsibleTrigger asChild>
                           <SidebarMenuButton
                             className={cn(
-                              "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors w-full justify-between",
+                              "flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200 w-full justify-between",
                               isItemOrChildActive
-                                ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                                : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                                ? "bg-sidebar-primary/10 text-sidebar-foreground font-medium"
+                                : "text-sidebar-foreground/60 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground"
                             )}
                           >
                             <div className="flex items-center gap-3">
@@ -450,10 +459,10 @@ export function AppSidebar() {
                                 <Link
                                   to={item.path}
                                   className={cn(
-                                    "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors",
+                                    "flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200",
                                     isActive(item.path)
-                                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                                      ? "bg-sidebar-primary/15 text-sidebar-foreground font-medium"
+                                      : "text-sidebar-foreground/60 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground"
                                   )}
                                 >
                                   {Icon && <Icon className="h-4 w-4 shrink-0" />}
@@ -472,10 +481,10 @@ export function AppSidebar() {
                                     <Link
                                       to={child.path}
                                       className={cn(
-                                        "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors",
+                                        "flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200",
                                         isActive(child.path)
-                                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                                          ? "bg-sidebar-primary/15 text-sidebar-foreground font-medium"
+                                          : "text-sidebar-foreground/60 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground"
                                       )}
                                     >
                                       {ChildIcon && <ChildIcon className="h-4 w-4 shrink-0" />}
@@ -509,14 +518,21 @@ export function AppSidebar() {
                           undefined
                         }
                         className={cn(
-                          "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors duration-150",
+                          "relative flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200",
                           isActive(item.path)
-                            ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/20"
+                            ? "bg-sidebar-primary/15 text-sidebar-primary-foreground font-medium shadow-sm"
+                            : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
                         )}
                       >
+                        {/* Active indicator bar */}
+                        {isActive(item.path) && !collapsed && (
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-sidebar-primary shadow-[0_0_8px_hsl(var(--sidebar-primary)/0.5)]" />
+                        )}
                         {Icon && (
-                          <div className="relative shrink-0">
+                          <div className={cn(
+                            "relative shrink-0 transition-colors duration-200",
+                            isActive(item.path) ? "text-sidebar-primary" : ""
+                          )}>
                             <Icon className="h-5 w-5" />
                             {collapsed && item.path === '/setup' && showSetupBadge && (
                               <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-sidebar" />
@@ -546,8 +562,8 @@ export function AppSidebar() {
         {(navItems as NavItem[]).some(item => item.bottom) && (
           <SidebarGroup className="mt-auto">
             {!collapsed && (
-              <SidebarGroupLabel className="text-sidebar-foreground/50">
-Settings
+              <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-[0.15em] text-sidebar-foreground/35 px-3">
+                Settings
               </SidebarGroupLabel>
             )}
             <SidebarGroupContent>
@@ -564,14 +580,20 @@ Settings
                         <Link
                           to={item.path}
                           className={cn(
-                            "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors duration-150",
+                            "relative flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200",
                             isActive(item.path)
-                              ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                              : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/20"
+                              ? "bg-sidebar-primary/15 text-sidebar-primary-foreground font-medium shadow-sm"
+                              : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
                           )}
                         >
+                          {isActive(item.path) && !collapsed && (
+                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-sidebar-primary shadow-[0_0_8px_hsl(var(--sidebar-primary)/0.5)]" />
+                          )}
                           {Icon && (
-                            <div className="relative shrink-0">
+                            <div className={cn(
+                              "relative shrink-0 transition-colors duration-200",
+                              isActive(item.path) ? "text-sidebar-primary" : ""
+                            )}>
                               <Icon className="h-5 w-5" />
                               {collapsed && item.path === '/setup' && showSetupBadge && (
                                 <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-sidebar" />
@@ -599,11 +621,11 @@ Settings
         )}
       </SidebarContent>
 
-      <SidebarFooter className={cn("border-t border-sidebar-border", collapsed ? "p-2" : "p-4")}>
+      <SidebarFooter className={cn("border-t border-white/[0.08]", collapsed ? "p-2" : "p-4")}>
         {/* Version and Update */}
         {!collapsed && (
-          <div className="flex items-center justify-between mb-3 pb-3 border-b border-sidebar-border/50">
-            <span className="text-xs text-sidebar-foreground/50">
+          <div className="flex items-center justify-between mb-3 pb-3 border-b border-white/[0.08]">
+            <span className="text-[11px] font-mono text-sidebar-foreground/35">
               v{appVersion}
             </span>
             <Button
@@ -611,7 +633,7 @@ Settings
               size="sm"
               onClick={handleCheckUpdate}
               disabled={isCheckingUpdate}
-              className="h-6 px-2 text-xs text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+              className="h-6 px-2 text-[11px] text-sidebar-foreground/45 hover:text-sidebar-foreground hover:bg-sidebar-accent/40 rounded-md"
               title="Check for updates"
             >
               {isCheckingUpdate ? (
@@ -624,8 +646,8 @@ Settings
           </div>
         )}
         {collapsed && (
-          <div className="flex flex-col items-center gap-1 mb-2 pb-2 border-b border-sidebar-border/50">
-            <span className="text-[10px] text-sidebar-foreground/50">
+          <div className="flex flex-col items-center gap-1 mb-2 pb-2 border-b border-white/[0.08]">
+            <span className="text-[9px] font-mono text-sidebar-foreground/35">
               v{appVersion}
             </span>
             <Button
@@ -633,7 +655,7 @@ Settings
               size="icon"
               onClick={handleCheckUpdate}
               disabled={isCheckingUpdate}
-              className="h-6 w-6 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+              className="h-6 w-6 text-sidebar-foreground/45 hover:text-sidebar-foreground hover:bg-sidebar-accent/40"
               title="Check for updates"
             >
               {isCheckingUpdate ? (
@@ -644,21 +666,21 @@ Settings
             </Button>
           </div>
         )}
-        
+
         {/* User profile */}
         <div className={cn("flex items-center", collapsed ? "flex-col gap-2" : "gap-3")}>
-          <Avatar className={cn("shrink-0", collapsed ? "h-7 w-7" : "h-9 w-9")}>
+          <Avatar className={cn("shrink-0 ring-2 ring-sidebar-primary/20", collapsed ? "h-7 w-7" : "h-9 w-9")}>
             <AvatarImage src={profile?.avatar_url || undefined} />
-            <AvatarFallback className={cn("bg-primary text-primary-foreground", collapsed ? "text-xs" : "text-sm")}>
+            <AvatarFallback className={cn("bg-sidebar-primary/20 text-sidebar-primary font-semibold", collapsed ? "text-xs" : "text-sm")}>
               {profile ? getInitials(profile.full_name) : '?'}
             </AvatarFallback>
           </Avatar>
           {!collapsed && (
             <div className="flex flex-1 flex-col overflow-hidden">
-              <span className="truncate text-sm font-medium text-sidebar-foreground">
+              <span className="truncate text-sm font-semibold text-sidebar-foreground">
                 {profile?.full_name}
               </span>
-              <span className="truncate text-xs text-sidebar-foreground/60">
+              <span className="truncate text-[11px] text-sidebar-foreground/40">
                 {t(`roles.${highestRole}`)}
               </span>
             </div>
@@ -667,26 +689,26 @@ Settings
             <>
               <button
                 onClick={async () => { await resetTour(); startTour(); }}
-                className="shrink-0 h-8 w-8 flex items-center justify-center rounded-md text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+                className="shrink-0 h-7 w-7 flex items-center justify-center rounded-md text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent/40 transition-all duration-200"
                 title="Restart tour"
               >
-                <PlayCircle className="h-4 w-4" />
+                <PlayCircle className="h-3.5 w-3.5" />
               </button>
               <button
                 onClick={() => openExternalUrl('https://productionportal.co')}
-                className="shrink-0 h-8 w-8 flex items-center justify-center rounded-md text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+                className="shrink-0 h-7 w-7 flex items-center justify-center rounded-md text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent/40 transition-all duration-200"
                 title={t('common.help') || 'Help'}
               >
-                <HelpCircle className="h-4 w-4" />
+                <HelpCircle className="h-3.5 w-3.5" />
               </button>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={handleSignOut}
-                className="shrink-0 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                className="shrink-0 h-7 w-7 text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent/40"
                 title={t('common.signOut') || 'Sign Out'}
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-3.5 w-3.5" />
               </Button>
             </>
           )}
@@ -695,7 +717,7 @@ Settings
           variant="ghost"
           size="sm"
           onClick={toggleSidebar}
-          className="mt-2 w-full justify-center text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+          className="mt-2 w-full justify-center text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent/30 text-xs"
         >
           {collapsed ? (
             <ChevronRight className="h-4 w-4" />

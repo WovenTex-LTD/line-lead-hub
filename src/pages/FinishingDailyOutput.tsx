@@ -4,9 +4,10 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Search, Scissors, CheckCircle, Shirt, CircleDot, Flame, Package, Box, Archive, TrendingUp, TrendingDown, Minus, Clock } from "lucide-react";
+import { Loader2, Search, Scissors, CheckCircle, Shirt, CircleDot, Flame, Package, Box, Archive, TrendingUp, TrendingDown, Minus, Clock, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// Card kept for target comparison section only
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -428,36 +429,30 @@ export default function FinishingDailyOutput() {
   }
 
   return (
-    <div className="container max-w-2xl py-4 px-4 pb-8">
+    <div className="container max-w-2xl py-3 md:py-4 lg:py-6 px-4 pb-8">
       <div className="flex items-center gap-3 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
+        <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">
+          <ClipboardCheck className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+        </div>
         <div>
-          <h1 className="text-xl font-bold">{t("nav.finishingDailyOutput")}</h1>
-          <p className="text-sm text-muted-foreground">
-            Record end-of-day production output
-          </p>
+          <h1 className="text-xl md:text-2xl font-bold">{t("nav.finishingDailyOutput")}</h1>
+          <p className="text-sm text-muted-foreground">Record end-of-day production output</p>
         </div>
       </div>
 
       {isEditing && existingLog && (
         <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
-          <p className="text-sm text-amber-800 dark:text-amber-200">
-            ✏️ Editing existing output for today
-          </p>
+          <p className="text-sm text-amber-800 dark:text-amber-200">Editing existing output for today</p>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit}>
+      <div className="rounded-xl border border-border/50 bg-card p-5 md:p-6 space-y-6">
         {/* PO Selection */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Select PO</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>PO Number *</Label>
+        <div className="space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground">Select PO</p>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">PO Number *</Label>
               <Popover open={poSearchOpen} onOpenChange={setPoSearchOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -476,7 +471,7 @@ export default function FinishingDailyOutput() {
                     </span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[350px] p-0" align="start">
+                <PopoverContent className="w-[min(350px,calc(100vw-2rem))] p-0" align="start">
                   <Command shouldFilter={true}>
                     <CommandInput placeholder="Search PO, buyer, style..." />
                     <CommandList>
@@ -502,38 +497,19 @@ export default function FinishingDailyOutput() {
                   </Command>
                 </PopoverContent>
               </Popover>
-              {errors.workOrder && <p className="text-sm text-destructive">{errors.workOrder}</p>}
-            </div>
-          </CardContent>
-        </Card>
+              {errors.workOrder && <p className="text-xs text-destructive">{errors.workOrder}</p>}
+          </div>
+        </div>
 
-        {/* Order Details (if PO selected) */}
+        {/* Order Details */}
         {selectedWorkOrder && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Order Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Buyer:</span>
-                  <p className="font-medium">{selectedWorkOrder.buyer}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Style:</span>
-                  <p className="font-medium">{selectedWorkOrder.style}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Item:</span>
-                  <p className="font-medium">{selectedWorkOrder.item || "-"}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Order Qty:</span>
-                  <p className="font-medium">{selectedWorkOrder.order_qty.toLocaleString()}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="rounded-lg bg-muted/30 border border-border/40 px-4 py-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2 text-sm">
+              <div><span className="text-[11px] text-muted-foreground">Buyer</span><p className="font-medium">{selectedWorkOrder.buyer}</p></div>
+              <div><span className="text-[11px] text-muted-foreground">Style</span><p className="font-medium">{selectedWorkOrder.style}</p></div>
+              <div><span className="text-[11px] text-muted-foreground">Order Qty</span><p className="font-medium font-mono">{selectedWorkOrder.order_qty.toLocaleString()}</p></div>
+            </div>
+          </div>
         )}
 
         {/* Target vs Output Comparison (if target exists) */}
@@ -599,137 +575,66 @@ export default function FinishingDailyOutput() {
           </Card>
         )}
 
+        <div className="border-t border-border/40" />
+
         {/* Process Category Outputs */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center justify-between">
-              <span>End-of-Day Output by Process</span>
-              <span className="text-sm font-normal text-muted-foreground">
-                Total: {calculateTotal().toLocaleString()} pcs
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {errors.processes && (
-              <p className="text-sm text-destructive mb-4">{errors.processes}</p>
-            )}
-            <div className="grid grid-cols-2 gap-4">
-              {PROCESS_CATEGORIES.map((cat) => {
-                const Icon = cat.icon;
-                const variance = getVariance(cat.key);
-                const hasTarget = targetLog !== null;
-                
-                return (
-                  <div key={cat.key} className="space-y-2">
-                    <Label className="flex items-center justify-between">
-                      <span className="flex items-center gap-2">
-                        <Icon className="h-4 w-4 text-muted-foreground" />
-                        {cat.label}
-                      </span>
-                      {hasTarget && processValues[cat.key] && (
-                        <span className="text-xs">
-                          <VarianceIndicator variance={variance} />
-                        </span>
-                      )}
-                    </Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={processValues[cat.key]}
-                      onChange={(e) => handleProcessValueChange(cat.key, e.target.value)}
-                      placeholder={targetLog ? `Target: ${(targetLog as any)[cat.key] || 0}` : "0"}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wider text-foreground">End-of-Day Output by Process</p>
+            <span className="text-xs font-mono text-muted-foreground">Total: {calculateTotal().toLocaleString()} pcs</span>
+          </div>
+          {errors.processes && <p className="text-xs text-destructive mb-3">{errors.processes}</p>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {PROCESS_CATEGORIES.map((cat) => {
+              const Icon = cat.icon;
+              const variance = getVariance(cat.key);
+              const hasTarget = targetLog !== null;
+              return (
+                <div key={cat.key} className="space-y-1.5">
+                  <Label className="text-xs font-medium flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                      {cat.label}
+                    </span>
+                    {hasTarget && processValues[cat.key] && (
+                      <span className="text-[11px]"><VarianceIndicator variance={variance} /></span>
+                    )}
+                  </Label>
+                  <Input type="number" min="0" value={processValues[cat.key]} onChange={(e) => handleProcessValueChange(cat.key, e.target.value)} placeholder={targetLog ? `Target: ${(targetLog as any)[cat.key] || 0}` : "0"} className="h-10" />
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
-        {/* Manpower */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Manpower</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Label>M Power Actual *</Label>
-              <Input
-                type="number"
-                min="1"
-                value={mPowerActual}
-                onChange={(e) => setMPowerActual(e.target.value)}
-                placeholder="0"
-                className={errors.mPowerActual ? "border-destructive" : ""}
-              />
-              {errors.mPowerActual && <p className="text-sm text-destructive">{errors.mPowerActual}</p>}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="border-t border-border/40" />
 
-        {/* Working Hours */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              Working Hours
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Label>Actual Total Hours Worked *</Label>
-              <Input
-                type="number"
-                step="0.5"
-                min="0.5"
-                max="24"
-                value={actualHours}
-                onChange={(e) => setActualHours(e.target.value)}
-                placeholder={targetLog?.planned_hours ? `Planned: ${targetLog.planned_hours}h` : "e.g. 8"}
-                className={errors.actualHours ? "border-destructive" : ""}
-              />
-              {errors.actualHours && <p className="text-sm text-destructive">{errors.actualHours}</p>}
-              {targetLog?.planned_hours && (
-                <p className="text-xs text-muted-foreground">
-                  Planned hours from target: {targetLog.planned_hours}h
-                </p>
-              )}
+        {/* Manpower & Hours */}
+        <div className="space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground">Manpower & Hours</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">M Power Actual *</Label>
+              <Input type="number" min="1" value={mPowerActual} onChange={(e) => setMPowerActual(e.target.value)} placeholder="0" className={`h-10 ${errors.mPowerActual ? "border-destructive" : ""}`} />
+              {errors.mPowerActual && <p className="text-xs text-destructive">{errors.mPowerActual}</p>}
             </div>
-          </CardContent>
-        </Card>
-
-        {/* OT Hours & Manpower */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              Overtime
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>OT Hours Actual</Label>
-                <Input
-                  type="number"
-                  step="0.5"
-                  value={otHoursActual}
-                  onChange={(e) => setOtHoursActual(e.target.value)}
-                  placeholder="0"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>OT Manpower Actual</Label>
-                <Input
-                  type="number"
-                  value={otManpowerActual}
-                  onChange={(e) => setOtManpowerActual(e.target.value)}
-                  placeholder="0"
-                />
-              </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Actual Hours Worked *</Label>
+              <Input type="number" step="0.5" min="0.5" max="24" value={actualHours} onChange={(e) => setActualHours(e.target.value)} placeholder={targetLog?.planned_hours ? `Planned: ${targetLog.planned_hours}h` : "e.g. 8"} className={`h-10 ${errors.actualHours ? "border-destructive" : ""}`} />
+              {errors.actualHours && <p className="text-xs text-destructive">{errors.actualHours}</p>}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">OT Hours Actual</Label>
+              <Input type="number" step="0.5" value={otHoursActual} onChange={(e) => setOtHoursActual(e.target.value)} placeholder="0" className="h-10" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">OT Manpower Actual</Label>
+              <Input type="number" value={otManpowerActual} onChange={(e) => setOtManpowerActual(e.target.value)} placeholder="0" className="h-10" />
+            </div>
+          </div>
+        </div>
 
         {/* Order Progress - appears when Carton has value */}
         {selectedWorkOrder && processValues.carton && parseInt(processValues.carton) > 0 && (
@@ -742,7 +647,7 @@ export default function FinishingDailyOutput() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Order Qty:</span>
                     <p className="text-lg font-bold">{selectedWorkOrder.order_qty.toLocaleString()}</p>
@@ -753,7 +658,7 @@ export default function FinishingDailyOutput() {
                   </div>
                 </div>
                 <div className="border-t pt-3">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">Today's Poly Entry:</span>
                       <p className="text-lg font-bold text-primary font-mono">+{parseInt(processValues.poly).toLocaleString()}</p>
@@ -800,46 +705,24 @@ export default function FinishingDailyOutput() {
           </Card>
         )}
 
+        <div className="border-t border-border/40" />
+
         {/* Remarks */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Notes (Optional)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Textarea
-              value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
-              placeholder="Any notes about today's production..."
-              rows={3}
-            />
-          </CardContent>
-        </Card>
-
-        {/* Submit Button */}
-        <div className="mt-6 pb-2">
-          <Button type="submit" className="w-full h-12 text-base font-medium" disabled={submitting}>
-            {submitting ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                {isEditing ? "Updating..." : "Submitting..."}
-              </>
-            ) : (
-              isEditing ? "Update End-of-Day Output" : "Submit End-of-Day Output"
-            )}
-          </Button>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">Remarks</Label>
+          <Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Any notes about today's production..." rows={2} />
         </div>
-      </form>
-
-      {/* Link to hourly archive */}
-      <div className="mt-6 text-center">
-        <Button 
-          variant="link" 
-          className="text-muted-foreground"
-          onClick={() => navigate("/finishing/hourly-archive")}
-        >
-          View Hourly Log (Archive)
-        </Button>
       </div>
+
+        {/* Submit */}
+        <Button type="submit" className="w-full h-11 font-semibold mt-5" disabled={submitting}>
+          {submitting ? (
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {isEditing ? "Updating..." : "Submitting..."}</>
+          ) : (
+            isEditing ? "Update End-of-Day Output" : "Submit End-of-Day Output"
+          )}
+        </Button>
+      </form>
     </div>
   );
 }

@@ -69,9 +69,9 @@ export function NotificationBell() {
       case "daily_summary":
         return "/insights";
 
-      // Cutting handoff → Cutting handoffs page for sewing workers, today for admins
+      // Cutting handoff → Cutting handoffs page
       case "cutting_handoff":
-        return "/today";
+        return "/sewing/cutting-handoffs";
 
       // Work order updates → Work orders page
       case "work_order_updates":

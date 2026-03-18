@@ -220,11 +220,16 @@ export default function FinishingMySubmissions() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="py-3 md:py-4 lg:py-6 space-y-5 md:space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <FileText className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold">My Finishing Submissions</h1>
+          <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
+            <FileText className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+          </div>
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold">My Submissions</h1>
+            <p className="text-sm text-muted-foreground">Your finishing targets and end of day reports</p>
+          </div>
         </div>
         {timeUntilCutoff && (
           <Badge variant="outline" className="gap-1">
@@ -253,11 +258,11 @@ export default function FinishingMySubmissions() {
         <TabsContent value={activeTab} className="mt-6 space-y-6">
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
+            <Card className="bg-gradient-to-br from-violet-50 via-white to-violet-50/50 border-violet-200/60 dark:border-violet-800/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
               <CardContent className="pt-6">
                 <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-full bg-violet-100 dark:bg-violet-900/30">
-                    <FileText className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                  <div className="p-3 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg shadow-violet-500/25 group-hover:shadow-violet-500/40 transition-shadow">
+                    <FileText className="h-5 w-5 text-white" />
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">This Week</p>
@@ -267,11 +272,11 @@ export default function FinishingMySubmissions() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-gradient-to-br from-violet-50 via-white to-violet-50/50 border-violet-200/60 dark:border-violet-800/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
               <CardContent className="pt-6">
                 <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-full bg-violet-100 dark:bg-violet-900/30">
-                    <Clock className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                  <div className="p-3 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg shadow-violet-500/25 group-hover:shadow-violet-500/40 transition-shadow">
+                    <Clock className="h-5 w-5 text-white" />
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Total Pcs (Week)</p>
@@ -281,11 +286,11 @@ export default function FinishingMySubmissions() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-gradient-to-br from-violet-50 via-white to-violet-50/50 border-violet-200/60 dark:border-violet-800/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
               <CardContent className="pt-6">
                 <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-full bg-violet-100 dark:bg-violet-900/30">
-                    <TrendingUp className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                  <div className="p-3 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg shadow-violet-500/25 group-hover:shadow-violet-500/40 transition-shadow">
+                    <TrendingUp className="h-5 w-5 text-white" />
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Avg Per Day</p>

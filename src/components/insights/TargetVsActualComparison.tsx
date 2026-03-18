@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { compareLineNames } from "@/lib/sort-lines";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUp, ArrowDown, Minus, TrendingUp, Package } from "lucide-react";
 import { SewingMachine } from "@/components/icons/SewingMachine";
@@ -124,15 +125,8 @@ export function TargetVsActualComparison({ allLines, targets, actuals, type, loa
     };
   });
 
-  // Sort by line name naturally (Line 1, Line 2, Line 10, etc.)
-  comparisonData.sort((a, b) => {
-    const aMatch = a.line_name.match(/(\d+)/);
-    const bMatch = b.line_name.match(/(\d+)/);
-    if (aMatch && bMatch) {
-      return parseInt(aMatch[1]) - parseInt(bMatch[1]);
-    }
-    return a.line_name.localeCompare(b.line_name);
-  });
+  // Sort by line name: numeric first, then alphabetic suffix
+  comparisonData.sort((a, b) => compareLineNames(a.line_name, b.line_name));
 
   if (loading) {
     return (
@@ -174,16 +168,19 @@ export function TargetVsActualComparison({ allLines, targets, actuals, type, loa
     );
   }
 
-  // Calculate totals
-  const totals = comparisonData.reduce(
-    (acc, row) => ({
-      targetOutput: acc.targetOutput + (targetIsDaily ? row.targetPerHour : row.targetPerHour * 8),
-      actualOutput: acc.actualOutput + row.actualOutput,
-      plannedManpower: acc.plannedManpower + row.plannedManpower,
-      actualManpower: acc.actualManpower + row.actualManpower,
-    }),
-    { targetOutput: 0, actualOutput: 0, plannedManpower: 0, actualManpower: 0 }
-  );
+  // Calculate totals — only include lines that have actual EOD data
+  // (target-only submissions should not inflate the target total)
+  const totals = comparisonData
+    .filter(row => row.hasActual)
+    .reduce(
+      (acc, row) => ({
+        targetOutput: acc.targetOutput + (targetIsDaily ? row.targetPerHour : row.targetPerHour * 8),
+        actualOutput: acc.actualOutput + row.actualOutput,
+        plannedManpower: acc.plannedManpower + row.plannedManpower,
+        actualManpower: acc.actualManpower + row.actualManpower,
+      }),
+      { targetOutput: 0, actualOutput: 0, plannedManpower: 0, actualManpower: 0 }
+    );
 
   const overallPerformance = calculatePerformance(totals.actualOutput, totals.targetOutput);
 
