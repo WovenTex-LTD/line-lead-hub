@@ -233,73 +233,57 @@ export default function SetupHome() {
       {/* ═══ Quick Actions ═══ */}
       <div className="space-y-4">
         <Link to="/setup/factory">
-          <div className="group flex items-center justify-between p-5 rounded-xl border border-border/50 hover:border-border bg-card hover:bg-muted/20 transition-all duration-200 cursor-pointer">
-            <div className="flex items-center gap-4">
-              <div className="h-11 w-11 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/20 flex items-center justify-center shrink-0 group-hover:shadow-lg transition-shadow">
-                <Rows3 className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold">Add Lines, Units & Floors</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Set up your production lines and organize by unit and floor</p>
-              </div>
+          <div className="group flex items-center gap-4 p-4 sm:p-5 rounded-xl border border-border/50 hover:border-border bg-card hover:bg-muted/20 transition-all duration-200 cursor-pointer">
+            <div className="h-11 w-11 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/20 flex items-center justify-center shrink-0 group-hover:shadow-lg transition-shadow">
+              <Rows3 className="h-5 w-5 text-white" />
             </div>
-            <div className="flex items-center gap-3 shrink-0">
-              <span className="text-xs font-mono font-semibold text-muted-foreground">{stats.activeLinesCount} lines &middot; {stats.unitsCount} units &middot; {stats.floorsCount} floors</span>
-              <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-semibold">Add Lines, Units & Floors</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Set up your production lines and organize by unit and floor</p>
+              <p className="text-xs font-mono font-semibold text-muted-foreground mt-1.5">{stats.activeLinesCount} lines &middot; {stats.unitsCount} units &middot; {stats.floorsCount} floors</p>
             </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors shrink-0" />
           </div>
         </Link>
 
         <Link to="/setup/work-orders">
-          <div className="group flex items-center justify-between p-5 rounded-xl border border-border/50 hover:border-border bg-card hover:bg-muted/20 transition-all duration-200 cursor-pointer">
-            <div className="flex items-center gap-4">
-              <div className="h-11 w-11 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 shadow-md shadow-indigo-500/20 flex items-center justify-center shrink-0 group-hover:shadow-lg transition-shadow">
-                <Receipt className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold">Add Work Orders</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Create and manage purchase orders, assign to lines, import from CSV</p>
-              </div>
+          <div className="group flex items-center gap-4 p-4 sm:p-5 rounded-xl border border-border/50 hover:border-border bg-card hover:bg-muted/20 transition-all duration-200 cursor-pointer">
+            <div className="h-11 w-11 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 shadow-md shadow-indigo-500/20 flex items-center justify-center shrink-0 group-hover:shadow-lg transition-shadow">
+              <Receipt className="h-5 w-5 text-white" />
             </div>
-            <div className="flex items-center gap-3 shrink-0">
-              <span className="text-xs font-mono font-semibold text-muted-foreground">{stats.activeWorkOrdersCount} active of {stats.workOrdersCount}</span>
-              <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-semibold">Add Work Orders</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Create and manage purchase orders, assign to lines, import from CSV</p>
+              <p className="text-xs font-mono font-semibold text-muted-foreground mt-1.5">{stats.activeWorkOrdersCount} active of {stats.workOrdersCount}</p>
             </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors shrink-0" />
           </div>
         </Link>
 
         <Link to="/setup/dropdowns">
-          <div className="group flex items-center justify-between p-5 rounded-xl border border-border/50 hover:border-border bg-card hover:bg-muted/20 transition-all duration-200 cursor-pointer">
-            <div className="flex items-center gap-4">
-              <div className="h-11 w-11 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 shadow-md shadow-amber-500/20 flex items-center justify-center shrink-0 group-hover:shadow-lg transition-shadow">
-                <ListOrdered className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold">Edit Dropdown Settings</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Configure stages, progress options, blocker types, and milestones</p>
-              </div>
+          <div className="group flex items-center gap-4 p-4 sm:p-5 rounded-xl border border-border/50 hover:border-border bg-card hover:bg-muted/20 transition-all duration-200 cursor-pointer">
+            <div className="h-11 w-11 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 shadow-md shadow-amber-500/20 flex items-center justify-center shrink-0 group-hover:shadow-lg transition-shadow">
+              <ListOrdered className="h-5 w-5 text-white" />
             </div>
-            <div className="flex items-center gap-3 shrink-0">
-              <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-semibold">Edit Dropdown Settings</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Configure stages, progress options, blocker types, and milestones</p>
             </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors shrink-0" />
           </div>
         </Link>
 
         {isDevFactory && (
           <Link to="/setup/error-logs">
-            <div className="group flex items-center justify-between p-5 rounded-xl border border-border/50 hover:border-border bg-card hover:bg-muted/20 transition-all duration-200 cursor-pointer">
-              <div className="flex items-center gap-4">
-                <div className="h-11 w-11 rounded-lg bg-gradient-to-br from-red-500 to-rose-600 shadow-md shadow-red-500/20 flex items-center justify-center shrink-0 group-hover:shadow-lg transition-shadow">
-                  <Bug className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold">Error Logs</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">View and monitor application errors</p>
-                </div>
+            <div className="group flex items-center gap-4 p-4 sm:p-5 rounded-xl border border-border/50 hover:border-border bg-card hover:bg-muted/20 transition-all duration-200 cursor-pointer">
+              <div className="h-11 w-11 rounded-lg bg-gradient-to-br from-red-500 to-rose-600 shadow-md shadow-red-500/20 flex items-center justify-center shrink-0 group-hover:shadow-lg transition-shadow">
+                <Bug className="h-5 w-5 text-white" />
               </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold">Error Logs</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">View and monitor application errors</p>
               </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors shrink-0" />
             </div>
           </Link>
         )}
