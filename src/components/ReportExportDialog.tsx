@@ -388,7 +388,7 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
             f.threadCutting, f.insideCheck, f.buttoning, f.iron, f.getUp,
             adjPoly, adjCarton, f.manpower, f.hours, f.otManpower, f.otHours,
             rate ? cu : "",
-            cm ? "$" + cm.toFixed(2) : "",
+            cmDz ? "$" + cmDz.toFixed(2) : "",
             rev > 0 ? Math.round(rev * 100) / 100 : "",
           ]);
         });
@@ -537,7 +537,7 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
         if (!byLine[ln]) byLine[ln] = [];
         byLine[ln].push(s);
       });
-      const lineKeys = Object.keys(byLine).sort((a, b) => cmpLines(a, b));
+      const lineKeys = Object.keys(byLine).sort((a, b) => cmpLines2(a, b));
       let deptOutput = 0, deptReject = 0, deptRework = 0, deptCostN = 0, deptCostU = 0;
 
       lineKeys.forEach(lineName => {
@@ -645,7 +645,7 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
             adjPoly, adjCarton,
             f.m_power_actual, f.actual_hours, f.ot_manpower_actual, f.ot_hours_actual,
             hcRate ? cu : "",
-            cm ? "$" + cm.toFixed(2) : "",
+            cmDz ? "$" + cmDz.toFixed(2) : "",
             rev > 0 ? Math.round(rev * 100) / 100 : "",
           ]);
         });

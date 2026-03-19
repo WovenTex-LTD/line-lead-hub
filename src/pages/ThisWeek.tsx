@@ -821,8 +821,8 @@ export default function ThisWeek() {
   return (
     <div className="py-4 lg:py-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-3 mr-auto">
           <div className="h-10 w-10 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0">
             <Calendar className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
           </div>
