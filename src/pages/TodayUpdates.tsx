@@ -1168,26 +1168,24 @@ export default function TodayUpdates() {
           </div>
 
           {/* Revenue / Cost / Profit cards */}
-          <div className="grid grid-cols-3 gap-2 md:gap-3">
-            <Card className="relative overflow-hidden border-emerald-200/60 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 dark:from-emerald-950/40 dark:via-card dark:to-emerald-950/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-              <CardContent className="p-2.5 md:p-4 relative">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-emerald-500/8 to-transparent rounded-bl-full" />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-3">
+            <Card className="relative overflow-hidden border-emerald-200/60 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 dark:from-emerald-950/40 dark:via-card dark:to-emerald-950/20 transition-all duration-300">
+              <CardContent className="p-3 md:p-4 relative">
                 <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Output Value</p>
-                <p className="font-mono text-sm md:text-2xl font-bold text-emerald-700 dark:text-emerald-400 tracking-tight truncate">
+                <p className="font-mono text-lg md:text-2xl font-bold text-emerald-700 dark:text-emerald-400 tracking-tight">
                   ${financials.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5 truncate">Sewing output</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Sewing output</p>
               </CardContent>
             </Card>
 
-            <Card className="relative overflow-hidden border-orange-200/60 dark:border-orange-800/40 bg-gradient-to-br from-orange-50 via-white to-orange-50/50 dark:from-orange-950/40 dark:via-card dark:to-orange-950/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-              <CardContent className="p-2.5 md:p-4 relative">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-orange-500/8 to-transparent rounded-bl-full" />
+            <Card className="relative overflow-hidden border-orange-200/60 dark:border-orange-800/40 bg-gradient-to-br from-orange-50 via-white to-orange-50/50 dark:from-orange-950/40 dark:via-card dark:to-orange-950/20 transition-all duration-300">
+              <CardContent className="p-3 md:p-4 relative">
                 <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Operating Cost</p>
-                <p className="font-mono text-sm md:text-2xl font-bold text-orange-600 dark:text-orange-400 tracking-tight truncate">
+                <p className="font-mono text-lg md:text-2xl font-bold text-orange-600 dark:text-orange-400 tracking-tight">
                   ${financials.totalCostUsd.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                <p className="text-[10px] text-muted-foreground mt-0.5">
                   {financials.costCurrency === 'BDT' && bdtToUsd
                     ? `৳${financials.totalCostNative.toLocaleString()}`
                     : 'All departments'}
@@ -1195,14 +1193,13 @@ export default function TodayUpdates() {
               </CardContent>
             </Card>
 
-            <Card className={`relative overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group ${financials.profit >= 0 ? 'border-emerald-200/60 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 dark:from-emerald-950/40 dark:via-card dark:to-emerald-950/20' : 'border-red-200/60 dark:border-red-800/40 bg-gradient-to-br from-red-50 via-white to-red-50/50 dark:from-red-950/40 dark:via-card dark:to-red-950/20'}`}>
-              <CardContent className="p-2.5 md:p-4 relative">
-                <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl ${financials.profit >= 0 ? 'from-emerald-500/8' : 'from-red-500/8'} to-transparent rounded-bl-full`} />
+            <Card className={`relative overflow-hidden transition-all duration-300 ${financials.profit >= 0 ? 'border-emerald-200/60 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 dark:from-emerald-950/40 dark:via-card dark:to-emerald-950/20' : 'border-red-200/60 dark:border-red-800/40 bg-gradient-to-br from-red-50 via-white to-red-50/50 dark:from-red-950/40 dark:via-card dark:to-red-950/20'}`}>
+              <CardContent className="p-3 md:p-4 relative">
                 <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Operating Margin</p>
-                <p className={`font-mono text-sm md:text-2xl font-bold tracking-tight truncate ${financials.profit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                <p className={`font-mono text-lg md:text-2xl font-bold tracking-tight ${financials.profit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                   {financials.profit >= 0 ? '+' : '-'}${Math.abs(financials.profit).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                <p className="text-[10px] text-muted-foreground mt-0.5">
                   {financials.margin !== 0 ? `${financials.margin}% margin` : '—'}
                 </p>
               </CardContent>

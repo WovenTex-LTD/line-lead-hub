@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDate, formatDateTimeInTimezone } from "@/lib/date-utils";
+import { useHeadcountCost } from "@/hooks/useHeadcountCost";
 import { toast } from "sonner";
 import {
   Scissors,
@@ -131,6 +132,7 @@ export function CuttingSubmissionView({ target, actual, open, onOpenChange, onEd
   const { factory } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { calculateEstimatedCost, getCurrencySymbol, isConfigured } = useHeadcountCost();
   const [deleteType, setDeleteType] = useState<"target" | "actual" | null>(null);
   const [deleting, setDeleting] = useState(false);
 
