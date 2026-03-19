@@ -807,7 +807,7 @@ export default function Finances() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           {/* PDF Report button */}
           <Button variant="outline" size="sm" onClick={() => setExportDialogOpen(true)} className="h-8 gap-1.5 text-xs border-violet-200 text-violet-700 hover:bg-violet-50 hover:text-violet-800 dark:border-violet-800 dark:text-violet-400 dark:hover:bg-violet-950/40">
             <FileDown className="h-3.5 w-3.5" />
@@ -826,7 +826,7 @@ export default function Finances() {
             <Button variant="outline" size="icon" className="h-7 w-7 rounded-lg" onClick={() => { setOffset(o => o - 1); setSelectedId(null); }}>
               <ChevronLeft className="h-3.5 w-3.5" />
             </Button>
-            <span className="text-xs font-medium min-w-[152px] text-center">{label}</span>
+            <span className="text-xs font-medium min-w-[140px] text-center">{label}</span>
             <Button variant="outline" size="icon" className="h-7 w-7 rounded-lg" onClick={() => { setOffset(o => o + 1); setSelectedId(null); }} disabled={isAtPresent}>
               <ChevronRight className="h-3.5 w-3.5" />
             </Button>
