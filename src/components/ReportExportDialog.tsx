@@ -388,7 +388,7 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
             f.threadCutting, f.insideCheck, f.buttoning, f.iron, f.getUp,
             adjPoly, adjCarton, f.manpower, f.hours, f.otManpower, f.otHours,
             rate ? cu : "",
-            cm ? "$" + cm.toFixed(2) : "",
+            cmDz ? "$" + cmDz.toFixed(2) : "",
             rev > 0 ? Math.round(rev * 100) / 100 : "",
           ]);
         });
