@@ -645,7 +645,7 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
             adjPoly, adjCarton,
             f.m_power_actual, f.actual_hours, f.ot_manpower_actual, f.ot_hours_actual,
             hcRate ? cu : "",
-            cm ? "$" + cm.toFixed(2) : "",
+            cmDz ? "$" + cmDz.toFixed(2) : "",
             rev > 0 ? Math.round(rev * 100) / 100 : "",
           ]);
         });
