@@ -125,7 +125,7 @@ export default function WorkOrdersView() {
       <POControlRoomKPIs kpis={kpis} />
 
       {/* Search + Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+      <div className="flex gap-2 items-center">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -144,7 +144,7 @@ export default function WorkOrdersView() {
           onClick={() => setFilterDrawerOpen(true)}
         >
           <SlidersHorizontal className="h-4 w-4" />
-          Filters
+          <span className="hidden sm:inline">Filters</span>
           {activeFilterCount > 0 && (
             <Badge
               variant="secondary"
