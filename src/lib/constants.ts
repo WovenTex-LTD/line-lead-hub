@@ -37,6 +37,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   finishing: 'Finishing',
   buyer: 'Buyer / Client',
   superadmin: 'Super Admin',
+  gate_officer: 'Gate Officer',
 };
 
 // Blocker impact levels
