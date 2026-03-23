@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Check, AlertTriangle, Info, CheckCircle2, Clock, Trash2, Settings, Scissors, FileText, Target } from "lucide-react";
+import { Bell, Check, AlertTriangle, Info, CheckCircle2, Clock, Trash2, Settings, Scissors, FileText, Target, Truck } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 
@@ -76,6 +76,19 @@ export function NotificationBell() {
       // Work order updates → Work orders page
       case "work_order_updates":
         return "/work-orders";
+
+      // Dispatch notifications
+      case "dispatch_submitted": {
+        const dispatchId = data?.dispatch_request_id as string | undefined;
+        if (dispatchId) return `/dispatch/review/${dispatchId}`;
+        return "/dispatch/approvals";
+      }
+      case "dispatch_approved":
+      case "dispatch_rejected": {
+        const dispatchId = data?.dispatch_request_id as string | undefined;
+        if (dispatchId) return `/dispatch/pass/${dispatchId}`;
+        return "/dispatch/history";
+      }
 
       // Shift reminders → Dashboard (home/overview)
       case "shift_reminder":
@@ -223,6 +236,12 @@ export function NotificationBell() {
       case "po_milestone":
       case "po_status_change":
         return <FileText className="h-4 w-4 text-primary" />;
+      case "dispatch_submitted":
+        return <Truck className="h-4 w-4 text-amber-500" />;
+      case "dispatch_approved":
+        return <Truck className="h-4 w-4 text-emerald-500" />;
+      case "dispatch_rejected":
+        return <Truck className="h-4 w-4 text-destructive" />;
       default:
         return <Info className="h-4 w-4 text-muted-foreground" />;
     }

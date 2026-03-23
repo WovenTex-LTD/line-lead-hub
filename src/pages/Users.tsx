@@ -118,7 +118,7 @@ export default function UsersPage() {
         if (!isFactoryScoped) return;
 
         const existingRole = roleMap.get(r.user_id);
-        const roleOrder = ['owner', 'admin', 'supervisor', 'sewing', 'finishing', 'storage', 'cutting', 'buyer', 'worker'];
+        const roleOrder = ['owner', 'admin', 'supervisor', 'sewing', 'finishing', 'storage', 'cutting', 'gate_officer', 'buyer', 'worker'];
         if (!existingRole || roleOrder.indexOf(r.role) < roleOrder.indexOf(existingRole)) {
           roleMap.set(r.user_id, r.role);
         }
@@ -194,6 +194,7 @@ export default function UsersPage() {
       case 'cutting': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-700/40';
       case 'storage': return 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300 border border-orange-200/60 dark:border-orange-700/40';
       case 'buyer': return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300 border border-cyan-200/60 dark:border-cyan-700/40';
+      case 'gate_officer': return 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300 border border-orange-200/60 dark:border-orange-700/40';
       default: return 'bg-slate-100 text-slate-600 dark:bg-slate-500/20 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700/40';
     }
   };

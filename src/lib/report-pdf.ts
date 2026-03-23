@@ -2,6 +2,7 @@ import { jsPDF } from "jspdf";
 import { format } from "date-fns";
 import { effectivePoly } from "@/lib/finishing-utils";
 import { compareLineNames } from "@/lib/sort-lines";
+import type { DispatchRequest } from "@/types/dispatch";
 
 // ── Types ──
 
@@ -566,4 +567,307 @@ export function generateProductionReportPdf(input: ReportPdfInput) {
 
   const safePeriod = periodLabel.replace(/[^a-zA-Z0-9\-_ ]/g, "").replace(/\s+/g, "_");
   doc.save(`${reportType}_report_${safePeriod}.pdf`);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GATE PASS PDF
+// Returns Uint8Array for uploading directly to Supabase Storage.
+// The function is async so it can fetch the signature image from a URL.
+// ══════════════════════════════════════════════════════════════════════════════
+
+interface GatePassPdfInput {
+  request: DispatchRequest;
+  approverName: string;
+  signatureUrl: string;       // public or signed URL to the signature image
+  factoryName: string;
+  woData?: {
+    order_qty: number | null;
+    total_dispatched: number;
+  } | null;
+}
+
+async function fetchImageAsDataUrl(url: string): Promise<string> {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+export async function generateGatePassPDF({
+  request,
+  approverName,
+  signatureUrl,
+  factoryName,
+  woData,
+}: GatePassPdfInput): Promise<Uint8Array> {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pw = doc.internal.pageSize.getWidth();
+  const ph = doc.internal.pageSize.getHeight();
+  const m = 15;
+  const cw = pw - m * 2;
+  let y = m;
+
+  const fN = (v: number | null | undefined) =>
+    v != null ? v.toLocaleString() : "—";
+
+  // ── Fetch signature image ─────────────────────────────────────────────
+  let sigDataUrl: string | null = null;
+  try {
+    sigDataUrl = await fetchImageAsDataUrl(signatureUrl);
+  } catch {
+    // If fetch fails, proceed without signature image
+    console.warn("Could not load signature image for gate pass PDF.");
+  }
+
+  // ── Header ────────────────────────────────────────────────────────────
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(0);
+  doc.text(factoryName.toUpperCase(), pw / 2, y, { align: "center" });
+  y += 7;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.setTextColor(30, 80, 180);
+  doc.text("GATE PASS", pw / 2, y, { align: "center" });
+  y += 5;
+
+  doc.setDrawColor(30, 80, 180);
+  doc.setLineWidth(0.8);
+  doc.line(m, y, pw - m, y);
+  y += 4;
+
+  // Document ID + generated timestamp
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(80);
+  doc.text(`Document ID: ${request.reference_number}`, m, y);
+  doc.text(
+    `Generated: ${format(new Date(), "MMM d, yyyy 'at' h:mm a")}`,
+    pw - m,
+    y,
+    { align: "right" }
+  );
+  y += 8;
+
+  // ── Shipment Details Table ────────────────────────────────────────────
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(0);
+  doc.text("SHIPMENT DETAILS", m, y);
+  y += 4;
+
+  doc.setDrawColor(200);
+  doc.setLineWidth(0.3);
+
+  const detailRows: [string, string][] = [
+    ["Reference No.", request.reference_number],
+    ["Date", format(new Date(request.submitted_at), "MMMM d, yyyy")],
+    ["Time", format(new Date(request.submitted_at), "h:mm a")],
+    ["PO Number", request.work_order?.po_number || "—"],
+    ["Style", request.style_name || "—"],
+    ["Buyer", request.buyer_name || "—"],
+    ["Dispatch Quantity", `${fN(request.dispatch_quantity)} pcs`],
+    ["Carton Count", request.carton_count ? `${request.carton_count} ctns` : "—"],
+    ["Destination", request.destination],
+    ["Truck / Vehicle No.", request.truck_number],
+    ["Driver Name", request.driver_name],
+    ["Driver NID", request.driver_nid || "—"],
+  ];
+  if (request.remarks) {
+    detailRows.push(["Remarks", request.remarks]);
+  }
+
+  const labelW = 55;
+  const valueW = cw - labelW;
+  const rowH = 6.5;
+
+  detailRows.forEach(([label, value], i) => {
+    const bg = i % 2 === 0 ? [248, 250, 252] : [255, 255, 255];
+    doc.setFillColor(bg[0], bg[1], bg[2]);
+    doc.rect(m, y, cw, rowH, "F");
+    doc.setDrawColor(220);
+    doc.rect(m, y, cw, rowH);
+
+    // Label cell
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(80);
+    doc.text(label, m + 2, y + rowH - 1.8);
+
+    // Value cell
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(0);
+    const displayValue = (value || "—").substring(0, 52);
+    doc.text(displayValue, m + labelW + 2, y + rowH - 1.8);
+
+    y += rowH;
+  });
+
+  y += 6;
+
+  // ── Production Cross-Reference ────────────────────────────────────────
+  if (woData && woData.order_qty != null) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(0);
+    doc.text("PRODUCTION CROSS-REFERENCE", m, y);
+    y += 4;
+
+    const remaining = woData.order_qty - woData.total_dispatched;
+    const afterThis = remaining - request.dispatch_quantity;
+
+    const xrefRows: [string, string][] = [
+      ["Order Quantity", `${fN(woData.order_qty)} pcs`],
+      ["Previously Dispatched", `${fN(woData.total_dispatched)} pcs`],
+      ["This Dispatch", `${fN(request.dispatch_quantity)} pcs`],
+      ["Remaining After This", `${fN(afterThis)} pcs`],
+    ];
+
+    xrefRows.forEach(([label, value], i) => {
+      const bg = i % 2 === 0 ? [240, 247, 255] : [255, 255, 255];
+      doc.setFillColor(bg[0], bg[1], bg[2]);
+      doc.rect(m, y, cw, rowH, "F");
+      doc.setDrawColor(200, 220, 240);
+      doc.rect(m, y, cw, rowH);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.setTextColor(80);
+      doc.text(label, m + 2, y + rowH - 1.8);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(0);
+      doc.text(value, m + labelW + 2, y + rowH - 1.8);
+
+      y += rowH;
+    });
+
+    y += 6;
+  }
+
+  // ── Submission Record ─────────────────────────────────────────────────
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(0);
+  doc.text("SUBMISSION RECORD", m, y);
+  y += 4;
+
+  const subRows: [string, string][] = [
+    ["Submitted By", request.submitter?.full_name || "Gate Officer"],
+    ["Submitted At", format(new Date(request.submitted_at), "MMMM d, yyyy 'at' h:mm a")],
+  ];
+  subRows.forEach(([label, value], i) => {
+    const bg = i % 2 === 0 ? [248, 250, 252] : [255, 255, 255];
+    doc.setFillColor(bg[0], bg[1], bg[2]);
+    doc.rect(m, y, cw, rowH, "F");
+    doc.setDrawColor(220);
+    doc.rect(m, y, cw, rowH);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(80);
+    doc.text(label, m + 2, y + rowH - 1.8);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(0);
+    doc.text(value, m + labelW + 2, y + rowH - 1.8);
+    y += rowH;
+  });
+
+  y += 6;
+
+  // ── Approval Record + Signature ───────────────────────────────────────
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(0);
+  doc.text("APPROVAL RECORD", m, y);
+  y += 4;
+
+  const approvalRows: [string, string][] = [
+    ["Approved By", approverName],
+    [
+      "Approved At",
+      request.reviewed_at
+        ? format(new Date(request.reviewed_at), "MMMM d, yyyy 'at' h:mm a")
+        : format(new Date(), "MMMM d, yyyy 'at' h:mm a"),
+    ],
+  ];
+  approvalRows.forEach(([label, value], i) => {
+    const bg = i % 2 === 0 ? [240, 255, 244] : [255, 255, 255];
+    doc.setFillColor(bg[0], bg[1], bg[2]);
+    doc.rect(m, y, cw, rowH, "F");
+    doc.setDrawColor(200, 240, 210);
+    doc.rect(m, y, cw, rowH);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(80);
+    doc.text(label, m + 2, y + rowH - 1.8);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(0);
+    doc.text(value, m + labelW + 2, y + rowH - 1.8);
+    y += rowH;
+  });
+
+  // Signature image
+  y += 4;
+  const sigBoxH = 28;
+  const sigBoxW = 70;
+  doc.setDrawColor(180);
+  doc.setLineWidth(0.3);
+  doc.rect(m, y, sigBoxW, sigBoxH);
+
+  if (sigDataUrl) {
+    try {
+      doc.addImage(sigDataUrl, "PNG", m + 2, y + 2, sigBoxW - 4, sigBoxH - 8);
+    } catch {
+      // If image embedding fails, show placeholder text
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(7);
+      doc.setTextColor(120);
+      doc.text("Signature on file", m + sigBoxW / 2, y + sigBoxH / 2, { align: "center" });
+    }
+  } else {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(7);
+    doc.setTextColor(120);
+    doc.text("Signature on file", m + sigBoxW / 2, y + sigBoxH / 2, { align: "center" });
+  }
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(80);
+  doc.text("Authorised Signatory", m + 2, y + sigBoxH - 1);
+
+  y += sigBoxH + 10;
+
+  // ── Footer ────────────────────────────────────────────────────────────
+  doc.setDrawColor(30, 80, 180);
+  doc.setLineWidth(0.5);
+  doc.line(m, ph - 18, pw - m, ph - 18);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(80);
+  doc.text(`Document ID: ${request.reference_number}`, m, ph - 13);
+  doc.text("Generated by ProductionPortal", pw / 2, ph - 13, { align: "center" });
+  doc.text(factoryName, pw - m, ph - 13, { align: "right" });
+
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(6.5);
+  doc.setTextColor(120);
+  doc.text(
+    "This is a system-generated document. It is valid only with an authorised signature.",
+    pw / 2,
+    ph - 8,
+    { align: "center" }
+  );
+
+  return new Uint8Array(doc.output("arraybuffer") as ArrayBuffer);
 }

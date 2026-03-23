@@ -67,6 +67,12 @@ const CuttingAllSubmissions = lazy(() => import("./pages/CuttingAllSubmissions")
 const CuttingHandoffs = lazy(() => import("./pages/CuttingHandoffs"));
 const ErrorLogs = lazy(() => import("./pages/ErrorLogs"));
 const Finances = lazy(() => import("./pages/Finances"));
+const GateDispatchForm = lazy(() => import("./pages/GateDispatchForm"));
+const MyDispatchHistory = lazy(() => import("./pages/MyDispatchHistory"));
+const PendingApprovals = lazy(() => import("./pages/PendingApprovals"));
+const DispatchReview = lazy(() => import("./pages/DispatchReview"));
+const AllDispatches = lazy(() => import("./pages/AllDispatches"));
+const GatePassView = lazy(() => import("./pages/GatePassView"));
 const BuyerDashboard = lazy(() => import("./pages/buyer/BuyerDashboard"));
 const BuyerTodayUpdates = lazy(() => import("./pages/buyer/BuyerTodayUpdates"));
 const BuyerSubmissions = lazy(() => import("./pages/buyer/BuyerSubmissions"));
@@ -207,6 +213,14 @@ function AppRoutes() {
         {/* Sewing module routes */}
         <Route path="/sewing/cutting-handoffs" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker', 'sewing']}><CuttingHandoffs /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/sewing/my-submissions" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker', 'sewing']}><SewingMySubmissions /></ProtectedRoute></SubscriptionGate>} />
+        {/* Gate Dispatch module routes */}
+        <Route path="/dispatch/new" element={<SubscriptionGate><ProtectedRoute allowedRoles={['gate_officer']}><GateDispatchForm /></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/dispatch/edit/:id" element={<SubscriptionGate><ProtectedRoute allowedRoles={['gate_officer']}><GateDispatchForm /></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/dispatch/history" element={<SubscriptionGate><ProtectedRoute allowedRoles={['gate_officer']}><MyDispatchHistory /></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/dispatch/approvals" element={<SubscriptionGate><ProtectedRoute adminOnly><PendingApprovals /></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/dispatch/review/:id" element={<SubscriptionGate><ProtectedRoute adminOnly><DispatchReview /></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/dispatch/all" element={<SubscriptionGate><ProtectedRoute adminOnly><AllDispatches /></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/dispatch/pass/:id" element={<SubscriptionGate><ProtectedRoute allowedRoles={['gate_officer', 'admin', 'owner']}><GatePassView /></ProtectedRoute></SubscriptionGate>} />
       </Route>
 
       {/* Buyer portal routes */}

@@ -18,6 +18,7 @@ export const ROLES = {
   FINISHING: 'finishing',
   BUYER: 'buyer',
   SUPERADMIN: 'superadmin',
+  GATE_OFFICER: 'gate_officer',
 } as const;
 
 export type AppRole = typeof ROLES[keyof typeof ROLES];
@@ -36,6 +37,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   finishing: 'Finishing',
   buyer: 'Buyer / Client',
   superadmin: 'Super Admin',
+  gate_officer: 'Gate Officer',
 };
 
 // Blocker impact levels
@@ -227,6 +229,8 @@ export const NAV_ITEMS = {
     { path: '/blockers', label: 'Blockers', icon: 'AlertTriangle' },
     { path: '/insights', label: 'Insights', icon: 'TrendingUp' },
     { path: '/finances', label: 'Finances', icon: 'DollarSign' },
+    { path: '/dispatch/approvals', label: 'Dispatch Approvals', icon: 'CheckSquare' },
+    { path: '/dispatch/all', label: 'All Dispatches', icon: 'Archive' },
     { path: '/setup/knowledge-base', label: 'Knowledge Base', icon: 'BookOpen' },
     { path: '/setup/chat-analytics', label: 'Chat Analytics', icon: 'BarChart3' },
     { path: '/setup/error-logs', label: 'Error Logs', icon: 'Bug' },
@@ -245,6 +249,8 @@ export const NAV_ITEMS = {
     { path: '/blockers', label: 'Blockers', icon: 'AlertTriangle' },
     { path: '/insights', label: 'Insights', icon: 'TrendingUp' },
     { path: '/finances', label: 'Finances', icon: 'DollarSign' },
+    { path: '/dispatch/approvals', label: 'Dispatch Approvals', icon: 'CheckSquare' },
+    { path: '/dispatch/all', label: 'All Dispatches', icon: 'Archive' },
     { path: '/setup/knowledge-base', label: 'Knowledge Base', icon: 'BookOpen' },
     { path: '/setup/chat-analytics', label: 'Chat Analytics', icon: 'BarChart3' },
     { path: '/setup/error-logs', label: 'Error Logs', icon: 'Bug' },
@@ -286,5 +292,10 @@ export const NAV_ITEMS = {
     { path: '/buyer/today', label: 'Today Updates', icon: 'CalendarDays' },
     { path: '/buyer/submissions', label: 'All Submissions', icon: 'FileText' },
     { path: '/preferences', label: 'My Preferences', icon: 'UserCog' },
+  ],
+  gate_officer: [
+    { path: '/dispatch/new', label: 'New Dispatch', icon: 'Truck' },
+    { path: '/dispatch/history', label: 'My Dispatches', icon: 'ClipboardList' },
+    { path: '/preferences', label: 'My Preferences', icon: 'UserCog', bottom: true },
   ],
 };

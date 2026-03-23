@@ -44,12 +44,19 @@ export function SubscriptionGate({ children }: SubscriptionGateProps) {
     }
   };
 
-  // If user was invited to an existing factory (has factory_id but is not the owner), 
+  // If user was invited to an existing factory (has factory_id but is not the owner),
   // they don't need to pay - the factory owner pays
   // Admins who are invited should also have access
   const isOwner = hasRole('owner');
   const isAdmin = hasRole('admin');
+  const isGateOfficer = hasRole('gate_officer');
   const isInvitedUser = profile?.factory_id && !isOwner;
+
+  // Gate officers are operational users — never block them with billing screens.
+  // Their factory's subscription is the owner's responsibility.
+  if (isGateOfficer && profile?.factory_id) {
+    return <>{children}</>;
+  }
 
   // Still loading
   if (authLoading || subLoading) {

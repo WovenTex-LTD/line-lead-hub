@@ -6,6 +6,8 @@ import { useTheme } from "next-themes";
 import { supabase } from "@/integrations/supabase/client";
 import { NotificationPreferences } from "@/components/NotificationPreferences";
 import { TerminateAccountDialog } from "@/components/TerminateAccountDialog";
+import { SignatureModal } from "@/components/SignatureModal";
+import { useUserSignature } from "@/hooks/useUserSignature";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -13,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Loader2, UserCog, Bell, Palette, Globe, Sun, Moon, Monitor, AlertTriangle, User, KeyRound, Eye, EyeOff } from "lucide-react";
+import { Loader2, UserCog, Bell, Palette, Globe, Sun, Moon, Monitor, AlertTriangle, User, KeyRound, Eye, EyeOff, PenLine, Trash2 } from "lucide-react";
 
 type Language = 'en' | 'bn' | 'zh';
 
@@ -25,7 +27,7 @@ const LANGUAGES = [
 
 export default function Preferences() {
   const { t, i18n } = useTranslation();
-  const { user, profile, loading, factory } = useAuth();
+  const { user, profile, loading, factory, isAdminOrHigher } = useAuth();
 
   const location = useLocation();
   const notificationsRef = useRef<HTMLDivElement>(null);
@@ -47,6 +49,8 @@ export default function Preferences() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [editingPassword, setEditingPassword] = useState(false);
+  const [sigModalOpen, setSigModalOpen] = useState(false);
+  const { signature, deleteSignature } = useUserSignature();
 
   useEffect(() => {
     if (profile) {
@@ -245,6 +249,71 @@ export default function Preferences() {
         </Card>
       </div>
 
+      {/* ═══ Approval Signature (admin/owner only) ═══ */}
+      {isAdminOrHigher() && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <PenLine className="h-4 w-4 text-primary" />
+            </div>
+            <h2 className="text-lg font-semibold tracking-tight">Approval Signature</h2>
+            <div className="flex-1 h-px bg-gradient-to-r from-primary/20 to-transparent ml-2" />
+          </div>
+
+          <Card className="border-border/50">
+            <CardContent className="pt-5">
+              {signature ? (
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-border bg-white p-4">
+                    <img
+                      src={signature.signature_url}
+                      alt="Your approval signature"
+                      className="w-full max-h-32 object-contain"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    This signature is embedded in approved gate pass PDFs.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setSigModalOpen(true)}>
+                      <PenLine className="h-3.5 w-3.5 mr-1.5" />
+                      Update Signature
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={async () => {
+                        try {
+                          await deleteSignature.mutateAsync();
+                          toast.success("Signature removed.");
+                        } catch {
+                          toast.error("Failed to remove signature.");
+                        }
+                      }}
+                      disabled={deleteSignature.isPending}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    No signature registered. Register your signature to approve gate dispatch requests. It will be embedded in the signed gate pass PDF.
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => setSigModalOpen(true)}>
+                    <PenLine className="h-3.5 w-3.5 mr-1.5" />
+                    Register Signature
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* ═══ Display ═══ */}
       <div className="space-y-4">
         <div className="flex items-center gap-3">
@@ -354,6 +423,8 @@ export default function Preferences() {
           <TerminateAccountDialog />
         </div>
       </div>
+
+      <SignatureModal open={sigModalOpen} onOpenChange={setSigModalOpen} />
     </div>
   );
 }

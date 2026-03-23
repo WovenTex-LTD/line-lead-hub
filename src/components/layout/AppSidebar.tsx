@@ -34,6 +34,9 @@ import {
   BookOpen,
   BarChart3,
   DollarSign,
+  Truck,
+  CheckSquare,
+  Archive,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -59,6 +62,7 @@ import { isRunningFromDMG } from "@/lib/dmg-detection";
 import { DMGWarningModal } from "@/components/DMGWarningModal";
 import { useOnboardingChecklist } from "@/hooks/useOnboardingChecklist";
 import { useTourContext } from "@/contexts/TourContext";
+import { usePendingApprovals } from "@/hooks/useDispatchRequests";
 import logoSvg from "@/assets/logo.svg";
 
 // Web fallback version (desktop uses the runtime version from the installed app)
@@ -94,6 +98,9 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   BookOpen,
   BarChart3,
   DollarSign,
+  Truck,
+  CheckSquare,
+  Archive,
 };
 
 const navLabelKeys: Record<string, string> = {
@@ -174,6 +181,9 @@ export function AppSidebar() {
   const onboarding = useOnboardingChecklist(onboardingProfile);
   const setupRemaining = onboarding.totalCount - onboarding.completedCount;
   const showSetupBadge = isAdminOrOwner && !onboarding.loading && !onboarding.dismissed && !onboarding.allComplete && onboarding.totalCount > 0;
+
+  const { data: pendingApprovals } = usePendingApprovals();
+  const pendingDispatchCount = isAdminOrOwner ? (pendingApprovals?.length ?? 0) : 0;
 
   useEffect(() => {
     let cancelled = false;
@@ -281,10 +291,11 @@ export function AppSidebar() {
   const isSewingRole = roles.some(ur => ur.role === 'sewing');
   const isFinishingRole = roles.some(ur => ur.role === 'finishing');
   const isBuyerRole = roles.some(ur => ur.role === 'buyer');
+  const isGateOfficerRole = roles.some(ur => ur.role === 'gate_officer');
   const roleHierarchy = ['owner', 'admin', 'worker'];
   const highestRole = roleHierarchy.find(r =>
     roles.some(ur => ur.role === r)
-  ) || (isStorageRole ? 'storage' : isCuttingRole ? 'cutting' : isSewingRole ? 'sewing' : isFinishingRole ? 'finishing' : isBuyerRole ? 'buyer' : 'worker');
+  ) || (isStorageRole ? 'storage' : isCuttingRole ? 'cutting' : isSewingRole ? 'sewing' : isFinishingRole ? 'finishing' : isBuyerRole ? 'buyer' : isGateOfficerRole ? 'gate_officer' : 'worker');
 
   // Get nav items based on role and department
   let navItems = NAV_ITEMS[highestRole as keyof typeof NAV_ITEMS] || NAV_ITEMS.worker;
@@ -312,6 +323,11 @@ export function AppSidebar() {
   // For buyer role
   if (isBuyerRole && highestRole === 'buyer') {
     navItems = NAV_ITEMS.buyer;
+  }
+
+  // For gate officer role
+  if (isGateOfficerRole && highestRole === 'gate_officer') {
+    navItems = NAV_ITEMS.gate_officer;
   }
 
   // Legacy: for workers, filter navigation based on department (only when in a factory)
@@ -539,6 +555,9 @@ export function AppSidebar() {
                             {collapsed && item.path === '/setup' && showSetupBadge && (
                               <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-sidebar" />
                             )}
+                            {collapsed && item.path === '/dispatch/approvals' && pendingDispatchCount > 0 && (
+                              <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-sidebar" />
+                            )}
                           </div>
                         )}
                         {!collapsed && (
@@ -547,6 +566,11 @@ export function AppSidebar() {
                             {item.path === '/setup' && showSetupBadge && (
                               <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground px-1">
                                 {setupRemaining}
+                              </span>
+                            )}
+                            {item.path === '/dispatch/approvals' && pendingDispatchCount > 0 && (
+                              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white px-1">
+                                {pendingDispatchCount}
                               </span>
                             )}
                           </span>

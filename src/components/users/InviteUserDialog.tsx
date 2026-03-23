@@ -48,12 +48,12 @@ interface WorkOrder {
   buyer: string;
 }
 
-const ASSIGNABLE_ROLES: AppRole[] = ['sewing', 'finishing', 'admin', 'storage', 'cutting', 'buyer'];
+const ASSIGNABLE_ROLES: AppRole[] = ['sewing', 'finishing', 'admin', 'storage', 'cutting', 'gate_officer', 'buyer'];
 
 const inviteUserSchema = z.object({
   email: z.string().email("Invalid email address").max(255, "Email too long"),
   fullName: z.string().min(1, "Full name is required").max(100, "Name too long"),
-  role: z.enum(["sewing", "finishing", "admin", "storage", "cutting", "buyer"]),
+  role: z.enum(["sewing", "finishing", "admin", "storage", "cutting", "gate_officer", "buyer"]),
   temporaryPassword: z.string().min(6, "Password must be at least 6 characters").max(100, "Password too long").optional(),
 });
 

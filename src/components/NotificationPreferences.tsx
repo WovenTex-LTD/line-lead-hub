@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Bell, Mail, AlertTriangle, TrendingDown, Info, Loader2, CheckCircle, FileText, Target, Calendar, Clock, Scissors, MessageSquare } from "lucide-react";
+import { Bell, Mail, AlertTriangle, TrendingDown, Info, Loader2, CheckCircle, FileText, Target, Calendar, Clock, Scissors, MessageSquare, Truck } from "lucide-react";
 import { toast } from "sonner";
 
 interface NotificationPreference {
@@ -15,7 +15,7 @@ interface NotificationPreference {
   email_enabled: boolean | null;
 }
 
-type UserRole = "worker" | "supervisor" | "admin" | "owner" | "superadmin" | "storage" | "cutting" | "buyer";
+type UserRole = "worker" | "supervisor" | "admin" | "owner" | "superadmin" | "storage" | "cutting" | "buyer" | "gate_officer";
 
 interface NotificationType {
   type: string;
@@ -111,6 +111,28 @@ const ALL_NOTIFICATION_TYPES: NotificationType[] = [
     icon: Info,
     roles: ["worker", "supervisor", "admin", "owner", "superadmin", "storage", "cutting", "buyer"], // Everyone
   },
+  // Gate Dispatch notifications
+  {
+    type: "dispatch_submitted",
+    label: "Dispatch Submitted",
+    description: "Get notified when the gate officer submits a dispatch request for approval",
+    icon: Truck,
+    roles: ["admin", "owner", "superadmin"],
+  },
+  {
+    type: "dispatch_approved",
+    label: "Dispatch Approved",
+    description: "Get notified when your dispatch request is approved",
+    icon: Truck,
+    roles: ["gate_officer"],
+  },
+  {
+    type: "dispatch_rejected",
+    label: "Dispatch Rejected",
+    description: "Get notified when your dispatch request is rejected",
+    icon: Truck,
+    roles: ["gate_officer"],
+  },
   // Buyer-specific notifications
   {
     type: "po_production_update",
@@ -143,7 +165,7 @@ export function NotificationPreferences() {
 
   // Get the user's primary role (highest role they have)
   const userRole = useMemo((): UserRole => {
-    const roleHierarchy: UserRole[] = ["superadmin", "owner", "admin", "supervisor", "buyer", "storage", "cutting", "worker"];
+    const roleHierarchy: UserRole[] = ["superadmin", "owner", "admin", "supervisor", "buyer", "storage", "cutting", "gate_officer", "worker"];
     for (const role of roleHierarchy) {
       if (roles.some(r => r.role === role)) {
         return role;
