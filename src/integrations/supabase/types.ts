@@ -3846,6 +3846,10 @@ export type Database = {
         Returns: boolean
       }
       has_storage_role: { Args: { _user_id: string }; Returns: boolean }
+      increment_dispatch_sequence: {
+        Args: { p_date: string; p_factory_id: string }
+        Returns: number
+      }
       is_admin_or_higher: { Args: { _user_id: string }; Returns: boolean }
       is_buyer_role: { Args: { _user_id: string }; Returns: boolean }
       is_superadmin: { Args: { _user_id: string }; Returns: boolean }
