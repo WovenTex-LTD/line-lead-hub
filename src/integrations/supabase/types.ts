@@ -938,6 +938,125 @@ export type Database = {
           },
         ]
       }
+      dispatch_daily_sequence: {
+        Row: {
+          date: string
+          factory_id: string
+          last_sequence: number
+        }
+        Insert: {
+          date: string
+          factory_id: string
+          last_sequence?: number
+        }
+        Update: {
+          date?: string
+          factory_id?: string
+          last_sequence?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispatch_daily_sequence_factory_id_fkey"
+            columns: ["factory_id"]
+            isOneToOne: false
+            referencedRelation: "factory_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dispatch_requests: {
+        Row: {
+          buyer_name: string | null
+          carton_count: number | null
+          created_at: string
+          destination: string
+          dispatch_quantity: number
+          driver_name: string
+          driver_nid: string | null
+          factory_id: string
+          gate_pass_pdf_url: string | null
+          id: string
+          photo_url: string | null
+          reference_number: string
+          rejection_reason: string | null
+          remarks: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          style_name: string | null
+          submitted_at: string
+          submitted_by: string
+          truck_number: string
+          updated_at: string
+          work_order_id: string | null
+        }
+        Insert: {
+          buyer_name?: string | null
+          carton_count?: number | null
+          created_at?: string
+          destination: string
+          dispatch_quantity?: number
+          driver_name: string
+          driver_nid?: string | null
+          factory_id: string
+          gate_pass_pdf_url?: string | null
+          id?: string
+          photo_url?: string | null
+          reference_number: string
+          rejection_reason?: string | null
+          remarks?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          style_name?: string | null
+          submitted_at?: string
+          submitted_by: string
+          truck_number: string
+          updated_at?: string
+          work_order_id?: string | null
+        }
+        Update: {
+          buyer_name?: string | null
+          carton_count?: number | null
+          created_at?: string
+          destination?: string
+          dispatch_quantity?: number
+          driver_name?: string
+          driver_nid?: string | null
+          factory_id?: string
+          gate_pass_pdf_url?: string | null
+          id?: string
+          photo_url?: string | null
+          reference_number?: string
+          rejection_reason?: string | null
+          remarks?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          style_name?: string | null
+          submitted_at?: string
+          submitted_by?: string
+          truck_number?: string
+          updated_at?: string
+          work_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispatch_requests_factory_id_fkey"
+            columns: ["factory_id"]
+            isOneToOne: false
+            referencedRelation: "factory_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispatch_requests_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_ingestion_queue: {
         Row: {
           chunks_created: number | null
@@ -3501,6 +3620,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "user_roles_factory_id_fkey"
+            columns: ["factory_id"]
+            isOneToOne: false
+            referencedRelation: "factory_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_signatures: {
+        Row: {
+          factory_id: string
+          id: string
+          registered_at: string
+          signature_url: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          factory_id: string
+          id?: string
+          registered_at?: string
+          signature_url: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          factory_id?: string
+          id?: string
+          registered_at?: string
+          signature_url?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_signatures_factory_id_fkey"
             columns: ["factory_id"]
             isOneToOne: false
             referencedRelation: "factory_accounts"
