@@ -18,6 +18,7 @@ export const ROLES = {
   FINISHING: 'finishing',
   BUYER: 'buyer',
   SUPERADMIN: 'superadmin',
+  GATE_OFFICER: 'gate_officer',
 } as const;
 
 export type AppRole = typeof ROLES[keyof typeof ROLES];
