@@ -3902,6 +3902,7 @@ export type Database = {
         | "sewing"
         | "finishing"
         | "buyer"
+        | "gate_officer"
       blocker_impact: "low" | "medium" | "high" | "critical"
       blocker_status: "open" | "in_progress" | "resolved"
       extras_transaction_type:
@@ -4075,6 +4076,7 @@ export const Constants = {
         "sewing",
         "finishing",
         "buyer",
+        "gate_officer",
       ],
       blocker_impact: ["low", "medium", "high", "critical"],
       blocker_status: ["open", "in_progress", "resolved"],
