@@ -270,7 +270,7 @@ export function useDispatchMutations() {
         .from('dispatch_requests')
         .update({ status: 'cancelled' })
         .eq('id', id)
-        .eq('submitted_by', profile?.id)
+        .eq('submitted_by', profile?.id ?? '')
         .eq('status', 'pending')
         .select('*')
         .single();

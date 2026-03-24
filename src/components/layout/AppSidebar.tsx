@@ -151,6 +151,7 @@ interface NavItem {
   icon: string;
   children?: NavItem[];
   bottom?: boolean;
+  group?: string;
 }
 
 export function AppSidebar() {
@@ -426,163 +427,182 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="custom-scrollbar">
-        <SidebarGroup>
-          {!collapsed && (
-            <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-[0.15em] text-sidebar-foreground/35 px-3">
-              {t('common.menu')}
-            </SidebarGroupLabel>
-          )}
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {(navItems as NavItem[]).filter(item => !item.bottom).map((item) => {
-                const Icon = iconMap[item.icon];
-                const hasChildren = item.children && item.children.length > 0;
-                const isExpanded = expandedMenus.includes(item.path);
-                const isItemOrChildActive = isActive(item.path) || isParentActive(item);
+        {(() => {
+          const mainItems = (navItems as NavItem[]).filter(item => !item.bottom);
+          
+          // Group items by their group property, preserving order
+          const groups: { label: string | null; items: NavItem[] }[] = [];
+          let currentGroup: { label: string | null; items: NavItem[] } | null = null;
+          
+          for (const item of mainItems) {
+            const groupLabel = item.group || null;
+            if (!currentGroup || currentGroup.label !== groupLabel) {
+              currentGroup = { label: groupLabel, items: [item] };
+              groups.push(currentGroup);
+            } else {
+              currentGroup.items.push(item);
+            }
+          }
 
-                if (hasChildren && !collapsed) {
-                  return (
-                    <Collapsible
-                      key={item.path}
-                      open={isExpanded}
-                      onOpenChange={() => toggleMenu(item.path)}
-                    >
-                      <SidebarMenuItem>
-                        <CollapsibleTrigger asChild>
-                          <SidebarMenuButton
-                            className={cn(
-                              "flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200 w-full justify-between",
-                              isItemOrChildActive
-                                ? "bg-sidebar-primary/10 text-sidebar-foreground font-medium"
-                                : "text-sidebar-foreground/60 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground"
-                            )}
-                          >
-                            <div className="flex items-center gap-3">
-                              {Icon && <Icon className="h-5 w-5 shrink-0" />}
-                              <span>{getNavLabel(item.label)}</span>
-                            </div>
-                            <ChevronDown className={cn(
-                              "h-4 w-4 shrink-0 transition-transform",
-                              isExpanded && "rotate-180"
-                            )} />
-                          </SidebarMenuButton>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="pl-4">
-                          <SidebarMenu>
-                            <SidebarMenuItem>
+          return groups.map((group, groupIdx) => (
+            <SidebarGroup key={group.label || `ungrouped-${groupIdx}`}>
+              {!collapsed && (
+                <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-[0.15em] text-sidebar-foreground/35 px-3">
+                  {group.label || t('common.menu')}
+                </SidebarGroupLabel>
+              )}
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {group.items.map((item) => {
+                    const Icon = iconMap[item.icon];
+                    const hasChildren = item.children && item.children.length > 0;
+                    const isExpanded = expandedMenus.includes(item.path);
+                    const isItemOrChildActive = isActive(item.path) || isParentActive(item);
+
+                    if (hasChildren && !collapsed) {
+                      return (
+                        <Collapsible
+                          key={item.path}
+                          open={isExpanded}
+                          onOpenChange={() => toggleMenu(item.path)}
+                        >
+                          <SidebarMenuItem>
+                            <CollapsibleTrigger asChild>
                               <SidebarMenuButton
-                                asChild
-                                isActive={isActive(item.path)}
+                                className={cn(
+                                  "flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200 w-full justify-between",
+                                  isItemOrChildActive
+                                    ? "bg-sidebar-primary/10 text-sidebar-foreground font-medium"
+                                    : "text-sidebar-foreground/60 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground"
+                                )}
                               >
-                                <Link
-                                  to={item.path}
-                                  className={cn(
-                                    "flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200",
-                                    isActive(item.path)
-                                      ? "bg-sidebar-primary/15 text-sidebar-foreground font-medium"
-                                      : "text-sidebar-foreground/60 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground"
-                                  )}
-                                >
-                                  {Icon && <Icon className="h-4 w-4 shrink-0" />}
+                                <div className="flex items-center gap-3">
+                                  {Icon && <Icon className="h-5 w-5 shrink-0" />}
                                   <span>{getNavLabel(item.label)}</span>
-                                </Link>
+                                </div>
+                                <ChevronDown className={cn(
+                                  "h-4 w-4 shrink-0 transition-transform",
+                                  isExpanded && "rotate-180"
+                                )} />
                               </SidebarMenuButton>
-                            </SidebarMenuItem>
-                            {item.children!.map((child) => {
-                              const ChildIcon = iconMap[child.icon];
-                              return (
-                                <SidebarMenuItem key={child.path}>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent className="pl-4">
+                              <SidebarMenu>
+                                <SidebarMenuItem>
                                   <SidebarMenuButton
                                     asChild
-                                    isActive={isActive(child.path)}
+                                    isActive={isActive(item.path)}
                                   >
                                     <Link
-                                      to={child.path}
+                                      to={item.path}
                                       className={cn(
                                         "flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200",
-                                        isActive(child.path)
+                                        isActive(item.path)
                                           ? "bg-sidebar-primary/15 text-sidebar-foreground font-medium"
                                           : "text-sidebar-foreground/60 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground"
                                       )}
                                     >
-                                      {ChildIcon && <ChildIcon className="h-4 w-4 shrink-0" />}
-                                      <span>{getNavLabel(child.label)}</span>
+                                      {Icon && <Icon className="h-4 w-4 shrink-0" />}
+                                      <span>{getNavLabel(item.label)}</span>
                                     </Link>
                                   </SidebarMenuButton>
                                 </SidebarMenuItem>
-                              );
-                            })}
-                          </SidebarMenu>
-                        </CollapsibleContent>
-                      </SidebarMenuItem>
-                    </Collapsible>
-                  );
-                }
+                                {item.children!.map((child) => {
+                                  const ChildIcon = iconMap[child.icon];
+                                  return (
+                                    <SidebarMenuItem key={child.path}>
+                                      <SidebarMenuButton
+                                        asChild
+                                        isActive={isActive(child.path)}
+                                      >
+                                        <Link
+                                          to={child.path}
+                                          className={cn(
+                                            "flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200",
+                                            isActive(child.path)
+                                              ? "bg-sidebar-primary/15 text-sidebar-foreground font-medium"
+                                              : "text-sidebar-foreground/60 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground"
+                                          )}
+                                        >
+                                          {ChildIcon && <ChildIcon className="h-4 w-4 shrink-0" />}
+                                          <span>{getNavLabel(child.label)}</span>
+                                        </Link>
+                                      </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                  );
+                                })}
+                              </SidebarMenu>
+                            </CollapsibleContent>
+                          </SidebarMenuItem>
+                        </Collapsible>
+                      );
+                    }
 
-                return (
-                  <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.path)}
-                      tooltip={collapsed ? getNavLabel(item.label) : undefined}
-                    >
-                      <Link
-                        to={item.path}
-                        data-tour={
-                          item.path === '/today' ? 'nav-today' :
-                          item.path === '/lines' ? 'nav-lines' :
-                          item.path === '/work-orders' ? 'nav-work-orders' :
-                          item.path === '/blockers' ? 'nav-blockers' :
-                          undefined
-                        }
-                        className={cn(
-                          "relative flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200",
-                          isActive(item.path)
-                            ? "bg-sidebar-primary/15 text-sidebar-primary-foreground font-medium shadow-sm"
-                            : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
-                        )}
-                      >
-                        {/* Active indicator bar */}
-                        {isActive(item.path) && !collapsed && (
-                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-sidebar-primary shadow-[0_0_8px_hsl(var(--sidebar-primary)/0.5)]" />
-                        )}
-                        {Icon && (
-                          <div className={cn(
-                            "relative shrink-0 transition-colors duration-200",
-                            isActive(item.path) ? "text-sidebar-primary" : ""
-                          )}>
-                            <Icon className="h-5 w-5" />
-                            {collapsed && item.path === '/setup' && showSetupBadge && (
-                              <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-sidebar" />
+                    return (
+                      <SidebarMenuItem key={item.path}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive(item.path)}
+                          tooltip={collapsed ? getNavLabel(item.label) : undefined}
+                        >
+                          <Link
+                            to={item.path}
+                            data-tour={
+                              item.path === '/today' ? 'nav-today' :
+                              item.path === '/lines' ? 'nav-lines' :
+                              item.path === '/work-orders' ? 'nav-work-orders' :
+                              item.path === '/blockers' ? 'nav-blockers' :
+                              undefined
+                            }
+                            className={cn(
+                              "relative flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200",
+                              isActive(item.path)
+                                ? "bg-sidebar-primary/15 text-sidebar-primary-foreground font-medium shadow-sm"
+                                : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
                             )}
-                            {collapsed && item.path === '/dispatch/approvals' && pendingDispatchCount > 0 && (
-                              <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-sidebar" />
+                          >
+                            {isActive(item.path) && !collapsed && (
+                              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-sidebar-primary shadow-[0_0_8px_hsl(var(--sidebar-primary)/0.5)]" />
                             )}
-                          </div>
-                        )}
-                        {!collapsed && (
-                          <span className="flex items-center gap-2">
-                            {getNavLabel(item.label)}
-                            {item.path === '/setup' && showSetupBadge && (
-                              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground px-1">
-                                {setupRemaining}
+                            {Icon && (
+                              <div className={cn(
+                                "relative shrink-0 transition-colors duration-200",
+                                isActive(item.path) ? "text-sidebar-primary" : ""
+                              )}>
+                                <Icon className="h-5 w-5" />
+                                {collapsed && item.path === '/setup' && showSetupBadge && (
+                                  <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-sidebar" />
+                                )}
+                                {collapsed && item.path === '/dispatch/approvals' && pendingDispatchCount > 0 && (
+                                  <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-sidebar" />
+                                )}
+                              </div>
+                            )}
+                            {!collapsed && (
+                              <span className="flex items-center gap-2">
+                                {getNavLabel(item.label)}
+                                {item.path === '/setup' && showSetupBadge && (
+                                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground px-1">
+                                    {setupRemaining}
+                                  </span>
+                                )}
+                                {item.path === '/dispatch/approvals' && pendingDispatchCount > 0 && (
+                                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white px-1">
+                                    {pendingDispatchCount}
+                                  </span>
+                                )}
                               </span>
                             )}
-                            {item.path === '/dispatch/approvals' && pendingDispatchCount > 0 && (
-                              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white px-1">
-                                {pendingDispatchCount}
-                              </span>
-                            )}
-                          </span>
-                        )}
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          ));
+        })()}
 
         {/* Bottom navigation items (settings section) */}
         {(navItems as NavItem[]).some(item => item.bottom) && (
