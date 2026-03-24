@@ -50,28 +50,34 @@ CREATE TRIGGER invoices_updated_at
 ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invoice_line_items ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Factory members can view invoices" ON invoices;
 CREATE POLICY "Factory members can view invoices"
   ON invoices FOR SELECT
   USING (factory_id = get_user_factory_id(auth.uid()));
 
+DROP POLICY IF EXISTS "Admins can insert invoices" ON invoices;
 CREATE POLICY "Admins can insert invoices"
   ON invoices FOR INSERT
   WITH CHECK (factory_id = get_user_factory_id(auth.uid()) AND is_admin_or_higher(auth.uid()));
 
+DROP POLICY IF EXISTS "Admins can update invoices" ON invoices;
 CREATE POLICY "Admins can update invoices"
   ON invoices FOR UPDATE
   USING (factory_id = get_user_factory_id(auth.uid()) AND is_admin_or_higher(auth.uid()));
 
+DROP POLICY IF EXISTS "Admins can delete invoices" ON invoices;
 CREATE POLICY "Admins can delete invoices"
   ON invoices FOR DELETE
   USING (factory_id = get_user_factory_id(auth.uid()) AND is_admin_or_higher(auth.uid()));
 
+DROP POLICY IF EXISTS "Factory members can view line items" ON invoice_line_items;
 CREATE POLICY "Factory members can view line items"
   ON invoice_line_items FOR SELECT
   USING (invoice_id IN (
     SELECT id FROM invoices WHERE factory_id = get_user_factory_id(auth.uid())
   ));
 
+DROP POLICY IF EXISTS "Admins can manage line items" ON invoice_line_items;
 CREATE POLICY "Admins can manage line items"
   ON invoice_line_items FOR ALL
   USING (invoice_id IN (

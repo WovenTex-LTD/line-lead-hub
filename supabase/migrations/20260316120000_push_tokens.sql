@@ -2,7 +2,7 @@
 create table if not exists push_tokens (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  factory_id uuid references factories(id) on delete cascade,
+  factory_id uuid references factory_accounts(id) on delete cascade,
   token text not null,
   platform text not null check (platform in ('android', 'ios', 'web')),
   created_at timestamptz not null default now(),

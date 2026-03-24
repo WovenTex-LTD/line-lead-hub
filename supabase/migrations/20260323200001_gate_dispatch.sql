@@ -6,7 +6,7 @@
 -- ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS dispatch_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  factory_id UUID NOT NULL REFERENCES factories(id) ON DELETE CASCADE,
+  factory_id UUID NOT NULL REFERENCES factory_accounts(id) ON DELETE CASCADE,
   reference_number TEXT NOT NULL,             -- DSP-YYYYMMDD-NNN
   work_order_id UUID REFERENCES work_orders(id) ON DELETE SET NULL,
   style_name TEXT,
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS dispatch_requests (
 --    Tracks per-factory, per-day sequence counter for DSP reference numbers
 -- ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS dispatch_daily_sequence (
-  factory_id UUID NOT NULL REFERENCES factories(id) ON DELETE CASCADE,
+  factory_id UUID NOT NULL REFERENCES factory_accounts(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   last_sequence INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (factory_id, date)
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS dispatch_daily_sequence (
 CREATE TABLE IF NOT EXISTS user_signatures (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  factory_id UUID NOT NULL REFERENCES factories(id) ON DELETE CASCADE,
+  factory_id UUID NOT NULL REFERENCES factory_accounts(id) ON DELETE CASCADE,
   signature_url TEXT NOT NULL,               -- Supabase Storage: signatures/{user_id}.png
   registered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -68,10 +68,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS dispatch_requests_updated_at ON dispatch_requests;
 CREATE TRIGGER dispatch_requests_updated_at
   BEFORE UPDATE ON dispatch_requests
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS user_signatures_updated_at ON user_signatures;
 CREATE TRIGGER user_signatures_updated_at
   BEFORE UPDATE ON user_signatures
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -93,6 +95,7 @@ ALTER TABLE dispatch_daily_sequence ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_signatures ENABLE ROW LEVEL SECURITY;
 
 -- dispatch_requests: users can only see requests within their own factory
+DROP POLICY IF EXISTS "dispatch_requests_factory_isolation" ON dispatch_requests;
 CREATE POLICY "dispatch_requests_factory_isolation"
   ON dispatch_requests FOR ALL
   USING (
@@ -102,6 +105,7 @@ CREATE POLICY "dispatch_requests_factory_isolation"
   );
 
 -- dispatch_daily_sequence: factory-scoped (only service role writes; users read)
+DROP POLICY IF EXISTS "dispatch_daily_sequence_factory_read" ON dispatch_daily_sequence;
 CREATE POLICY "dispatch_daily_sequence_factory_read"
   ON dispatch_daily_sequence FOR SELECT
   USING (
@@ -110,6 +114,7 @@ CREATE POLICY "dispatch_daily_sequence_factory_read"
     )
   );
 
+DROP POLICY IF EXISTS "dispatch_daily_sequence_factory_write" ON dispatch_daily_sequence;
 CREATE POLICY "dispatch_daily_sequence_factory_write"
   ON dispatch_daily_sequence FOR ALL
   USING (
@@ -119,6 +124,7 @@ CREATE POLICY "dispatch_daily_sequence_factory_write"
   );
 
 -- user_signatures: users see signatures within their factory; can only write their own
+DROP POLICY IF EXISTS "user_signatures_factory_read" ON user_signatures;
 CREATE POLICY "user_signatures_factory_read"
   ON user_signatures FOR SELECT
   USING (
@@ -127,14 +133,17 @@ CREATE POLICY "user_signatures_factory_read"
     )
   );
 
+DROP POLICY IF EXISTS "user_signatures_own_write" ON user_signatures;
 CREATE POLICY "user_signatures_own_write"
   ON user_signatures FOR INSERT
   WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "user_signatures_own_update" ON user_signatures;
 CREATE POLICY "user_signatures_own_update"
   ON user_signatures FOR UPDATE
   USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "user_signatures_own_delete" ON user_signatures;
 CREATE POLICY "user_signatures_own_delete"
   ON user_signatures FOR DELETE
   USING (user_id = auth.uid());
