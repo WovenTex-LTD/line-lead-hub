@@ -151,6 +151,7 @@ interface NavItem {
   icon: string;
   children?: NavItem[];
   bottom?: boolean;
+  group?: string;
 }
 
 export function AppSidebar() {
