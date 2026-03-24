@@ -242,18 +242,13 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
   const fN = (v: number | null | undefined) => v != null ? v.toLocaleString() : "";
   const fUsd = (v: number) => "$" + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  function downloadCsv(rows: (string | number | null | undefined)[][], filename: string) {
+  async function downloadCsvFile(rows: (string | number | null | undefined)[][], filename: string) {
     const csvContent = rows.map(row => row.map(esc).join(",")).join("\n");
-    const BOM = "\uFEFF";
-    const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    const { downloadCsv } = await import("@/lib/capacitor");
+    await downloadCsv(csvContent, filename);
   }
 
-  function generateDailyCsv(data: DailyReportData) {
+  async function generateDailyCsv(data: DailyReportData) {
     const R: (string | number | null)[][] = [];
     const rate = data.headcountCostRate || 0;
     const isBDT = data.headcountCostCurrency === "BDT";
@@ -266,7 +261,7 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
       return Math.round(c * 100) / 100;
     };
     const toU = (v: number) => isBDT && bdtRate ? Math.round(v * bdtRate * 100) / 100 : v;
-    const numSort = (n: string) => parseInt(n.replace(/\D/g, "")) || 9999;
+    const { compareLineNames: cmpLines } = await import("@/lib/sort-lines");
 
     // ── Header ──
     R.push(["DAILY PRODUCTION REPORT"]);
@@ -295,7 +290,7 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
 
       const byLine: Record<string, typeof data.sewing> = {};
       data.sewing.forEach(s => { if (!byLine[s.lineName]) byLine[s.lineName] = []; byLine[s.lineName].push(s); });
-      const lineKeys = Object.keys(byLine).sort((a, b) => numSort(a) - numSort(b));
+      const lineKeys = Object.keys(byLine).sort((a, b) => cmpLines(a, b));
 
       let deptOutput = 0, deptReject = 0, deptRework = 0, deptCostN = 0, deptCostU = 0;
 
@@ -393,7 +388,7 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
             f.threadCutting, f.insideCheck, f.buttoning, f.iron, f.getUp,
             adjPoly, adjCarton, f.manpower, f.hours, f.otManpower, f.otHours,
             rate ? cu : "",
-            cm ? "$" + cm.toFixed(2) : "",
+            cmDz ? "$" + cmDz.toFixed(2) : "",
             rev > 0 ? Math.round(rev * 100) / 100 : "",
           ]);
         });
@@ -429,10 +424,10 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
     }
 
     R.push(["=== END OF REPORT ==="]);
-    downloadCsv(R, `daily_report_${data.reportDate}.csv`);
+    await downloadCsvFile(R, `daily_report_${data.reportDate}.csv`);
   }
 
-  function generatePeriodCsv(
+  async function generatePeriodCsv(
     sewingData: any[], cuttingData: any[], finishingData: any[], storageData: any[],
     label: string, xRate: number | null, dates: string[],
   ) {
@@ -452,7 +447,7 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
       if (otMp && otHrs) c += hcRate * otMp * otHrs;
       return Math.round(c * 100) / 100;
     };
-    const numSort = (n: string) => parseInt(n.replace(/\D/g, "")) || 9999;
+    const { compareLineNames: cmpLines2 } = await import("@/lib/sort-lines");
     const fmtDate = (d: string) => { const p = d.split("-"); return `${p[2]}.${p[1]}`; };
 
     const R: (string | number | null)[][] = [];
@@ -542,7 +537,7 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
         if (!byLine[ln]) byLine[ln] = [];
         byLine[ln].push(s);
       });
-      const lineKeys = Object.keys(byLine).sort((a, b) => numSort(a) - numSort(b));
+      const lineKeys = Object.keys(byLine).sort((a, b) => cmpLines2(a, b));
       let deptOutput = 0, deptReject = 0, deptRework = 0, deptCostN = 0, deptCostU = 0;
 
       lineKeys.forEach(lineName => {
@@ -592,7 +587,7 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
         const { buyer, entries } = byPo[po];
         entries.sort((a: any, b: any) => {
           if (a.production_date !== b.production_date) return (a.production_date || "").localeCompare(b.production_date || "");
-          return numSort(a.lines?.name || "") - numSort(b.lines?.name || "");
+          return cmpLines2(a.lines?.name || "", b.lines?.name || "");
         });
         R.push([`>>> PO: ${po} — Buyer: ${buyer}`]);
         R.push(["Day", "Line", "Colour", "Day Cut", "Day Input", "Total Cut", "Balance", "MP", "Hrs", "OT MP", "OT Hrs", `Cost (${costCur})`, "Cost ($)"]);
@@ -650,7 +645,7 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
             adjPoly, adjCarton,
             f.m_power_actual, f.actual_hours, f.ot_manpower_actual, f.ot_hours_actual,
             hcRate ? cu : "",
-            cm ? "$" + cm.toFixed(2) : "",
+            cmDz ? "$" + cmDz.toFixed(2) : "",
             rev > 0 ? Math.round(rev * 100) / 100 : "",
           ]);
         });
@@ -701,7 +696,7 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
 
     R.push(["=== END OF REPORT ==="]);
     const safePeriod = label.replace(/[^a-zA-Z0-9\- ]/g, "").replace(/\s+/g, "_");
-    downloadCsv(R, `${reportType}_report_${safePeriod}.csv`);
+    await downloadCsvFile(R, `${reportType}_report_${safePeriod}.csv`);
   }
 
   async function handleGenerate() {

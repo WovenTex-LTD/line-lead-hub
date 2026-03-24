@@ -103,7 +103,9 @@
     "cutting": "Cutting",
     "cuttingMorningTargets": "Cutting Morning Targets",
     "cuttingEndOfDay": "Cutting End of Day",
-    "cuttingSubmissions": "Cutting Submissions"
+    "cuttingSubmissions": "Cutting Submissions",
+    "cuttingHandoffs": "Cutting Handoffs",
+    "finances": "Finances"
   },
   "roles": {
     "worker": "Manager",
@@ -484,8 +486,8 @@
     "submitTargets": "Submit Targets",
     "submitActuals": "Submit Actuals",
     "submitting": "Submitting...",
-    "sewingMorningTargets": "Sewing — Morning Targets",
-    "finishingMorningTargets": "Finishing — Morning Targets",
+    "sewingMorningTargets": "Sewing Morning Targets",
+    "finishingMorningTargets": "Finishing Morning Targets",
     "endOfDayOutput": "End of Day Output",
     "sewing": "Sewing",
     "finishing": "Finishing",
@@ -1252,5 +1254,51 @@
     "entry": "entry",
     "cards": "cards",
     "of": "of"
+  },
+
+  "sewingMySubmissions": {
+    "title": "My Submissions",
+    "description": "Your sewing targets and end of day reports",
+    "targetsThisWeek": "Targets This Week",
+    "eodThisWeek": "End of Day This Week",
+    "avgPerHourTarget": "Avg Per Hour Target",
+    "totalGoodOutput": "Total Good Output",
+    "searchPlaceholder": "Search by PO, style, buyer, line...",
+    "filterByDate": "Filter by date",
+    "allTime": "All Time",
+    "today": "Today",
+    "thisWeek": "This Week",
+    "morningTargets": "Morning Targets",
+    "endOfDay": "End of Day",
+    "endOfDayReports": "End of Day Reports",
+    "noTargetsFound": "No targets found",
+    "noEodFound": "No end of day reports found",
+    "tryAdjustingFilters": "Try adjusting your filters",
+    "submitTargetsToStart": "Submit morning targets to start tracking",
+    "submitEodToTrack": "Submit end of day reports to track actual production",
+    "date": "Date",
+    "time": "Time",
+    "line": "Line",
+    "poStyle": "PO / Style",
+    "targetHr": "Target/Hr",
+    "manpower": "Manpower",
+    "good": "Good",
+    "reject": "Reject",
+    "rework": "Rework",
+    "cumulative": "Cumulative",
+    "editSubmission": "Edit submission"
+  },
+
+  "cuttingHandoffsPage": {
+    "cuttingToday": "Cutting Today",
+    "inputToday": "Input Today",
+    "cuttingHandoffs": "Cutting Handoffs",
+    "handoffDetails": "Cutting Handoff Details",
+    "productionData": "Production Data",
+    "transferInfo": "Transfer Info",
+    "from": "From",
+    "to": "To",
+    "acknowledgedOn": "Acknowledged on",
+    "acknowledging": "Acknowledging..."
   }
 }

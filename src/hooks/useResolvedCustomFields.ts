@@ -77,9 +77,9 @@ export function useResolvedCustomFields(
         value.length > 0
       ) {
         lookups.push({
-          table: field.data_source.table ?? '',
-          valueColumn: field.data_source.value_column ?? 'id',
-          labelColumn: field.data_source.label_column ?? 'label',
+          table: field.data_source.table ?? "",
+          valueColumn: field.data_source.value_column ?? "",
+          labelColumn: field.data_source.label_column ?? "",
           rawValue: value,
         });
       }

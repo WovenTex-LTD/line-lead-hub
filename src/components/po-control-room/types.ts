@@ -92,6 +92,7 @@ export interface PODetailData {
 export type SubmissionType =
   | "sewing_target"
   | "sewing_actual"
+  | "cutting_target"
   | "cutting_actual"
   | "finishing_target"
   | "finishing_actual";

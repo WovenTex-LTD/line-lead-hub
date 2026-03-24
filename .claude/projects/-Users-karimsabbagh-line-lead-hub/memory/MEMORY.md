@@ -1,0 +1,7 @@
+- [feedback_department_colors.md](feedback_department_colors.md) - Fixed color assignments: blue=sewing, purple=finishing, green=cutting, orange=storage
+- [feedback_financial_terminology.md](feedback_financial_terminology.md) - Use "Output Value", "Operating Cost", "Operating Margin" not Revenue/Cost/Profit
+- [feedback_sewing_only_financials.md](feedback_sewing_only_financials.md) - Only sewing counts for financial calculations, no cutting/finishing
+- [feedback_work_patterns.md](feedback_work_patterns.md) - Confidence checking, anti-hallucination evidence, parallel execution Wave→Checkpoint→Wave
+- [feedback_exclude_target_only_submissions.md](feedback_exclude_target_only_submissions.md) - Submissions with only a target and no EOD must be excluded from all statistics, charts, and data
+- [feedback_exclude_zero_submission_days.md](feedback_exclude_zero_submission_days.md) - Days with 0 submissions = factory closed; exclude from charts/insights/averages per section
+- [feedback_line_sort_order.md](feedback_line_sort_order.md) - Lines sorted numerically then alphabetically (Line 1, 2, 3 or 1A, 1B, 2A...) everywhere except Dashboard/Today Updates

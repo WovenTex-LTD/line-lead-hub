@@ -282,11 +282,11 @@ export default function FinishingMorningTargetsForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-5">
       {/* Line & PO Selection */}
-      <Card>
+      <Card className="border-border/50">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Select Line & PO</CardTitle>
+          <CardTitle className="text-sm font-semibold">Select Line & PO</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -326,7 +326,7 @@ export default function FinishingMorningTargetsForm() {
                   </span>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[350px] p-0" align="start">
+              <PopoverContent className="w-[min(350px,calc(100vw-2rem))] p-0" align="start">
                 <Command shouldFilter={true}>
                   <CommandInput placeholder="Search PO, buyer, style..." />
                   <CommandList>
@@ -359,45 +359,47 @@ export default function FinishingMorningTargetsForm() {
 
       {/* Auto-filled Details */}
       {selectedWorkOrder && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Order Details (Auto-filled)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-muted-foreground">Buyer:</span>
-                <p className="font-medium">{selectedWorkOrder.buyer}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Style:</span>
-                <p className="font-medium">{selectedWorkOrder.style}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Item:</span>
-                <p className="font-medium">{selectedWorkOrder.item || "-"}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Order Qty:</span>
-                <p className="font-medium">{selectedWorkOrder.order_qty.toLocaleString()}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Unit:</span>
-                <p className="font-medium">{unitName || "-"}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Floor:</span>
-                <p className="font-medium">{floorName || "-"}</p>
-              </div>
+        <div className="rounded-xl border border-border/50 bg-muted/20 p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">Order Details</p>
+          <div className="grid grid-cols-3 gap-x-6 gap-y-2 text-sm">
+            <div>
+              <span className="text-xs text-muted-foreground">Buyer</span>
+              <p className="font-medium">{selectedWorkOrder.buyer}</p>
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <span className="text-xs text-muted-foreground">Style</span>
+              <p className="font-medium">{selectedWorkOrder.style}</p>
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground">Order Qty</span>
+              <p className="font-medium font-mono">{selectedWorkOrder.order_qty.toLocaleString()}</p>
+            </div>
+            {selectedWorkOrder.item && (
+              <div>
+                <span className="text-xs text-muted-foreground">Item</span>
+                <p className="font-medium">{selectedWorkOrder.item}</p>
+              </div>
+            )}
+            {unitName && (
+              <div>
+                <span className="text-xs text-muted-foreground">Unit</span>
+                <p className="font-medium">{unitName}</p>
+              </div>
+            )}
+            {floorName && (
+              <div>
+                <span className="text-xs text-muted-foreground">Floor</span>
+                <p className="font-medium">{floorName}</p>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Target Fields */}
-      <Card>
+      <Card className="border-border/50">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Today's Targets</CardTitle>
+          <CardTitle className="text-sm font-semibold">Today's Targets</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -469,9 +471,9 @@ export default function FinishingMorningTargetsForm() {
       </Card>
 
       {/* Optional Fields */}
-      <Card>
+      <Card className="border-border/50">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Optional</CardTitle>
+          <CardTitle className="text-sm font-semibold">Optional</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
@@ -488,7 +490,7 @@ export default function FinishingMorningTargetsForm() {
 
       {/* Submit Button */}
       <div className="mt-6 pb-2">
-        <Button type="submit" className="w-full h-12 text-base font-medium" disabled={submitting}>
+        <Button type="submit" className="w-full h-11 text-sm font-semibold" disabled={submitting}>
           {submitting ? (
             <>
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />

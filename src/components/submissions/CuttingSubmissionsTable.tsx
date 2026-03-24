@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getTodayInTimezone } from "@/lib/date-utils";
 import { format, subDays } from "date-fns";
 import { toast } from "sonner";
-import { Search, Scissors, Package, Download, X } from "lucide-react";
+import { Search, Scissors, Package, Download, X, TrendingUp, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TableSkeleton, StatsCardsSkeleton } from "@/components/ui/table-skeleton";
@@ -277,7 +277,7 @@ export function CuttingSubmissionsTable({
     });
   }
 
-  function exportSelectedCsv() {
+  async function exportSelectedCsv() {
     const rows = sortedData.filter(s => selectedIds.has(s.id));
     const headers = ["Date", "Line", "PO", "Buyer", "Order Qty", "Target", "Day Cutting", "Total Cutting", "Day Input", "Total Input", "Balance"];
     const csvRows = [headers.join(",")];
@@ -296,13 +296,9 @@ export function CuttingSubmissionsTable({
         s.balance ?? "",
       ].join(","));
     });
+    const { downloadFile } = await import("@/lib/capacitor");
     const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `cutting-submissions-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await downloadFile(blob, `cutting-submissions-${format(new Date(), "yyyy-MM-dd")}.csv`);
     toast.success(`Exported ${rows.length} rows`);
   }
 
@@ -319,31 +315,48 @@ export function CuttingSubmissionsTable({
     <div className="space-y-4">
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="border-l-4 border-l-primary">
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground uppercase">Total Submissions</p>
-            <p className="text-xl font-bold">{stats.total}</p>
+        <Card className="bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 dark:from-emerald-950/40 dark:via-card dark:to-emerald-950/20 border-emerald-200/60 dark:border-emerald-800/40 hover:shadow-lg transition-all duration-300">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 shadow-md shadow-emerald-500/20 flex items-center justify-center">
+                <Scissors className="h-3.5 w-3.5 text-white" />
+              </div>
+              <p className="text-[11px] text-muted-foreground font-medium">Submissions</p>
+            </div>
+            <div className="text-xl font-bold text-emerald-700 dark:text-emerald-300">{stats.total}</div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-amber-500">
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground uppercase flex items-center gap-1">
-              <Package className="h-3 w-3" />
-              Left Over Fabric
-            </p>
-            <p className="text-xl font-bold">{stats.totalLeftoverYards.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2})} <span className="text-sm font-normal text-muted-foreground">yards</span></p>
+        <Card className="bg-gradient-to-br from-amber-50 via-white to-amber-50/50 dark:from-amber-950/40 dark:via-card dark:to-amber-950/20 border-amber-200/60 dark:border-amber-800/40 hover:shadow-lg transition-all duration-300">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 shadow-md shadow-amber-500/20 flex items-center justify-center">
+                <Package className="h-3.5 w-3.5 text-white" />
+              </div>
+              <p className="text-[11px] text-muted-foreground font-medium">Left Over Fabric</p>
+            </div>
+            <div className="text-xl font-bold text-amber-700 dark:text-amber-300 font-mono tabular-nums">{stats.totalLeftoverYards.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2})} <span className="text-sm font-normal text-muted-foreground">yards</span></div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-green-500">
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground uppercase">Total Cutting</p>
-            <p className="text-xl font-bold">{stats.totalCutting.toLocaleString()}</p>
+        <Card className="bg-gradient-to-br from-green-50 via-white to-green-50/50 dark:from-green-950/40 dark:via-card dark:to-green-950/20 border-green-200/60 dark:border-green-800/40 hover:shadow-lg transition-all duration-300">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-green-500 to-teal-600 shadow-md shadow-green-500/20 flex items-center justify-center">
+                <TrendingUp className="h-3.5 w-3.5 text-white" />
+              </div>
+              <p className="text-[11px] text-muted-foreground font-medium">Total Cutting</p>
+            </div>
+            <div className="text-xl font-bold text-green-700 dark:text-green-300 font-mono tabular-nums">{stats.totalCutting.toLocaleString()}</div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-blue-500">
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground uppercase">Total Input</p>
-            <p className="text-xl font-bold">{stats.totalInput.toLocaleString()}</p>
+        <Card className="bg-gradient-to-br from-blue-50 via-white to-blue-50/50 dark:from-blue-950/40 dark:via-card dark:to-blue-950/20 border-blue-200/60 dark:border-blue-800/40 hover:shadow-lg transition-all duration-300">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/20 flex items-center justify-center">
+                <Target className="h-3.5 w-3.5 text-white" />
+              </div>
+              <p className="text-[11px] text-muted-foreground font-medium">Total Input</p>
+            </div>
+            <div className="text-xl font-bold text-blue-700 dark:text-blue-300 font-mono tabular-nums">{stats.totalInput.toLocaleString()}</div>
           </CardContent>
         </Card>
       </div>

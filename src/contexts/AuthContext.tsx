@@ -19,7 +19,7 @@ const profileSchema = z.object({
 });
 
 const userRoleSchema = z.object({
-  role: z.enum(['worker', 'admin', 'owner', 'storage', 'cutting', 'sewing', 'finishing', 'buyer', 'superadmin']),
+  role: z.enum(['worker', 'admin', 'owner', 'storage', 'cutting', 'sewing', 'finishing', 'buyer', 'superadmin', 'gate_officer']),
   factory_id: z.string().nullable(),
 });
 

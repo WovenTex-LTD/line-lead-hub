@@ -113,7 +113,7 @@ export interface DailyReportData {
 
 // ── PDF Generation — Landscape Ledger ──────────────────────────────────
 
-export function downloadDailyProductionReport(d: DailyReportData) {
+export async function downloadDailyProductionReport(d: DailyReportData) {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pw = doc.internal.pageSize.getWidth(); // ~297
   const ph = doc.internal.pageSize.getHeight(); // ~210
@@ -145,11 +145,6 @@ export function downloadDailyProductionReport(d: DailyReportData) {
     if (!isBDT || !bdtRate) return native;
     return Math.round(native * bdtRate * 100) / 100;
   };
-
-  // ── Sort lines numerically (Line 1, Line 2, ...) ──
-  const numFromName = (name: string) => parseInt(name.replace(/\D/g, "")) || 9999;
-  d.sewing.sort((a, b) => numFromName(a.lineName) - numFromName(b.lineName));
-  d.cutting.sort((a, b) => numFromName(a.lineName) - numFromName(b.lineName));
 
   // ── Computed summaries ──
   const sewingTotalOutput = d.sewing.reduce((s, l) => s + l.actualQty, 0);
@@ -320,17 +315,15 @@ export function downloadDailyProductionReport(d: DailyReportData) {
 
   let y = 28;
 
-  // ── Production Summary — structured 3-column layout ──
+  // ── Production Summary — 3-column layout ──
   y = secHead("PRODUCTION SUMMARY", y);
 
-  // 3 department columns side by side
   const colW = Math.floor(cw / 3);
   const col1 = m;
   const col2 = m + colW;
   const col3 = m + colW * 2;
 
   const drawSummaryCol = (x: number, title: string, rows: [string, string][], startY: number): number => {
-    // Title
     doc.setFillColor(210, 210, 210);
     doc.rect(x, startY, colW, 7, "F");
     doc.setDrawColor(black);
@@ -341,12 +334,10 @@ export function downloadDailyProductionReport(d: DailyReportData) {
     doc.setTextColor(black);
     doc.text(title, x + colW / 2, startY + 5, { align: "center" });
     let ry = startY + 7;
-
     rows.forEach(([label, value]) => {
       doc.setDrawColor(black);
       doc.setLineWidth(0.15);
       doc.rect(x, ry, colW, 6);
-      // Vertical divider at 55%
       const divX = x + colW * 0.55;
       doc.line(divX, ry, divX, ry + 6);
       doc.setFontSize(7);
@@ -357,7 +348,6 @@ export function downloadDailyProductionReport(d: DailyReportData) {
       doc.text(value, divX + 2, ry + 4.2);
       ry += 6;
     });
-
     return ry;
   };
 
@@ -399,35 +389,30 @@ export function downloadDailyProductionReport(d: DailyReportData) {
 
   y = Math.max(y1, y2, y3) + 4;
 
-  // ── Totals row spanning full width — proper table ──
-  {
-    const totCols: { label: string; w: number; align?: "left" | "right" | "center" }[] = [
-      { label: "Item", w: 46 },
-      { label: "Manpower", w: 26, align: "right" },
-      { label: "OT Hours", w: 26, align: "right" },
-      { label: "Reject", w: 22, align: "right" },
-      { label: "Rework", w: 22, align: "right" },
-    ];
-    const totVals = [
-      "ALL DEPARTMENTS",
-      totalManpower.toLocaleString(),
-      totalOTAll.toLocaleString(),
-      sewingTotalRejects.toLocaleString(),
-      sewingTotalRework.toLocaleString(),
-    ];
-
-    if (d.financials) {
-      totCols.push({ label: "Cost (USD)", w: 32, align: "right" });
-      totCols.push({ label: "Revenue (USD)", w: 34, align: "right" });
-      totCols.push({ label: "Profit / Loss", w: cw - 208 > 0 ? cw - 208 : 30, align: "right" });
-      totVals.push(fUsd(d.financials.totalCostUsd));
-      totVals.push(fUsd(d.financials.totalRevenue));
-      totVals.push((d.financials.profit >= 0 ? "+" : "") + fUsd(d.financials.profit));
-    }
-
-    y = drawTable(totCols, [totVals], y, { boldLastRow: true, fs: 7.5, rh: 7 });
+  // ── Totals row spanning full width ──
+  doc.setDrawColor(black);
+  doc.setLineWidth(0.3);
+  doc.setFillColor(230, 230, 230);
+  const totalsH = d.financials ? 14 : 7;
+  doc.rect(m, y, cw, totalsH, "FD");
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(black);
+  // Row 1: operational totals
+  doc.text("TOTAL ALL DEPARTMENTS", m + 4, y + 5);
+  doc.text(`Manpower: ${totalManpower}`, m + cw * 0.35, y + 5);
+  doc.text(`OT: ${totalOTAll} hrs`, m + cw * 0.53, y + 5);
+  doc.text(`Reject: ${sewingTotalRejects}`, m + cw * 0.68, y + 5);
+  doc.text(`Rework: ${sewingTotalRework}`, m + cw * 0.83, y + 5);
+  // Row 2: financials (sewing only)
+  if (d.financials) {
+    const plSign = d.financials.profit >= 0 ? "+" : "-";
+    doc.text(
+      `Output Value: ${fUsd(d.financials.totalRevenue)}  |  Oper. Cost: ${fUsd(d.financials.totalCostUsd)}  |  Margin: ${plSign}${fUsd(Math.abs(d.financials.profit))}`,
+      m + 4, y + 11,
+    );
   }
-  y += 4;
+  y += totalsH + 3;
 
   // ── Attention Today ──
   y = secHead("ATTENTION TODAY", y);
@@ -459,51 +444,6 @@ export function downloadDailyProductionReport(d: DailyReportData) {
     doc.text(`${i + 1}. ${item}`, m + 2, y + 4);
     y += 5;
   });
-  y += 2;
-
-  // ── Production Notes (all, on front page) ──
-  const drawNotes = (notes: DailyReportNote[], atY: number, pgTitle: string): number => {
-    if (notes.length === 0) return atY;
-    if (atY + 14 > ph - 16) {
-      doc.addPage();
-      atY = pageHead(pgTitle);
-    }
-    atY = secHead("PRODUCTION NOTES", atY);
-
-    const noteCols = [
-      { label: "Sl", w: 8, align: "center" as const },
-      { label: "Tag", w: 22 },
-      { label: "Impact", w: 16 },
-      { label: "Status", w: 18 },
-      { label: "Line / Dept", w: 30 },
-      { label: "PO", w: 28 },
-      { label: "Title", w: 50 },
-      { label: "Detail", w: cw - 172 > 0 ? cw - 172 : 40 },
-    ];
-
-    const tagLabel = (t: string) => {
-      const map: Record<string, string> = { output: "Output", delay: "Delay", quality: "Quality", material: "Material", machine: "Machine", staffing: "Staffing", buyer_change: "Buyer Chg", other: "Other" };
-      return map[t] || t;
-    };
-
-    const noteRows = notes.map((n, i) => [
-      String(i + 1),
-      tagLabel(n.tag),
-      n.impact ? n.impact.toUpperCase() : "-",
-      n.status.toUpperCase(),
-      n.lineName || (n.department ? n.department.charAt(0).toUpperCase() + n.department.slice(1) : "-"),
-      (n.poNumber || "-").substring(0, 15),
-      n.title.substring(0, 28),
-      n.body.substring(0, 40),
-    ]);
-
-    atY = drawTable(noteCols, noteRows, atY, { fs: 6.5, rh: 6, pgTitle });
-    return atY + 4;
-  };
-
-  if (d.notes.length > 0) {
-    y = drawNotes(d.notes, y, "DAILY PRODUCTION REPORT");
-  }
 
   // ========== SEWING DETAIL ==========
   if (d.sewing.length > 0) {
@@ -584,14 +524,8 @@ export function downloadDailyProductionReport(d: DailyReportData) {
     doc.text("* Eff% = (Actual / Target) x 100  |  Cost = Rate x MP x Hrs (regular + OT)", m, y + 2);
     y += 5;
 
-    // Sewing-specific production notes
-    const sewingNotes = d.notes.filter(n => n.department === "sewing");
-    if (sewingNotes.length > 0) {
-      y = drawNotes(sewingNotes, y, "SEWING — NOTES");
-    }
-
-    // Blank manager notes lines
-    if (y + 14 < ph - 16) {
+    // Manager notes
+    if (y + 16 < ph - 16) {
       doc.setFontSize(7);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(black);
@@ -605,52 +539,39 @@ export function downloadDailyProductionReport(d: DailyReportData) {
   // ========== CUTTING DETAIL ==========
   if (d.cutting.length > 0) {
     doc.addPage();
-    y = pageHead("CUTTING — LINE WISE DETAIL & COST");
+    y = pageHead("CUTTING — LINE WISE DETAIL");
 
     const cutCols = [
       { label: "Sl", w: 8, align: "center" as const },
-      { label: "Line", w: 22 },
-      { label: "PO / Buyer", w: 36 },
-      { label: "Colour", w: 22 },
-      { label: "Day Cut", w: 20, align: "right" as const },
-      { label: "Day Input", w: 20, align: "right" as const },
-      { label: "Total Cut", w: 20, align: "right" as const },
-      { label: "Balance", w: 20, align: "right" as const },
-      { label: "MP", w: 12, align: "right" as const },
-      { label: "Hrs", w: 12, align: "right" as const },
-      { label: "OT Hrs", w: 14, align: "right" as const },
-      { label: "OT MP", w: 14, align: "right" as const },
-      { label: "Cost (" + (isBDT ? "BDT" : "USD") + ")", w: 22, align: "right" as const },
-      { label: "Cost ($)", w: 20, align: "right" as const },
-      { label: "Leftover", w: cw - 262 > 0 ? cw - 262 : 16 },
+      { label: "Line", w: 26 },
+      { label: "PO / Buyer", w: 40 },
+      { label: "Colour", w: 26 },
+      { label: "Day Cut", w: 22, align: "right" as const },
+      { label: "Day Input", w: 22, align: "right" as const },
+      { label: "Total Cut", w: 22, align: "right" as const },
+      { label: "Balance", w: 22, align: "right" as const },
+      { label: "MP", w: 14, align: "right" as const },
+      { label: "Hrs", w: 14, align: "right" as const },
+      { label: "OT Hrs", w: 16, align: "right" as const },
+      { label: "OT MP", w: 16, align: "right" as const },
+      { label: "Leftover", w: cw - 248 > 0 ? cw - 248 : 16 },
     ];
 
-    let cutTotalCostNat = 0;
-    let cutTotalCostUsd = 0;
-
-    const cutRows = d.cutting.map((l, i) => {
-      const costNat = lineCost(l.manpower, l.hoursActual, l.otManpower, l.otHours);
-      const costUsd = toUsd(costNat);
-      cutTotalCostNat += costNat;
-      cutTotalCostUsd += costUsd;
-      return [
-        String(i + 1),
-        l.lineName.substring(0, 11),
-        ((l.poNumber || "-") + " / " + (l.buyer || "-")).substring(0, 19),
-        (l.colour || "-").substring(0, 11),
-        fN(l.dayCutting),
-        fN(l.dayInput),
-        fN(l.totalCutting),
-        fN(l.balance),
-        fN(l.manpower),
-        fN(l.hoursActual),
-        fN(l.otHours),
-        fN(l.otManpower),
-        rate ? fNat(costNat) : "-",
-        rate ? fUsd(costUsd) : "-",
-        l.leftoverRecorded ? "YES" : "-",
-      ];
-    });
+    const cutRows = d.cutting.map((l, i) => [
+      String(i + 1),
+      l.lineName.substring(0, 13),
+      ((l.poNumber || "-") + " / " + (l.buyer || "-")).substring(0, 21),
+      (l.colour || "-").substring(0, 13),
+      fN(l.dayCutting),
+      fN(l.dayInput),
+      fN(l.totalCutting),
+      fN(l.balance),
+      fN(l.manpower),
+      fN(l.hoursActual),
+      fN(l.otHours),
+      fN(l.otManpower),
+      l.leftoverRecorded ? "YES" : "-",
+    ]);
     cutRows.push([
       "", "TOTAL", "", "",
       cuttingTotalDay.toLocaleString(),
@@ -660,19 +581,11 @@ export function downloadDailyProductionReport(d: DailyReportData) {
       d.cutting.reduce((s, l) => s + (l.hoursActual || 0), 0).toLocaleString(),
       d.cutting.reduce((s, l) => s + (l.otHours || 0), 0).toLocaleString(),
       d.cutting.reduce((s, l) => s + (l.otManpower || 0), 0).toLocaleString(),
-      rate ? fNat(cutTotalCostNat) : "-",
-      rate ? fUsd(cutTotalCostUsd) : "-",
       cuttingLeftovers > 0 ? String(cuttingLeftovers) : "-",
     ]);
 
-    y = drawTable(cutCols, cutRows, y, { boldLastRow: true, fs: 6.5, rh: 6, pgTitle: "CUTTING — LINE WISE DETAIL & COST" });
+    y = drawTable(cutCols, cutRows, y, { boldLastRow: true, fs: 6.5, rh: 6, pgTitle: "CUTTING — LINE WISE DETAIL" });
     y += 4;
-
-    doc.setFontSize(6);
-    doc.setFont("helvetica", "italic");
-    doc.setTextColor(gray);
-    doc.text("* Cost = Rate x MP x Hrs (regular + OT)", m, y + 2);
-    y += 5;
 
     // Leftover details
     const leftovers = d.cutting.filter(l => l.leftoverRecorded);
@@ -688,13 +601,7 @@ export function downloadDailyProductionReport(d: DailyReportData) {
       });
     }
 
-    // Cutting-specific production notes
-    const cuttingNotes = d.notes.filter(n => n.department === "cutting");
-    if (cuttingNotes.length > 0) {
-      y = drawNotes(cuttingNotes, y, "CUTTING — NOTES");
-    }
-
-    // Blank manager notes lines
+    // Manager notes
     if (y + 12 < ph - 16) {
       y += 3;
       doc.setFontSize(7);
@@ -710,54 +617,39 @@ export function downloadDailyProductionReport(d: DailyReportData) {
   // ========== FINISHING DETAIL ==========
   if (finOut.length > 0) {
     doc.addPage();
-    y = pageHead("FINISHING — OUTPUT, COST & REVENUE");
+    y = pageHead("FINISHING — OUTPUT DETAIL");
 
     const finCols = [
       { label: "Sl", w: 8, align: "center" as const },
-      { label: "PO", w: 28 },
-      { label: "Buyer", w: 24 },
-      { label: "Thread", w: 16, align: "right" as const },
-      { label: "Check", w: 16, align: "right" as const },
-      { label: "Button", w: 16, align: "right" as const },
-      { label: "Iron", w: 14, align: "right" as const },
-      { label: "Get Up", w: 16, align: "right" as const },
-      { label: "Poly", w: 18, align: "right" as const },
-      { label: "Carton", w: 16, align: "right" as const },
-      { label: "MP", w: 12, align: "right" as const },
-      { label: "Hrs", w: 12, align: "right" as const },
-      { label: "OT", w: 12, align: "right" as const },
-      { label: "Cost ($)", w: 20, align: "right" as const },
-      { label: "CM/Dz", w: 16, align: "right" as const },
-      { label: "Revenue ($)", w: cw - 244 > 0 ? cw - 244 : 22, align: "right" as const },
+      { label: "PO", w: 32 },
+      { label: "Buyer", w: 28 },
+      { label: "Thread", w: 18, align: "right" as const },
+      { label: "Check", w: 18, align: "right" as const },
+      { label: "Button", w: 18, align: "right" as const },
+      { label: "Iron", w: 16, align: "right" as const },
+      { label: "Get Up", w: 18, align: "right" as const },
+      { label: "Poly", w: 20, align: "right" as const },
+      { label: "Carton", w: 18, align: "right" as const },
+      { label: "MP", w: 14, align: "right" as const },
+      { label: "Hrs", w: 14, align: "right" as const },
+      { label: "OT Hrs", w: cw - 222 > 0 ? cw - 222 : 14, align: "right" as const },
     ];
 
-    let finTotalCostUsd = 0;
-    let finTotalRevenue = 0;
-
-    const finRows = finOut.map((l, i) => {
-      const costNat = lineCost(l.manpower, l.hours, l.otManpower, l.otHours);
-      const costUsd = toUsd(costNat);
-      finTotalCostUsd += costUsd;
-      const rev = 0; // Revenue now driven by sewing output, not finishing poly
-      return [
-        String(i + 1),
-        (l.poNumber || "-").substring(0, 15),
-        (l.buyer || "-").substring(0, 13),
-        fN(l.threadCutting),
-        fN(l.insideCheck),
-        fN(l.buttoning),
-        fN(l.iron),
-        fN(l.getUp),
-        fN(l.poly),
-        fN(l.carton),
-        fN(l.manpower),
-        fN(l.hours),
-        fN(l.otHours),
-        rate ? fUsd(costUsd) : "-",
-        l.cmPerDozen ? "$" + l.cmPerDozen.toFixed(2) : "-",
-        rev > 0 ? fUsd(rev) : "-",
-      ];
-    });
+    const finRows = finOut.map((l, i) => [
+      String(i + 1),
+      (l.poNumber || "-").substring(0, 17),
+      (l.buyer || "-").substring(0, 15),
+      fN(l.threadCutting),
+      fN(l.insideCheck),
+      fN(l.buttoning),
+      fN(l.iron),
+      fN(l.getUp),
+      fN(l.poly),
+      fN(l.carton),
+      fN(l.manpower),
+      fN(l.hours),
+      fN(l.otHours),
+    ]);
     finRows.push([
       "", "TOTAL", "",
       finOut.reduce((s, l) => s + (l.threadCutting || 0), 0).toLocaleString(),
@@ -770,27 +662,12 @@ export function downloadDailyProductionReport(d: DailyReportData) {
       String(finTotalManpower),
       finOut.reduce((s, l) => s + (l.hours || 0), 0).toLocaleString(),
       finOut.reduce((s, l) => s + (l.otHours || 0), 0).toLocaleString(),
-      rate ? fUsd(finTotalCostUsd) : "-",
-      "",
-      finTotalRevenue > 0 ? fUsd(finTotalRevenue) : "-",
     ]);
 
-    y = drawTable(finCols, finRows, y, { boldLastRow: true, fs: 6.5, rh: 6, pgTitle: "FINISHING — OUTPUT, COST & REVENUE" });
+    y = drawTable(finCols, finRows, y, { boldLastRow: true, fs: 6.5, rh: 6, pgTitle: "FINISHING — OUTPUT DETAIL" });
     y += 4;
 
-    doc.setFontSize(6);
-    doc.setFont("helvetica", "italic");
-    doc.setTextColor(gray);
-    doc.text("* Revenue = (CM/Dozen / 12) x Sewing output  |  Cost = Rate x MP x Hrs (regular + OT)", m, y + 2);
-    y += 5;
-
-    // Finishing-specific production notes
-    const finishingNotes = d.notes.filter(n => n.department === "finishing");
-    if (finishingNotes.length > 0) {
-      y = drawNotes(finishingNotes, y, "FINISHING — NOTES");
-    }
-
-    // Blank manager notes lines
+    // Manager notes
     if (y + 12 < ph - 16) {
       doc.setFontSize(7);
       doc.setFont("helvetica", "bold");
@@ -828,34 +705,10 @@ export function downloadDailyProductionReport(d: DailyReportData) {
       y += 6;
     }
 
-    // Cost breakdown by department
-    y = secHead("Cost Breakdown by Department", y);
-    const sewCostNat = isBDT && bdtRate ? fin.sewingCostUsd / bdtRate : fin.sewingCostUsd;
-    const cutCostNat = isBDT && bdtRate ? fin.cuttingCostUsd / bdtRate : fin.cuttingCostUsd;
-    const finCostNat = isBDT && bdtRate ? fin.finishingCostUsd / bdtRate : fin.finishingCostUsd;
-
-    const costCols = [
-      { label: "Department", w: 50 },
-      ...(isBDT ? [{ label: "Cost (BDT)", w: 40, align: "right" as const }] : []),
-      { label: "Cost (USD)", w: 40, align: "right" as const },
-      { label: "% of Total", w: 30, align: "right" as const },
-    ];
-
-    const pctOf = (v: number) => fin.totalCostUsd > 0 ? Math.round((v / fin.totalCostUsd) * 100) + "%" : "-";
-    const costRows = [
-      ["Sewing", ...(isBDT ? ["Tk " + Math.round(sewCostNat).toLocaleString()] : []), fUsd(fin.sewingCostUsd), pctOf(fin.sewingCostUsd)],
-      ["Cutting", ...(isBDT ? ["Tk " + Math.round(cutCostNat).toLocaleString()] : []), fUsd(fin.cuttingCostUsd), pctOf(fin.cuttingCostUsd)],
-      ["Finishing", ...(isBDT ? ["Tk " + Math.round(finCostNat).toLocaleString()] : []), fUsd(fin.finishingCostUsd), pctOf(fin.finishingCostUsd)],
-      ["TOTAL", ...(isBDT ? ["Tk " + Math.round(fin.totalCostNative).toLocaleString()] : []), fUsd(fin.totalCostUsd), "100%"],
-    ];
-
-    y = drawTable(costCols, costRows, y, { boldLastRow: true, fs: 8, rh: 7.5, pgTitle: "COSTING SHEET" });
-    y += 4;
-
     doc.setFontSize(6.5);
     doc.setFont("helvetica", "italic");
     doc.setTextColor(gray);
-    doc.text("* Cost = Headcount Rate x Manpower x Hours (regular + OT, per department)", m, y + 2);
+    doc.text("* Cost = Headcount Rate x Manpower x Hours (regular + OT, sewing dept only)", m, y + 2);
     if (isBDT && bdtRate) {
       doc.text("* Exchange rate: 1 USD = " + (1 / bdtRate).toFixed(2) + " BDT", m, y + 6);
       y += 4;
@@ -885,7 +738,7 @@ export function downloadDailyProductionReport(d: DailyReportData) {
     doc.setTextColor(black);
 
     const drivers: string[] = [];
-    if (totalOTAll > 0) drivers.push(`Total OT: ${totalOTAll} hrs across all departments`);
+    if (totalOTAll > 0) drivers.push(`Total OT: ${totalOTAll} hrs (sewing)`);
     const lowEffSew = d.sewing.filter(l => l.efficiency != null && (l.efficiency || 0) < 70);
     if (lowEffSew.length > 0) drivers.push(`${lowEffSew.length} sewing line(s) below 70% efficiency`);
     if (sewingTotalRework > 0) drivers.push(`${sewingTotalRework} pcs rework - additional labor`);
@@ -957,7 +810,8 @@ export function downloadDailyProductionReport(d: DailyReportData) {
   drawAllFooters();
 
   const fileDate = format(new Date(d.reportDate + "T00:00:00"), "yyyy-MM-dd");
-  doc.save(`daily-production-report-${fileDate}.pdf`);
+  const { savePdf } = await import("@/lib/capacitor");
+  await savePdf(doc, `daily-production-report-${fileDate}.pdf`);
 }
 
 // ── Button Component ───────────────────────────────────────────────────

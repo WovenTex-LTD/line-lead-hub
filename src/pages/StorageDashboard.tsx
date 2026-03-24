@@ -467,7 +467,7 @@ export default function StorageDashboard() {
     }
   }
 
-  function exportToCSV() {
+  async function exportToCSV() {
     if (!selectedCard || transactions.length === 0) return;
     
     const headers = ["Date", "Receive Qty", "TTL Receive", "Issue Qty", "Balance Qty", "Remarks"];
@@ -489,16 +489,12 @@ export default function StorageDashboard() {
       ...rows.map(row => row.join(",")),
     ].join("\n");
     
+    const { downloadFile } = await import("@/lib/capacitor");
     const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `bin-card-${selectedCard.work_orders.po_number}-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await downloadFile(blob, `bin-card-${selectedCard.work_orders.po_number}-${format(new Date(), "yyyy-MM-dd")}.csv`);
   }
 
-  function exportBinCardsToCSV() {
+  async function exportBinCardsToCSV() {
     if (filteredCards.length === 0) return;
     
     const headers = ["PO Number", "Buyer", "Style", "Item", "Description", "Supplier", "Prepared By", "Created", "Last Updated"];
@@ -519,13 +515,9 @@ export default function StorageDashboard() {
       ...rows.map(row => row.join(",")),
     ].join("\n");
     
+    const { downloadFile } = await import("@/lib/capacitor");
     const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `bin-cards-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await downloadFile(blob, `bin-cards-${format(new Date(), "yyyy-MM-dd")}.csv`);
   }
 
   if (!canAccess) {

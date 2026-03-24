@@ -190,58 +190,49 @@ export function ExtrasOverviewModal({ open, onOpenChange }: ExtrasOverviewModalP
           </DialogHeader>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-4 gap-3 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
             <div className="bg-muted/50 rounded-lg p-3 text-center">
               <p className="text-2xl font-bold font-mono">{totals.extras.toLocaleString()}</p>
               <p className="text-xs text-muted-foreground">{t('modals.totalExtras')}</p>
             </div>
             <div className="bg-warning/10 rounded-lg p-3 text-center">
               <p className="text-2xl font-bold font-mono text-warning">{totals.available.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                <Package className="h-3 w-3" /> {t('modals.available')}
-              </p>
+              <p className="text-xs text-muted-foreground">{t('modals.available')}</p>
             </div>
             <div className="bg-primary/10 rounded-lg p-3 text-center">
               <p className="text-2xl font-bold font-mono text-primary">{totals.stocked.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                <Archive className="h-3 w-3" /> {t('modals.stocked')}
-              </p>
+              <p className="text-xs text-muted-foreground">{t('modals.stocked')}</p>
             </div>
             <div className="bg-muted rounded-lg p-3 text-center">
               <p className="text-2xl font-bold font-mono text-muted-foreground">{totals.consumed.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                <PackageCheck className="h-3 w-3" /> {t('modals.consumed')}
-              </p>
+              <p className="text-xs text-muted-foreground">{t('modals.consumed')}</p>
             </div>
           </div>
 
           {/* Filter Tabs */}
           <Tabs value={filter} onValueChange={(v) => setFilter(v as FilterType)}>
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="all" className="gap-1">
+            <TabsList className="w-full grid grid-cols-4 h-auto">
+              <TabsTrigger value="all" className="text-xs px-2 py-1.5">
                 {t('common.all')}
-                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
                   {data.length}
                 </Badge>
               </TabsTrigger>
-              <TabsTrigger value="available" className="gap-1">
-                <Package className="h-3 w-3" />
+              <TabsTrigger value="available" className="text-xs px-2 py-1.5">
                 {t('modals.available')}
-                <Badge variant="warning" className="ml-1 h-5 px-1.5 text-xs">
+                <Badge variant="warning" className="ml-1 h-4 px-1 text-[10px]">
                   {data.filter(d => d.available > 0).length}
                 </Badge>
               </TabsTrigger>
-              <TabsTrigger value="stocked" className="gap-1">
-                <Archive className="h-3 w-3" />
+              <TabsTrigger value="stocked" className="text-xs px-2 py-1.5">
                 {t('modals.stocked')}
-                <Badge variant="default" className="ml-1 h-5 px-1.5 text-xs">
+                <Badge variant="default" className="ml-1 h-4 px-1 text-[10px]">
                   {data.filter(d => d.stocked > 0).length}
                 </Badge>
               </TabsTrigger>
-              <TabsTrigger value="consumed" className="gap-1">
-                <PackageCheck className="h-3 w-3" />
+              <TabsTrigger value="consumed" className="text-xs px-2 py-1.5">
                 {t('modals.consumed')}
-                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
                   {data.filter(d => d.consumed > 0).length}
                 </Badge>
               </TabsTrigger>

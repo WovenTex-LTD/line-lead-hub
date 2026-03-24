@@ -33,6 +33,10 @@ import {
   Bug,
   BookOpen,
   BarChart3,
+  DollarSign,
+  Truck,
+  CheckSquare,
+  Archive,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -58,6 +62,7 @@ import { isRunningFromDMG } from "@/lib/dmg-detection";
 import { DMGWarningModal } from "@/components/DMGWarningModal";
 import { useOnboardingChecklist } from "@/hooks/useOnboardingChecklist";
 import { useTourContext } from "@/contexts/TourContext";
+import { usePendingApprovals } from "@/hooks/useDispatchRequests";
 import logoSvg from "@/assets/logo.svg";
 
 // Web fallback version (desktop uses the runtime version from the installed app)
@@ -92,6 +97,10 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Bug,
   BookOpen,
   BarChart3,
+  DollarSign,
+  Truck,
+  CheckSquare,
+  Archive,
 };
 
 const navLabelKeys: Record<string, string> = {
@@ -132,6 +141,8 @@ const navLabelKeys: Record<string, string> = {
   'All Bin Cards': 'nav.allBinCards',
   'Daily Target': 'nav.finishingDailyTarget',
   'End of Day Output': 'nav.finishingDailyOutput',
+  'Cutting Handoffs': 'nav.cuttingHandoffs',
+  'Finances': 'nav.finances',
 };
 
 interface NavItem {
@@ -140,6 +151,7 @@ interface NavItem {
   icon: string;
   children?: NavItem[];
   bottom?: boolean;
+  group?: string;
 }
 
 export function AppSidebar() {
@@ -148,6 +160,7 @@ export function AppSidebar() {
   const location = useLocation();
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
+  const isFinanceTheme = location.pathname === '/finances';
   const [expandedMenus, setExpandedMenus] = React.useState<string[]>(['/setup']);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [appVersion, setAppVersion] = useState<string>(WEB_APP_VERSION);
@@ -169,6 +182,9 @@ export function AppSidebar() {
   const onboarding = useOnboardingChecklist(onboardingProfile);
   const setupRemaining = onboarding.totalCount - onboarding.completedCount;
   const showSetupBadge = isAdminOrOwner && !onboarding.loading && !onboarding.dismissed && !onboarding.allComplete && onboarding.totalCount > 0;
+
+  const { data: pendingApprovals } = usePendingApprovals();
+  const pendingDispatchCount = isAdminOrOwner ? (pendingApprovals?.length ?? 0) : 0;
 
   useEffect(() => {
     let cancelled = false;
@@ -276,10 +292,11 @@ export function AppSidebar() {
   const isSewingRole = roles.some(ur => ur.role === 'sewing');
   const isFinishingRole = roles.some(ur => ur.role === 'finishing');
   const isBuyerRole = roles.some(ur => ur.role === 'buyer');
+  const isGateOfficerRole = roles.some(ur => ur.role === 'gate_officer');
   const roleHierarchy = ['owner', 'admin', 'worker'];
   const highestRole = roleHierarchy.find(r =>
     roles.some(ur => ur.role === r)
-  ) || (isStorageRole ? 'storage' : isCuttingRole ? 'cutting' : isSewingRole ? 'sewing' : isFinishingRole ? 'finishing' : isBuyerRole ? 'buyer' : 'worker');
+  ) || (isStorageRole ? 'storage' : isCuttingRole ? 'cutting' : isSewingRole ? 'sewing' : isFinishingRole ? 'finishing' : isBuyerRole ? 'buyer' : isGateOfficerRole ? 'gate_officer' : 'worker');
 
   // Get nav items based on role and department
   let navItems = NAV_ITEMS[highestRole as keyof typeof NAV_ITEMS] || NAV_ITEMS.worker;
@@ -307,6 +324,11 @@ export function AppSidebar() {
   // For buyer role
   if (isBuyerRole && highestRole === 'buyer') {
     navItems = NAV_ITEMS.buyer;
+  }
+
+  // For gate officer role
+  if (isGateOfficerRole && highestRole === 'gate_officer') {
+    navItems = NAV_ITEMS.gate_officer;
   }
 
   // Legacy: for workers, filter navigation based on department (only when in a factory)
@@ -371,24 +393,32 @@ export function AppSidebar() {
       
       <Sidebar
         className={cn(
-        "border-r border-sidebar-border transition-all duration-300",
+        "border-r border-white/[0.06] transition-all duration-300",
         collapsed ? "w-16" : "w-64"
       )}
+      style={{
+        "--sidebar-gradient": isFinanceTheme
+          ? "linear-gradient(180deg,#2d1754 0%,#3b2068 35%,#4a2a7a 65%,#56328a 100%)"
+          : "linear-gradient(180deg,#080e1f 0%,#0c1633 35%,#111e4a 65%,#152457 100%)",
+      } as React.CSSProperties}
       collapsible="icon"
     >
-      <SidebarHeader className="border-b border-sidebar-border p-4">
+      <SidebarHeader className="border-b border-white/[0.08] p-4">
         <div className="flex items-center gap-3">
-          <img 
-            src={logoSvg} 
-            alt="ProductionPortal" 
-            className="h-10 w-10 shrink-0 rounded-lg"
-          />
+          <div className="relative shrink-0">
+            <img
+              src={logoSvg}
+              alt="ProductionPortal"
+              className="h-10 w-10 rounded-xl shadow-lg shadow-sidebar-primary/20"
+            />
+            <div className="absolute inset-0 rounded-xl ring-1 ring-white/10" />
+          </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="font-semibold text-sidebar-foreground">
+              <span className="font-bold text-sidebar-foreground tracking-tight">
                 {t('app.name')}
               </span>
-              <span className="text-xs text-sidebar-foreground/60 truncate max-w-[140px]">
+              <span className="text-[11px] text-sidebar-foreground/40 truncate max-w-[140px]">
                 Powered by WovenTex
               </span>
             </div>
@@ -397,155 +427,189 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="custom-scrollbar">
-        <SidebarGroup>
-          {!collapsed && (
-            <SidebarGroupLabel className="text-sidebar-foreground/50">
-              {t('common.menu')}
-            </SidebarGroupLabel>
-          )}
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {(navItems as NavItem[]).filter(item => !item.bottom).map((item) => {
-                const Icon = iconMap[item.icon];
-                const hasChildren = item.children && item.children.length > 0;
-                const isExpanded = expandedMenus.includes(item.path);
-                const isItemOrChildActive = isActive(item.path) || isParentActive(item);
+        {(() => {
+          const mainItems = (navItems as NavItem[]).filter(item => !item.bottom);
+          
+          // Group items by their group property, preserving order
+          const groups: { label: string | null; items: NavItem[] }[] = [];
+          let currentGroup: { label: string | null; items: NavItem[] } | null = null;
+          
+          for (const item of mainItems) {
+            const groupLabel = item.group || null;
+            if (!currentGroup || currentGroup.label !== groupLabel) {
+              currentGroup = { label: groupLabel, items: [item] };
+              groups.push(currentGroup);
+            } else {
+              currentGroup.items.push(item);
+            }
+          }
 
-                if (hasChildren && !collapsed) {
-                  return (
-                    <Collapsible
-                      key={item.path}
-                      open={isExpanded}
-                      onOpenChange={() => toggleMenu(item.path)}
-                    >
-                      <SidebarMenuItem>
-                        <CollapsibleTrigger asChild>
-                          <SidebarMenuButton
-                            className={cn(
-                              "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors w-full justify-between",
-                              isItemOrChildActive
-                                ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                                : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                            )}
-                          >
-                            <div className="flex items-center gap-3">
-                              {Icon && <Icon className="h-5 w-5 shrink-0" />}
-                              <span>{getNavLabel(item.label)}</span>
-                            </div>
-                            <ChevronDown className={cn(
-                              "h-4 w-4 shrink-0 transition-transform",
-                              isExpanded && "rotate-180"
-                            )} />
-                          </SidebarMenuButton>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="pl-4">
-                          <SidebarMenu>
-                            <SidebarMenuItem>
+          return groups.map((group, groupIdx) => (
+            <SidebarGroup key={group.label || `ungrouped-${groupIdx}`}>
+              {!collapsed && (
+                <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-[0.15em] text-sidebar-foreground/35 px-3">
+                  {group.label || t('common.menu')}
+                </SidebarGroupLabel>
+              )}
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {group.items.map((item) => {
+                    const Icon = iconMap[item.icon];
+                    const hasChildren = item.children && item.children.length > 0;
+                    const isExpanded = expandedMenus.includes(item.path);
+                    const isItemOrChildActive = isActive(item.path) || isParentActive(item);
+
+                    if (hasChildren && !collapsed) {
+                      return (
+                        <Collapsible
+                          key={item.path}
+                          open={isExpanded}
+                          onOpenChange={() => toggleMenu(item.path)}
+                        >
+                          <SidebarMenuItem>
+                            <CollapsibleTrigger asChild>
                               <SidebarMenuButton
-                                asChild
-                                isActive={isActive(item.path)}
+                                className={cn(
+                                  "flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200 w-full justify-between",
+                                  isItemOrChildActive
+                                    ? "bg-sidebar-primary/10 text-sidebar-foreground font-medium"
+                                    : "text-sidebar-foreground/60 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground"
+                                )}
                               >
-                                <Link
-                                  to={item.path}
-                                  className={cn(
-                                    "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors",
-                                    isActive(item.path)
-                                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                                  )}
-                                >
-                                  {Icon && <Icon className="h-4 w-4 shrink-0" />}
+                                <div className="flex items-center gap-3">
+                                  {Icon && <Icon className="h-5 w-5 shrink-0" />}
                                   <span>{getNavLabel(item.label)}</span>
-                                </Link>
+                                </div>
+                                <ChevronDown className={cn(
+                                  "h-4 w-4 shrink-0 transition-transform",
+                                  isExpanded && "rotate-180"
+                                )} />
                               </SidebarMenuButton>
-                            </SidebarMenuItem>
-                            {item.children!.map((child) => {
-                              const ChildIcon = iconMap[child.icon];
-                              return (
-                                <SidebarMenuItem key={child.path}>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent className="pl-4">
+                              <SidebarMenu>
+                                <SidebarMenuItem>
                                   <SidebarMenuButton
                                     asChild
-                                    isActive={isActive(child.path)}
+                                    isActive={isActive(item.path)}
                                   >
                                     <Link
-                                      to={child.path}
+                                      to={item.path}
                                       className={cn(
-                                        "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors",
-                                        isActive(child.path)
-                                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                                        "flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200",
+                                        isActive(item.path)
+                                          ? "bg-sidebar-primary/15 text-sidebar-foreground font-medium"
+                                          : "text-sidebar-foreground/60 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground"
                                       )}
                                     >
-                                      {ChildIcon && <ChildIcon className="h-4 w-4 shrink-0" />}
-                                      <span>{getNavLabel(child.label)}</span>
+                                      {Icon && <Icon className="h-4 w-4 shrink-0" />}
+                                      <span>{getNavLabel(item.label)}</span>
                                     </Link>
                                   </SidebarMenuButton>
                                 </SidebarMenuItem>
-                              );
-                            })}
-                          </SidebarMenu>
-                        </CollapsibleContent>
-                      </SidebarMenuItem>
-                    </Collapsible>
-                  );
-                }
+                                {item.children!.map((child) => {
+                                  const ChildIcon = iconMap[child.icon];
+                                  return (
+                                    <SidebarMenuItem key={child.path}>
+                                      <SidebarMenuButton
+                                        asChild
+                                        isActive={isActive(child.path)}
+                                      >
+                                        <Link
+                                          to={child.path}
+                                          className={cn(
+                                            "flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200",
+                                            isActive(child.path)
+                                              ? "bg-sidebar-primary/15 text-sidebar-foreground font-medium"
+                                              : "text-sidebar-foreground/60 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground"
+                                          )}
+                                        >
+                                          {ChildIcon && <ChildIcon className="h-4 w-4 shrink-0" />}
+                                          <span>{getNavLabel(child.label)}</span>
+                                        </Link>
+                                      </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                  );
+                                })}
+                              </SidebarMenu>
+                            </CollapsibleContent>
+                          </SidebarMenuItem>
+                        </Collapsible>
+                      );
+                    }
 
-                return (
-                  <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.path)}
-                      tooltip={collapsed ? getNavLabel(item.label) : undefined}
-                    >
-                      <Link
-                        to={item.path}
-                        data-tour={
-                          item.path === '/today' ? 'nav-today' :
-                          item.path === '/lines' ? 'nav-lines' :
-                          item.path === '/work-orders' ? 'nav-work-orders' :
-                          item.path === '/blockers' ? 'nav-blockers' :
-                          undefined
-                        }
-                        className={cn(
-                          "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors",
-                          isActive(item.path)
-                            ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                        )}
-                      >
-                        {Icon && (
-                          <div className="relative">
-                            <Icon className="h-5 w-5 shrink-0" />
-                            {collapsed && item.path === '/setup' && showSetupBadge && (
-                              <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-sidebar" />
+                    return (
+                      <SidebarMenuItem key={item.path}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive(item.path)}
+                          tooltip={collapsed ? getNavLabel(item.label) : undefined}
+                        >
+                          <Link
+                            to={item.path}
+                            data-tour={
+                              item.path === '/today' ? 'nav-today' :
+                              item.path === '/lines' ? 'nav-lines' :
+                              item.path === '/work-orders' ? 'nav-work-orders' :
+                              item.path === '/blockers' ? 'nav-blockers' :
+                              undefined
+                            }
+                            className={cn(
+                              "relative flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200",
+                              isActive(item.path)
+                                ? "bg-sidebar-primary/15 text-sidebar-primary-foreground font-medium shadow-sm"
+                                : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
                             )}
-                          </div>
-                        )}
-                        {!collapsed && (
-                          <span className="flex items-center gap-2">
-                            {getNavLabel(item.label)}
-                            {item.path === '/setup' && showSetupBadge && (
-                              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground px-1">
-                                {setupRemaining}
+                          >
+                            {isActive(item.path) && !collapsed && (
+                              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-sidebar-primary shadow-[0_0_8px_hsl(var(--sidebar-primary)/0.5)]" />
+                            )}
+                            {Icon && (
+                              <div className={cn(
+                                "relative shrink-0 transition-colors duration-200",
+                                isActive(item.path) ? "text-sidebar-primary" : ""
+                              )}>
+                                <Icon className="h-5 w-5" />
+                                {collapsed && item.path === '/setup' && showSetupBadge && (
+                                  <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-sidebar" />
+                                )}
+                                {collapsed && item.path === '/dispatch/approvals' && pendingDispatchCount > 0 && (
+                                  <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-sidebar" />
+                                )}
+                              </div>
+                            )}
+                            {!collapsed && (
+                              <span className="flex items-center gap-2">
+                                {getNavLabel(item.label)}
+                                {item.path === '/setup' && showSetupBadge && (
+                                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground px-1">
+                                    {setupRemaining}
+                                  </span>
+                                )}
+                                {item.path === '/dispatch/approvals' && pendingDispatchCount > 0 && (
+                                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white px-1">
+                                    {pendingDispatchCount}
+                                  </span>
+                                )}
                               </span>
                             )}
-                          </span>
-                        )}
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          ));
+        })()}
 
         {/* Bottom navigation items (settings section) */}
         {(navItems as NavItem[]).some(item => item.bottom) && (
           <SidebarGroup className="mt-auto">
             {!collapsed && (
-              <SidebarGroupLabel className="text-sidebar-foreground/50">
-Settings
+              <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-[0.15em] text-sidebar-foreground/35 px-3">
+                Settings
               </SidebarGroupLabel>
             )}
             <SidebarGroupContent>
@@ -562,15 +626,21 @@ Settings
                         <Link
                           to={item.path}
                           className={cn(
-                            "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors",
+                            "relative flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200",
                             isActive(item.path)
-                              ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                              : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                              ? "bg-sidebar-primary/15 text-sidebar-primary-foreground font-medium shadow-sm"
+                              : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
                           )}
                         >
+                          {isActive(item.path) && !collapsed && (
+                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-sidebar-primary shadow-[0_0_8px_hsl(var(--sidebar-primary)/0.5)]" />
+                          )}
                           {Icon && (
-                            <div className="relative">
-                              <Icon className="h-5 w-5 shrink-0" />
+                            <div className={cn(
+                              "relative shrink-0 transition-colors duration-200",
+                              isActive(item.path) ? "text-sidebar-primary" : ""
+                            )}>
+                              <Icon className="h-5 w-5" />
                               {collapsed && item.path === '/setup' && showSetupBadge && (
                                 <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-sidebar" />
                               )}
@@ -597,11 +667,11 @@ Settings
         )}
       </SidebarContent>
 
-      <SidebarFooter className={cn("border-t border-sidebar-border", collapsed ? "p-2" : "p-4")}>
+      <SidebarFooter className={cn("border-t border-white/[0.08]", collapsed ? "p-2" : "p-4")}>
         {/* Version and Update */}
         {!collapsed && (
-          <div className="flex items-center justify-between mb-3 pb-3 border-b border-sidebar-border/50">
-            <span className="text-xs text-sidebar-foreground/50">
+          <div className="flex items-center justify-between mb-3 pb-3 border-b border-white/[0.08]">
+            <span className="text-[11px] font-mono text-sidebar-foreground/35">
               v{appVersion}
             </span>
             <Button
@@ -609,7 +679,7 @@ Settings
               size="sm"
               onClick={handleCheckUpdate}
               disabled={isCheckingUpdate}
-              className="h-6 px-2 text-xs text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+              className="h-6 px-2 text-[11px] text-sidebar-foreground/45 hover:text-sidebar-foreground hover:bg-sidebar-accent/40 rounded-md"
               title="Check for updates"
             >
               {isCheckingUpdate ? (
@@ -622,8 +692,8 @@ Settings
           </div>
         )}
         {collapsed && (
-          <div className="flex flex-col items-center gap-1 mb-2 pb-2 border-b border-sidebar-border/50">
-            <span className="text-[10px] text-sidebar-foreground/50">
+          <div className="flex flex-col items-center gap-1 mb-2 pb-2 border-b border-white/[0.08]">
+            <span className="text-[9px] font-mono text-sidebar-foreground/35">
               v{appVersion}
             </span>
             <Button
@@ -631,7 +701,7 @@ Settings
               size="icon"
               onClick={handleCheckUpdate}
               disabled={isCheckingUpdate}
-              className="h-6 w-6 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+              className="h-6 w-6 text-sidebar-foreground/45 hover:text-sidebar-foreground hover:bg-sidebar-accent/40"
               title="Check for updates"
             >
               {isCheckingUpdate ? (
@@ -642,21 +712,21 @@ Settings
             </Button>
           </div>
         )}
-        
+
         {/* User profile */}
         <div className={cn("flex items-center", collapsed ? "flex-col gap-2" : "gap-3")}>
-          <Avatar className={cn("shrink-0", collapsed ? "h-7 w-7" : "h-9 w-9")}>
+          <Avatar className={cn("shrink-0 ring-2 ring-sidebar-primary/20", collapsed ? "h-7 w-7" : "h-9 w-9")}>
             <AvatarImage src={profile?.avatar_url || undefined} />
-            <AvatarFallback className={cn("bg-primary text-primary-foreground", collapsed ? "text-xs" : "text-sm")}>
+            <AvatarFallback className={cn("bg-sidebar-primary/20 text-sidebar-primary font-semibold", collapsed ? "text-xs" : "text-sm")}>
               {profile ? getInitials(profile.full_name) : '?'}
             </AvatarFallback>
           </Avatar>
           {!collapsed && (
             <div className="flex flex-1 flex-col overflow-hidden">
-              <span className="truncate text-sm font-medium text-sidebar-foreground">
+              <span className="truncate text-sm font-semibold text-sidebar-foreground">
                 {profile?.full_name}
               </span>
-              <span className="truncate text-xs text-sidebar-foreground/60">
+              <span className="truncate text-[11px] text-sidebar-foreground/40">
                 {t(`roles.${highestRole}`)}
               </span>
             </div>
@@ -665,26 +735,26 @@ Settings
             <>
               <button
                 onClick={async () => { await resetTour(); startTour(); }}
-                className="shrink-0 h-8 w-8 flex items-center justify-center rounded-md text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+                className="shrink-0 h-7 w-7 flex items-center justify-center rounded-md text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent/40 transition-all duration-200"
                 title="Restart tour"
               >
-                <PlayCircle className="h-4 w-4" />
+                <PlayCircle className="h-3.5 w-3.5" />
               </button>
               <button
                 onClick={() => openExternalUrl('https://productionportal.co')}
-                className="shrink-0 h-8 w-8 flex items-center justify-center rounded-md text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+                className="shrink-0 h-7 w-7 flex items-center justify-center rounded-md text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent/40 transition-all duration-200"
                 title={t('common.help') || 'Help'}
               >
-                <HelpCircle className="h-4 w-4" />
+                <HelpCircle className="h-3.5 w-3.5" />
               </button>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={handleSignOut}
-                className="shrink-0 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                className="shrink-0 h-7 w-7 text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent/40"
                 title={t('common.signOut') || 'Sign Out'}
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-3.5 w-3.5" />
               </Button>
             </>
           )}
@@ -693,7 +763,7 @@ Settings
           variant="ghost"
           size="sm"
           onClick={toggleSidebar}
-          className="mt-2 w-full justify-center text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+          className="mt-2 w-full justify-center text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent/30 text-xs"
         >
           {collapsed ? (
             <ChevronRight className="h-4 w-4" />

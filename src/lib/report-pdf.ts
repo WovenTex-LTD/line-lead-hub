@@ -1,6 +1,8 @@
 import { jsPDF } from "jspdf";
 import { format } from "date-fns";
 import { effectivePoly } from "@/lib/finishing-utils";
+import { compareLineNames } from "@/lib/sort-lines";
+import type { DispatchRequest } from "@/types/dispatch";
 
 // ── Types ──
 
@@ -57,7 +59,7 @@ export function generateProductionReportPdf(input: ReportPdfInput) {
     if (otMp && otHrs) c += rate * otMp * otHrs;
     return Math.round(c * 100) / 100;
   };
-  const numFromName = (name: string) => parseInt(name.replace(/\D/g, "")) || 9999;
+  const cmpLines = compareLineNames;
   const fmtDate = (d: string) => { const p = d.split("-"); return `${p[2]}.${p[1]}`; };
   const isDaily = reportType === "daily";
   const typeLabel = reportType === "daily" ? "DAILY" : reportType === "weekly" ? "WEEKLY" : "MONTHLY";
@@ -217,67 +219,45 @@ export function generateProductionReportPdf(input: ReportPdfInput) {
     y += 6;
   }
 
-  // Financial summary
+  // Financial summary — sewing only, 70% production CM share
   if (rate > 0) {
-    let totalRevenue = 0, totalSewCost = 0, totalCutCost = 0, totalFinCost = 0;
+    let totalOutputValue = 0, totalSewCostNat = 0;
 
-    if (departments.sewing) {
-      sewing.forEach((s: any) => {
-        if (!s.work_orders?.cm_per_dozen) return;
-        totalSewCost += lineCost(s.manpower_actual, s.hours_actual, s.ot_manpower_actual, s.ot_hours_actual);
-      });
-    }
-    if (departments.cutting) {
-      cutting.forEach((c: any) => {
-        if (!c.work_orders?.cm_per_dozen) return;
-        totalCutCost += lineCost(c.man_power, c.hours_actual, c.ot_manpower_actual, c.ot_hours_actual);
-      });
-    }
-    if (departments.finishing) {
-      finishing.forEach((f: any) => {
-        if (!f.work_orders?.cm_per_dozen) return;
-        totalFinCost += lineCost(f.m_power_actual, f.actual_hours, f.ot_manpower_actual, f.ot_hours_actual);
-      });
-    }
-    // Revenue: sewing output × (cm_per_dozen / 12)
     if (departments.sewing) {
       sewing.forEach((s: any) => {
         const cm = s.work_orders?.cm_per_dozen;
         const output = s.good_today || 0;
-        if (cm && output) totalRevenue += (cm / 12) * output;
+        if (cm && output) totalOutputValue += (cm * 0.70 / 12) * output;
+        totalSewCostNat += lineCost(s.manpower_actual, s.hours_actual, s.ot_manpower_actual, s.ot_hours_actual);
       });
     }
 
-    const totalCostNat = totalSewCost + totalCutCost + totalFinCost;
-    const totalCostUsd = toUsd(totalCostNat);
-    const profit = totalRevenue - totalCostUsd;
-    const margin = totalRevenue > 0 ? Math.round((profit / totalRevenue) * 1000) / 10 : 0;
+    const totalOperCostUsd = toUsd(totalSewCostNat);
+    const margin = totalOutputValue - totalOperCostUsd;
+    const marginPct = totalOutputValue > 0 ? Math.round((margin / totalOutputValue) * 1000) / 10 : 0;
 
-    if (totalRevenue > 0 || totalCostNat > 0) {
+    if (totalOutputValue > 0 || totalSewCostNat > 0) {
       doc.setFont("helvetica", "bold"); doc.setFontSize(10);
-      doc.text("FINANCIAL SUMMARY (USD)", m, y); y += 6;
+      doc.text("FINANCIAL SUMMARY — SEWING ONLY (USD)", m, y); y += 6;
 
       const finCols: Col[] = [
-        { label: "Revenue", w: 40, align: "right" },
-        { label: "Sewing Cost", w: 40, align: "right" },
-        { label: "Cutting Cost", w: 40, align: "right" },
-        { label: "Finish Cost", w: 40, align: "right" },
-        { label: "Total Cost", w: 40, align: "right" },
-        { label: "Profit", w: 40, align: "right" },
+        { label: "Output Value", w: 50, align: "right" },
+        { label: "Oper. Cost", w: 50, align: "right" },
+        { label: "Operating Margin", w: 55, align: "right" },
+        { label: "Margin %", w: 40, align: "right" },
       ];
       const finRows = [[
-        fUsd(Math.round(totalRevenue * 100) / 100),
-        fUsd(toUsd(totalSewCost)),
-        fUsd(toUsd(totalCutCost)),
-        fUsd(toUsd(totalFinCost)),
-        fUsd(totalCostUsd),
-        `${profit >= 0 ? "+" : "-"}${fUsd(Math.abs(Math.round(profit * 100) / 100))}`,
+        fUsd(Math.round(totalOutputValue * 100) / 100),
+        fUsd(totalOperCostUsd),
+        `${margin >= 0 ? "+" : "-"}${fUsd(Math.abs(Math.round(margin * 100) / 100))}`,
+        `${marginPct}%`,
       ]];
       y = drawTable(finCols, finRows, y);
       y += 2;
       doc.setFontSize(7); doc.setFont("helvetica", "italic"); doc.setTextColor(90);
-      if (isBDT && bdtToUsdRate) doc.text(`Cost in BDT: Tk${Math.round(totalCostNat).toLocaleString()} | Rate: ${(1 / bdtToUsdRate).toFixed(1)} BDT/USD | Margin: ${margin}%`, m, y + 2);
-      else doc.text(`Margin: ${margin}%`, m, y + 2);
+      const note = `Production CM = 70% of entered CM/dozen (sewing dept only)`;
+      if (isBDT && bdtToUsdRate) doc.text(`${note} | Cost in BDT: Tk${Math.round(totalSewCostNat).toLocaleString()} | Rate: ${(1 / bdtToUsdRate).toFixed(1)} BDT/USD`, m, y + 2);
+      else doc.text(note, m, y + 2);
       y += 6;
     }
   }
@@ -313,7 +293,7 @@ export function generateProductionReportPdf(input: ReportPdfInput) {
         if (!sewByLine[ln]) sewByLine[ln] = [];
         sewByLine[ln].push(s);
       });
-      const sewLineKeys = Object.keys(sewByLine).sort((a, b) => numFromName(a) - numFromName(b));
+      const sewLineKeys = Object.keys(sewByLine).sort(cmpLines);
 
       let sewDeptCostNat = 0, sewDeptCostUsd = 0, sewDeptOutput = 0;
 
@@ -366,22 +346,20 @@ export function generateProductionReportPdf(input: ReportPdfInput) {
   if (departments.cutting && cutting.length > 0) {
     try {
       doc.addPage();
-      y = pageHead("CUTTING — PO WISE DETAIL & COST");
+      y = pageHead("CUTTING — PO WISE DETAIL");
 
       const cutCols: Col[] = [
         ...(!isDaily ? [{ label: "Day", w: 18 }] : []),
-        { label: "Line", w: 22 },
-        { label: "Colour", w: 22 },
-        { label: "Day Cut", w: 20, align: "right" as const },
-        { label: "Day Input", w: 20, align: "right" as const },
-        { label: "Total Cut", w: 22, align: "right" as const },
-        { label: "Balance", w: 20, align: "right" as const },
-        { label: "MP", w: 12, align: "right" as const },
-        { label: "Hrs", w: 12, align: "right" as const },
-        { label: "OT MP", w: 14, align: "right" as const },
-        { label: "OT Hrs", w: 14, align: "right" as const },
-        { label: `Cost (${isBDT ? "BDT" : "USD"})`, w: 26, align: "right" as const },
-        { label: "Cost ($)", w: 24, align: "right" as const },
+        { label: "Line", w: 26 },
+        { label: "Colour", w: 26 },
+        { label: "Day Cut", w: 24, align: "right" as const },
+        { label: "Day Input", w: 24, align: "right" as const },
+        { label: "Total Cut", w: 26, align: "right" as const },
+        { label: "Balance", w: 24, align: "right" as const },
+        { label: "MP", w: 14, align: "right" as const },
+        { label: "Hrs", w: 14, align: "right" as const },
+        { label: "OT MP", w: 16, align: "right" as const },
+        { label: "OT Hrs", w: 16, align: "right" as const },
       ];
 
       const cutByPo: Record<string, { buyer: string; entries: any[] }> = {};
@@ -392,44 +370,39 @@ export function generateProductionReportPdf(input: ReportPdfInput) {
       });
       const cutPoKeys = Object.keys(cutByPo).sort();
 
-      let cutDeptCostNat = 0, cutDeptCostUsd = 0, cutDeptDayCut = 0;
+      let cutDeptDayCut = 0;
 
       cutPoKeys.forEach(po => {
         const { buyer, entries } = cutByPo[po];
         entries.sort((a: any, b: any) => {
           if ((a.production_date || "") !== (b.production_date || "")) return (a.production_date || "").localeCompare(b.production_date || "");
-          return numFromName(a.lines?.name || "") - numFromName(b.lines?.name || "");
+          return cmpLines(a.lines?.name || "", b.lines?.name || "");
         });
 
-        y = groupHeader(`PO: ${po} — Buyer: ${buyer}`, "CUTTING — PO WISE DETAIL & COST");
+        y = groupHeader(`PO: ${po} — Buyer: ${buyer}`, "CUTTING — PO WISE DETAIL");
 
-        let poCostNat = 0, poCostUsd2 = 0, poDayCut = 0;
+        let poDayCut = 0;
         const rows = entries.map((c: any) => {
-          const costNat = lineCost(c.man_power, c.hours_actual, c.ot_manpower_actual, c.ot_hours_actual);
-          const costU = toUsd(costNat);
-          poCostNat += costNat; poCostUsd2 += costU;
           poDayCut += c.day_cutting || 0;
           return [
             ...(!isDaily ? [fmtDate(c.production_date)] : []),
-            (c.lines?.name || c.lines?.line_id || "-").substring(0, 12),
-            (c.work_orders?.color || c.colour || "-").substring(0, 13),
+            (c.lines?.name || c.lines?.line_id || "-").substring(0, 14),
+            (c.work_orders?.color || c.colour || "-").substring(0, 14),
             fN(c.day_cutting), fN(c.day_input), fN(c.total_cutting), fN(c.balance),
             fN(c.man_power), fN(c.hours_actual), fN(c.ot_manpower_actual), fN(c.ot_hours_actual),
-            rate ? fNat(costNat) : "-", rate ? fUsd(costU) : "-",
           ];
         });
         rows.push([
           `${po} Total`, ...(isDaily ? [] : [""]),
-          "", "", fN(poDayCut), "", "", "", "", "", "", "",
-          rate ? fNat(poCostNat) : "-", rate ? fUsd(poCostUsd2) : "-",
+          "", "", fN(poDayCut), "", "", "", "", "", "",
         ].slice(0, cutCols.length));
-        y = drawTable(cutCols, rows, y, { boldLastRow: true, fs: 6.5, rh: 6, pgTitle: "CUTTING — PO WISE DETAIL & COST" });
+        y = drawTable(cutCols, rows, y, { boldLastRow: true, fs: 6.5, rh: 6, pgTitle: "CUTTING — PO WISE DETAIL" });
         y += 2;
 
-        cutDeptCostNat += poCostNat; cutDeptCostUsd += poCostUsd2; cutDeptDayCut += poDayCut;
+        cutDeptDayCut += poDayCut;
       });
 
-      deptTotal(`CUTTING DEPARTMENT TOTAL — Day Cut: ${fN(cutDeptDayCut)} | Cost: ${rate ? fNat(cutDeptCostNat) : "-"} (${rate ? fUsd(cutDeptCostUsd) : "-"})`);
+      deptTotal(`CUTTING DEPARTMENT TOTAL — Day Cut: ${fN(cutDeptDayCut)}`);
     } catch (e) { console.error("PDF cutting section error:", e); }
   }
 
@@ -439,48 +412,41 @@ export function generateProductionReportPdf(input: ReportPdfInput) {
   if (departments.finishing && finishing.length > 0) {
     try {
       doc.addPage();
-      y = pageHead("FINISHING — PO WISE OUTPUT, COST & REVENUE");
+      y = pageHead("FINISHING — PO WISE OUTPUT DETAIL");
 
       const finCols: Col[] = [
         ...(!isDaily ? [{ label: "Day", w: 18 }] : []),
-        { label: "Thread", w: 16, align: "right" as const },
-        { label: "Check", w: 14, align: "right" as const },
-        { label: "Button", w: 16, align: "right" as const },
-        { label: "Iron", w: 14, align: "right" as const },
-        { label: "Get Up", w: 16, align: "right" as const },
-        { label: "Poly", w: 16, align: "right" as const },
-        { label: "Carton", w: 16, align: "right" as const },
-        { label: "MP", w: 12, align: "right" as const },
-        { label: "Hrs", w: 12, align: "right" as const },
-        { label: "OT MP", w: 14, align: "right" as const },
-        { label: "OT Hrs", w: 14, align: "right" as const },
-        { label: "Cost ($)", w: 24, align: "right" as const },
-        { label: "CM/Dz", w: 16, align: "right" as const },
-        { label: "Revenue ($)", w: isDaily ? cw - 200 > 0 ? cw - 200 : 22 : cw - 218 > 0 ? cw - 218 : 22, align: "right" as const },
+        { label: "Thread", w: 18, align: "right" as const },
+        { label: "Check", w: 16, align: "right" as const },
+        { label: "Button", w: 18, align: "right" as const },
+        { label: "Iron", w: 16, align: "right" as const },
+        { label: "Get Up", w: 18, align: "right" as const },
+        { label: "Poly", w: 18, align: "right" as const },
+        { label: "Carton", w: 18, align: "right" as const },
+        { label: "MP", w: 14, align: "right" as const },
+        { label: "Hrs", w: 14, align: "right" as const },
+        { label: "OT MP", w: 16, align: "right" as const },
+        { label: "OT Hrs", w: 16, align: "right" as const },
       ];
 
-      const finByPo: Record<string, { buyer: string; cmDz: number | null; entries: any[] }> = {};
+      const finByPo: Record<string, { buyer: string; entries: any[] }> = {};
       finishing.forEach((f: any) => {
         const po = f.work_orders?.po_number || "Unknown PO";
-        if (!finByPo[po]) finByPo[po] = { buyer: f.work_orders?.buyer || "-", cmDz: f.work_orders?.cm_per_dozen || null, entries: [] };
+        if (!finByPo[po]) finByPo[po] = { buyer: f.work_orders?.buyer || "-", entries: [] };
         finByPo[po].entries.push(f);
       });
       const finPoKeys = Object.keys(finByPo).sort();
 
-      let finDeptCostUsd = 0, finDeptRevenue = 0, finDeptPoly = 0;
+      let finDeptPoly = 0;
 
       finPoKeys.forEach(po => {
-        const { buyer, cmDz, entries } = finByPo[po];
+        const { buyer, entries } = finByPo[po];
         entries.sort((a: any, b: any) => (a.production_date || "").localeCompare(b.production_date || ""));
 
-        y = groupHeader(`PO: ${po} — Buyer: ${buyer}${cmDz ? ` — CM/Dz: $${cmDz.toFixed(2)}` : ""}`, "FINISHING — PO WISE OUTPUT, COST & REVENUE");
+        y = groupHeader(`PO: ${po} — Buyer: ${buyer}`, "FINISHING — PO WISE OUTPUT DETAIL");
 
-        let poCostUsd2 = 0, poRevenue = 0, poPoly = 0;
+        let poPoly = 0;
         const rows = entries.map((f: any) => {
-          const costNat = lineCost(f.m_power_actual, f.actual_hours, f.ot_manpower_actual, f.ot_hours_actual);
-          const costU = toUsd(costNat);
-          poCostUsd2 += costU;
-          const rev = 0; // Revenue now driven by sewing output, not finishing poly
           const adjPoly = effectivePoly(f.poly, f.actual_hours, f.ot_hours_actual);
           const adjCarton = effectivePoly(f.carton, f.actual_hours, f.ot_hours_actual);
           poPoly += adjPoly;
@@ -489,25 +455,20 @@ export function generateProductionReportPdf(input: ReportPdfInput) {
             fN(f.thread_cutting), fN(f.inside_check), fN(f.buttoning), fN(f.iron), fN(f.get_up),
             fN(adjPoly), fN(adjCarton),
             fN(f.m_power_actual), fN(f.actual_hours), fN(f.ot_manpower_actual), fN(f.ot_hours_actual),
-            rate ? fUsd(costU) : "-",
-            cmDz ? "$" + cmDz.toFixed(2) : "-",
-            rev > 0 ? fUsd(Math.round(rev * 100) / 100) : "-",
           ];
         });
         const totalRow = new Array(finCols.length).fill("");
         totalRow[0] = `${po} Total`;
         const polyIdx = isDaily ? 5 : 6;
         totalRow[polyIdx] = fN(poPoly);
-        totalRow[finCols.length - 3] = rate ? fUsd(poCostUsd2) : "-";
-        totalRow[finCols.length - 1] = poRevenue > 0 ? fUsd(Math.round(poRevenue * 100) / 100) : "-";
         rows.push(totalRow);
-        y = drawTable(finCols, rows, y, { boldLastRow: true, fs: 6.5, rh: 6, pgTitle: "FINISHING — PO WISE OUTPUT, COST & REVENUE" });
+        y = drawTable(finCols, rows, y, { boldLastRow: true, fs: 6.5, rh: 6, pgTitle: "FINISHING — PO WISE OUTPUT DETAIL" });
         y += 2;
 
-        finDeptCostUsd += poCostUsd2; finDeptRevenue += poRevenue; finDeptPoly += poPoly;
+        finDeptPoly += poPoly;
       });
 
-      deptTotal(`FINISHING DEPARTMENT TOTAL — Poly: ${fN(finDeptPoly)} | Cost: ${rate ? fUsd(finDeptCostUsd) : "-"} | Revenue: ${finDeptRevenue > 0 ? fUsd(Math.round(finDeptRevenue * 100) / 100) : "-"} | Profit: ${finDeptRevenue > 0 && rate ? fUsd(Math.round((finDeptRevenue - finDeptCostUsd) * 100) / 100) : "-"}`);
+      deptTotal(`FINISHING DEPARTMENT TOTAL — Poly (Packed): ${fN(finDeptPoly)}`);
     } catch (e) { console.error("PDF finishing section error:", e); }
   }
 
@@ -606,4 +567,307 @@ export function generateProductionReportPdf(input: ReportPdfInput) {
 
   const safePeriod = periodLabel.replace(/[^a-zA-Z0-9\-_ ]/g, "").replace(/\s+/g, "_");
   doc.save(`${reportType}_report_${safePeriod}.pdf`);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GATE PASS PDF
+// Returns Uint8Array for uploading directly to Supabase Storage.
+// The function is async so it can fetch the signature image from a URL.
+// ══════════════════════════════════════════════════════════════════════════════
+
+interface GatePassPdfInput {
+  request: DispatchRequest;
+  approverName: string;
+  signatureUrl: string;       // public or signed URL to the signature image
+  factoryName: string;
+  woData?: {
+    order_qty: number | null;
+    total_dispatched: number;
+  } | null;
+}
+
+async function fetchImageAsDataUrl(url: string): Promise<string> {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+export async function generateGatePassPDF({
+  request,
+  approverName,
+  signatureUrl,
+  factoryName,
+  woData,
+}: GatePassPdfInput): Promise<Uint8Array> {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pw = doc.internal.pageSize.getWidth();
+  const ph = doc.internal.pageSize.getHeight();
+  const m = 15;
+  const cw = pw - m * 2;
+  let y = m;
+
+  const fN = (v: number | null | undefined) =>
+    v != null ? v.toLocaleString() : "—";
+
+  // ── Fetch signature image ─────────────────────────────────────────────
+  let sigDataUrl: string | null = null;
+  try {
+    sigDataUrl = await fetchImageAsDataUrl(signatureUrl);
+  } catch {
+    // If fetch fails, proceed without signature image
+    console.warn("Could not load signature image for gate pass PDF.");
+  }
+
+  // ── Header ────────────────────────────────────────────────────────────
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(0);
+  doc.text(factoryName.toUpperCase(), pw / 2, y, { align: "center" });
+  y += 7;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.setTextColor(30, 80, 180);
+  doc.text("GATE PASS", pw / 2, y, { align: "center" });
+  y += 5;
+
+  doc.setDrawColor(30, 80, 180);
+  doc.setLineWidth(0.8);
+  doc.line(m, y, pw - m, y);
+  y += 4;
+
+  // Document ID + generated timestamp
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(80);
+  doc.text(`Document ID: ${request.reference_number}`, m, y);
+  doc.text(
+    `Generated: ${format(new Date(), "MMM d, yyyy 'at' h:mm a")}`,
+    pw - m,
+    y,
+    { align: "right" }
+  );
+  y += 8;
+
+  // ── Shipment Details Table ────────────────────────────────────────────
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(0);
+  doc.text("SHIPMENT DETAILS", m, y);
+  y += 4;
+
+  doc.setDrawColor(200);
+  doc.setLineWidth(0.3);
+
+  const detailRows: [string, string][] = [
+    ["Reference No.", request.reference_number],
+    ["Date", format(new Date(request.submitted_at), "MMMM d, yyyy")],
+    ["Time", format(new Date(request.submitted_at), "h:mm a")],
+    ["PO Number", request.work_order?.po_number || "—"],
+    ["Style", request.style_name || "—"],
+    ["Buyer", request.buyer_name || "—"],
+    ["Dispatch Quantity", `${fN(request.dispatch_quantity)} pcs`],
+    ["Carton Count", request.carton_count ? `${request.carton_count} ctns` : "—"],
+    ["Destination", request.destination],
+    ["Truck / Vehicle No.", request.truck_number],
+    ["Driver Name", request.driver_name],
+    ["Driver NID", request.driver_nid || "—"],
+  ];
+  if (request.remarks) {
+    detailRows.push(["Remarks", request.remarks]);
+  }
+
+  const labelW = 55;
+  const valueW = cw - labelW;
+  const rowH = 6.5;
+
+  detailRows.forEach(([label, value], i) => {
+    const bg = i % 2 === 0 ? [248, 250, 252] : [255, 255, 255];
+    doc.setFillColor(bg[0], bg[1], bg[2]);
+    doc.rect(m, y, cw, rowH, "F");
+    doc.setDrawColor(220);
+    doc.rect(m, y, cw, rowH);
+
+    // Label cell
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(80);
+    doc.text(label, m + 2, y + rowH - 1.8);
+
+    // Value cell
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(0);
+    const displayValue = (value || "—").substring(0, 52);
+    doc.text(displayValue, m + labelW + 2, y + rowH - 1.8);
+
+    y += rowH;
+  });
+
+  y += 6;
+
+  // ── Production Cross-Reference ────────────────────────────────────────
+  if (woData && woData.order_qty != null) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(0);
+    doc.text("PRODUCTION CROSS-REFERENCE", m, y);
+    y += 4;
+
+    const remaining = woData.order_qty - woData.total_dispatched;
+    const afterThis = remaining - request.dispatch_quantity;
+
+    const xrefRows: [string, string][] = [
+      ["Order Quantity", `${fN(woData.order_qty)} pcs`],
+      ["Previously Dispatched", `${fN(woData.total_dispatched)} pcs`],
+      ["This Dispatch", `${fN(request.dispatch_quantity)} pcs`],
+      ["Remaining After This", `${fN(afterThis)} pcs`],
+    ];
+
+    xrefRows.forEach(([label, value], i) => {
+      const bg = i % 2 === 0 ? [240, 247, 255] : [255, 255, 255];
+      doc.setFillColor(bg[0], bg[1], bg[2]);
+      doc.rect(m, y, cw, rowH, "F");
+      doc.setDrawColor(200, 220, 240);
+      doc.rect(m, y, cw, rowH);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.setTextColor(80);
+      doc.text(label, m + 2, y + rowH - 1.8);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(0);
+      doc.text(value, m + labelW + 2, y + rowH - 1.8);
+
+      y += rowH;
+    });
+
+    y += 6;
+  }
+
+  // ── Submission Record ─────────────────────────────────────────────────
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(0);
+  doc.text("SUBMISSION RECORD", m, y);
+  y += 4;
+
+  const subRows: [string, string][] = [
+    ["Submitted By", request.submitter?.full_name || "Gate Officer"],
+    ["Submitted At", format(new Date(request.submitted_at), "MMMM d, yyyy 'at' h:mm a")],
+  ];
+  subRows.forEach(([label, value], i) => {
+    const bg = i % 2 === 0 ? [248, 250, 252] : [255, 255, 255];
+    doc.setFillColor(bg[0], bg[1], bg[2]);
+    doc.rect(m, y, cw, rowH, "F");
+    doc.setDrawColor(220);
+    doc.rect(m, y, cw, rowH);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(80);
+    doc.text(label, m + 2, y + rowH - 1.8);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(0);
+    doc.text(value, m + labelW + 2, y + rowH - 1.8);
+    y += rowH;
+  });
+
+  y += 6;
+
+  // ── Approval Record + Signature ───────────────────────────────────────
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(0);
+  doc.text("APPROVAL RECORD", m, y);
+  y += 4;
+
+  const approvalRows: [string, string][] = [
+    ["Approved By", approverName],
+    [
+      "Approved At",
+      request.reviewed_at
+        ? format(new Date(request.reviewed_at), "MMMM d, yyyy 'at' h:mm a")
+        : format(new Date(), "MMMM d, yyyy 'at' h:mm a"),
+    ],
+  ];
+  approvalRows.forEach(([label, value], i) => {
+    const bg = i % 2 === 0 ? [240, 255, 244] : [255, 255, 255];
+    doc.setFillColor(bg[0], bg[1], bg[2]);
+    doc.rect(m, y, cw, rowH, "F");
+    doc.setDrawColor(200, 240, 210);
+    doc.rect(m, y, cw, rowH);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(80);
+    doc.text(label, m + 2, y + rowH - 1.8);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(0);
+    doc.text(value, m + labelW + 2, y + rowH - 1.8);
+    y += rowH;
+  });
+
+  // Signature image
+  y += 4;
+  const sigBoxH = 28;
+  const sigBoxW = 70;
+  doc.setDrawColor(180);
+  doc.setLineWidth(0.3);
+  doc.rect(m, y, sigBoxW, sigBoxH);
+
+  if (sigDataUrl) {
+    try {
+      doc.addImage(sigDataUrl, "PNG", m + 2, y + 2, sigBoxW - 4, sigBoxH - 8);
+    } catch {
+      // If image embedding fails, show placeholder text
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(7);
+      doc.setTextColor(120);
+      doc.text("Signature on file", m + sigBoxW / 2, y + sigBoxH / 2, { align: "center" });
+    }
+  } else {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(7);
+    doc.setTextColor(120);
+    doc.text("Signature on file", m + sigBoxW / 2, y + sigBoxH / 2, { align: "center" });
+  }
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(80);
+  doc.text("Authorised Signatory", m + 2, y + sigBoxH - 1);
+
+  y += sigBoxH + 10;
+
+  // ── Footer ────────────────────────────────────────────────────────────
+  doc.setDrawColor(30, 80, 180);
+  doc.setLineWidth(0.5);
+  doc.line(m, ph - 18, pw - m, ph - 18);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(80);
+  doc.text(`Document ID: ${request.reference_number}`, m, ph - 13);
+  doc.text("Generated by ProductionPortal", pw / 2, ph - 13, { align: "center" });
+  doc.text(factoryName, pw - m, ph - 13, { align: "right" });
+
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(6.5);
+  doc.setTextColor(120);
+  doc.text(
+    "This is a system-generated document. It is valid only with an authorised signature.",
+    pw / 2,
+    ph - 8,
+    { align: "center" }
+  );
+
+  return new Uint8Array(doc.output("arraybuffer") as ArrayBuffer);
 }

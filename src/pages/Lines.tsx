@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
+import { Rows3 } from "lucide-react";
 import { SewingMachine } from "@/components/icons/SewingMachine";
 import { useLinePerformance } from "@/components/lines/useLinePerformance";
 import { LinePerformanceControls } from "@/components/lines/LinePerformanceControls";
@@ -22,7 +23,6 @@ export default function Lines() {
     units,
     floors,
     factorySummary,
-    refetch,
     dateRange,
   } = useLinePerformance();
 
@@ -49,10 +49,15 @@ export default function Lines() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
-            <SewingMachine className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <Rows3 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <h1 className="text-xl md:text-2xl font-bold">Line Performance</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl md:text-2xl font-bold">Lines</h1>
+              <span className="text-xs font-medium bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 rounded-full px-2 py-0.5">
+                {filteredLines.length} lines
+              </span>
+            </div>
             <p className="text-sm text-muted-foreground">
               Track sewing line output, targets, and PO contribution
             </p>
@@ -71,7 +76,7 @@ export default function Lines() {
         onFiltersChange={setFilters}
         units={units}
         floors={floors}
-        onRefresh={refetch}
+
       />
 
       {/* Summary KPIs */}

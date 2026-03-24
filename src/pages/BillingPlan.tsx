@@ -6,7 +6,6 @@ import { invokeEdgeFn, networkErrorMessage } from "@/lib/network-utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -249,21 +248,19 @@ export default function BillingPlan() {
   };
 
   const getStatusBadge = (status: string) => {
+    const dot = (color: string, label: string) => (
+      <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${color}`}>
+        <span className={`h-1.5 w-1.5 rounded-full ${color.replace('text-', 'bg-')}`} />
+        {label}
+      </span>
+    );
     switch (status) {
-      case 'active':
-        return <Badge className="bg-green-600"><CheckCircle2 className="h-3 w-3 mr-1" />Active</Badge>;
-      case 'trialing':
-        return <Badge variant="secondary">Trial</Badge>;
-      case 'past_due':
-        return <Badge variant="destructive"><AlertCircle className="h-3 w-3 mr-1" />Past Due</Badge>;
-      case 'canceled':
-        return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Canceled</Badge>;
-      case 'expired':
-        return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Expired</Badge>;
-      case 'trial':
-        return <Badge variant="secondary">Trial</Badge>;
-      default:
-        return <Badge variant="outline">{status || 'Inactive'}</Badge>;
+      case 'active': return dot('text-emerald-600 dark:text-emerald-400', 'Active');
+      case 'trialing': case 'trial': return dot('text-blue-600 dark:text-blue-400', 'Trial');
+      case 'past_due': return dot('text-red-600 dark:text-red-400', 'Past Due');
+      case 'canceled': return dot('text-red-600 dark:text-red-400', 'Canceled');
+      case 'expired': return dot('text-red-600 dark:text-red-400', 'Expired');
+      default: return dot('text-muted-foreground', status || 'Inactive');
     }
   };
 
@@ -292,12 +289,17 @@ export default function BillingPlan() {
   }
 
   return (
-    <div className="container max-w-6xl py-8 px-4">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Billing & Plan</h1>
-        <p className="text-muted-foreground mt-1">
-          Manage your subscription and active line usage
-        </p>
+    <div className="container max-w-6xl py-3 md:py-4 lg:py-6 px-4">
+      <div className="flex items-center gap-3 mb-8">
+        <div className="h-10 w-10 rounded-xl bg-slate-500/10 flex items-center justify-center">
+          <CreditCard className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+        </div>
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold">Billing & Plan</h1>
+          <p className="text-sm text-muted-foreground">
+            Manage your subscription and active line usage
+          </p>
+        </div>
       </div>
 
       {/* Trial countdown banner */}
@@ -331,11 +333,11 @@ export default function BillingPlan() {
         <ActiveLinesMeter showUpgrade={false} />
 
         {/* Current Plan Card */}
-        <Card>
+        <Card className="border-border/50">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-primary" />
+                <CreditCard className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
                 <div>
                   <p className="font-medium">Current Plan</p>
                   <p className="text-xs text-muted-foreground">Subscription status</p>
@@ -389,14 +391,14 @@ export default function BillingPlan() {
         </Card>
       </div>
 
-      <Separator className="my-8" />
+      <div className="border-t border-border/60 my-8" />
 
       {/* Plan Tiers */}
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h2 className="text-xl font-semibold mb-2">Available Plans</h2>
-            <p className="text-muted-foreground text-sm">
+            <h2 className="text-lg font-semibold">Available Plans</h2>
+            <p className="text-sm text-muted-foreground">
               All plans include full access to all production modules. Plans are based on active production lines.
             </p>
           </div>
@@ -675,11 +677,11 @@ export default function BillingPlan() {
         </Card>
       )}
 
-      <Separator className="my-8" />
+      <div className="border-t border-border/60 my-8" />
 
       {/* FAQ Section */}
       <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4">Frequently Asked Questions</h2>
+        <h2 className="text-lg font-semibold mb-4">Frequently Asked Questions</h2>
         <div className="grid md:grid-cols-2 gap-6">
           <div>
             <h3 className="font-medium mb-2">What are active production lines?</h3>
@@ -715,7 +717,7 @@ export default function BillingPlan() {
       {/* Cancel Subscription Section */}
       {hasActiveSubscription && (
         <>
-          <Separator className="my-8" />
+          <div className="border-t border-border/60 my-8" />
           <div className="mb-8">
             <Card className="border-destructive/30 bg-destructive/5">
               <CardHeader>

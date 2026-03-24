@@ -78,7 +78,8 @@ export function LineEfficiencyTargets({ linePerformance = [] }: LineEfficiencyTa
         };
       });
 
-      setLines(linesWithPerf);
+      const { sortByLineName } = await import("@/lib/sort-lines");
+      setLines(sortByLineName(linesWithPerf, l => l.name || l.line_id));
     } catch (error) {
       console.error("Error fetching lines:", error);
     } finally {

@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, subDays } from "date-fns";
 import { toast } from "sonner";
-import { Search, Warehouse, Download, X, ChevronRight, ChevronDown, Layers } from "lucide-react";
+import { Search, Warehouse, Download, X, ChevronRight, ChevronDown, Layers, Package, TrendingUp, AlertTriangle } from "lucide-react";
 import { TableSkeleton, StatsCardsSkeleton } from "@/components/ui/table-skeleton";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -423,7 +423,7 @@ export function StorageSubmissionsTable({
     });
   }
 
-  function exportSelectedCsv() {
+  async function exportSelectedCsv() {
     const rows = filteredCards.filter(c => selectedIds.has(c.id));
     const headers = ["Created", "PO Number", "Buyer", "Style", "Description", "Received", "Issued", "Balance"];
     const csvRows = [headers.join(",")];
@@ -439,13 +439,9 @@ export function StorageSubmissionsTable({
         c.latestBalance ?? "",
       ].join(","));
     });
+    const { downloadFile } = await import("@/lib/capacitor");
     const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `storage-bin-cards-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await downloadFile(blob, `storage-bin-cards-${format(new Date(), "yyyy-MM-dd")}.csv`);
     toast.success(`Exported ${rows.length} rows`);
   }
 
@@ -462,28 +458,48 @@ export function StorageSubmissionsTable({
     <div className="space-y-4">
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="border-l-4 border-l-primary">
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground uppercase">Bin Cards</p>
-            <p className="text-xl font-bold">{stats.total}</p>
+        <Card className="bg-gradient-to-br from-orange-50 via-white to-orange-50/50 dark:from-orange-950/40 dark:via-card dark:to-orange-950/20 border-orange-200/60 dark:border-orange-800/40 hover:shadow-lg transition-all duration-300">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 shadow-md shadow-orange-500/20 flex items-center justify-center">
+                <Warehouse className="h-3.5 w-3.5 text-white" />
+              </div>
+              <p className="text-[11px] text-muted-foreground font-medium">Bin Cards</p>
+            </div>
+            <div className="text-xl font-bold text-orange-700 dark:text-orange-300">{stats.total}</div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-green-500">
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground uppercase">Total Balance</p>
-            <p className="text-xl font-bold">{stats.totalBalance.toLocaleString()}</p>
+        <Card className="bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 dark:from-emerald-950/40 dark:via-card dark:to-emerald-950/20 border-emerald-200/60 dark:border-emerald-800/40 hover:shadow-lg transition-all duration-300">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 shadow-md shadow-emerald-500/20 flex items-center justify-center">
+                <TrendingUp className="h-3.5 w-3.5 text-white" />
+              </div>
+              <p className="text-[11px] text-muted-foreground font-medium">Total Balance</p>
+            </div>
+            <div className="text-xl font-bold text-emerald-700 dark:text-emerald-300 font-mono tabular-nums">{stats.totalBalance.toLocaleString()}</div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-blue-500">
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground uppercase">Total Received</p>
-            <p className="text-xl font-bold">{stats.totalReceived.toLocaleString()}</p>
+        <Card className="bg-gradient-to-br from-blue-50 via-white to-blue-50/50 dark:from-blue-950/40 dark:via-card dark:to-blue-950/20 border-blue-200/60 dark:border-blue-800/40 hover:shadow-lg transition-all duration-300">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/20 flex items-center justify-center">
+                <Package className="h-3.5 w-3.5 text-white" />
+              </div>
+              <p className="text-[11px] text-muted-foreground font-medium">Total Received</p>
+            </div>
+            <div className="text-xl font-bold text-blue-700 dark:text-blue-300 font-mono tabular-nums">{stats.totalReceived.toLocaleString()}</div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-amber-500">
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground uppercase">Low Stock</p>
-            <p className="text-xl font-bold">{stats.lowStock}</p>
+        <Card className={`bg-gradient-to-br ${stats.lowStock > 0 ? 'from-red-50 via-white to-red-50/50 dark:from-red-950/40 dark:via-card dark:to-red-950/20 border-red-200/60 dark:border-red-800/40' : 'from-gray-50 via-white to-gray-50/50 dark:from-gray-950/40 dark:via-card dark:to-gray-950/20 border-border/50'} hover:shadow-lg transition-all duration-300`}>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={`h-7 w-7 rounded-lg shadow-md flex items-center justify-center ${stats.lowStock > 0 ? 'bg-gradient-to-br from-red-500 to-rose-600 shadow-red-500/20' : 'bg-gradient-to-br from-gray-400 to-gray-500 shadow-gray-500/20'}`}>
+                <AlertTriangle className="h-3.5 w-3.5 text-white" />
+              </div>
+              <p className="text-[11px] text-muted-foreground font-medium">Low Stock</p>
+            </div>
+            <div className={`text-xl font-bold ${stats.lowStock > 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>{stats.lowStock}</div>
           </CardContent>
         </Card>
       </div>

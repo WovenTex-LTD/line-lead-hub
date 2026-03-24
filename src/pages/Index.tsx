@@ -64,6 +64,11 @@ export default function Index() {
       return <Navigate to="/finishing/daily-target" replace />;
     }
 
+    // Gate officer
+    if (hasRole('gate_officer')) {
+      return <Navigate to="/dispatch/new" replace />;
+    }
+
     // Legacy: sewing department workers
     if (hasRole('worker')) {
       return <Navigate to="/sewing/morning-targets" replace />;

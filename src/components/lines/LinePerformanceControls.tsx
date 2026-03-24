@@ -1,5 +1,5 @@
 import { subDays, format } from "date-fns";
-import { Calendar as CalendarIcon, Search, RefreshCw } from "lucide-react";
+import { Calendar as CalendarIcon, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
@@ -23,7 +23,6 @@ interface LinePerformanceControlsProps {
   onFiltersChange: (filters: LineFilters) => void;
   units: { id: string; name: string }[];
   floors: { id: string; name: string }[];
-  onRefresh?: () => void;
 }
 
 const RANGE_LABELS: Record<TimeRange, string> = {
@@ -43,7 +42,6 @@ export function LinePerformanceControls({
   onFiltersChange,
   units,
   floors,
-  onRefresh,
 }: LinePerformanceControlsProps) {
   const today = new Date();
   const thirtyDaysAgo = subDays(today, 30);
@@ -127,12 +125,7 @@ export function LinePerformanceControls({
           </Select>
         )}
 
-        {onRefresh && (
-          <Button variant="outline" size="sm" onClick={onRefresh}>
-            <RefreshCw className="h-4 w-4 mr-1" />
-            Refresh
-          </Button>
-        )}
+
       </div>
 
       {/* Right: search */}

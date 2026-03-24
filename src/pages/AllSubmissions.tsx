@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Package, Warehouse, Search, Download, RefreshCw, FileText, Calendar, Target, ClipboardCheck, Scissors, TrendingUp, AlertTriangle, X } from "lucide-react";
+import { Package, Warehouse, Search, Download, RefreshCw, FileText, Calendar, Target, ClipboardCheck, Scissors, TrendingUp, AlertTriangle, X, Rows3 } from "lucide-react";
 import { SewingMachine } from "@/components/icons/SewingMachine";
 import { TableSkeleton, StatsCardsSkeleton } from "@/components/ui/table-skeleton";
 import { SubmissionDetailModal } from "@/components/SubmissionDetailModal";
@@ -369,10 +369,20 @@ export default function AllSubmissions() {
   // Build daily output trend from sewing actuals
   const sewingDailyTrend = useMemo(() => {
     if (sewingActuals.length === 0) return [];
-    const byDate: Record<string, { output: number; rejects: number }> = {};
+    // Dates with actuals (factory was open for sewing)
+    const datesWithActuals = new Set(sewingActuals.map(a => a.production_date));
+    const byDate: Record<string, { output: number; target: number; rejects: number }> = {};
+    // Only include targets for dates that have actuals
+    for (const t of sewingTargets) {
+      const d = t.production_date;
+      if (!datesWithActuals.has(d)) continue;
+      if (!byDate[d]) byDate[d] = { output: 0, target: 0, rejects: 0 };
+      const dayTarget = t.target_total_planned ?? Math.round((t.per_hour_target || 0) * (t.hours_planned ?? 8));
+      byDate[d].target += dayTarget;
+    }
     for (const a of sewingActuals) {
       const d = a.production_date;
-      if (!byDate[d]) byDate[d] = { output: 0, rejects: 0 };
+      if (!byDate[d]) byDate[d] = { output: 0, target: 0, rejects: 0 };
       byDate[d].output += a.good_today || 0;
       byDate[d].rejects += a.reject_today || 0;
     }
@@ -381,10 +391,11 @@ export default function AllSubmissions() {
       .map(([date, vals]) => ({
         date,
         displayDate: new Date(date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        target: vals.target,
         output: vals.output,
         rejects: vals.rejects,
       }));
-  }, [sewingActuals]);
+  }, [sewingActuals, sewingTargets]);
 
   // Sewing checkbox selection helpers
   const sewingPaginatedData = category === 'targets' ? sewingTargetsPagination.paginatedData : sewingActualsPagination.paginatedData;
@@ -416,7 +427,7 @@ export default function AllSubmissions() {
   function exportSelectedCsv() {
     if (category === 'targets') {
       const rows = sewingSortedData.filter(r => selectedIds.has(r.id)) as SewingTarget[];
-      const headers = ["Date", "Line", "PO", "Buyer", "Target/hr", "Manpower", "Progress %", "Stage", "Status"];
+      const headers = ["Date", "Line", "PO", "Buyer", "Target/hr", "Manpower", "Progress %", "Stage"];
       const csvRows = [headers.join(",")];
       rows.forEach(r => {
         csvRows.push([
@@ -428,10 +439,9 @@ export default function AllSubmissions() {
           r.manpower_planned,
           r.planned_stage_progress,
           `"${r.stages?.name || ""}"`,
-          r.is_late ? "Late" : "On Time",
         ].join(","));
       });
-      downloadCsv(csvRows, `sewing-targets-${format(new Date(), "yyyy-MM-dd")}.csv`, rows.length);
+      downloadCsvRows(csvRows, `sewing-targets-${format(new Date(), "yyyy-MM-dd")}.csv`, rows.length);
     } else {
       const rows = sewingSortedData.filter(r => selectedIds.has(r.id)) as SewingActual[];
       const headers = ["Date", "Line", "PO", "Buyer", "Good Today", "Cumulative", "Rejects", "Rework", "Manpower", "OT Hours", "Blocker"];
@@ -451,18 +461,14 @@ export default function AllSubmissions() {
           r.has_blocker ? "Yes" : "No",
         ].join(","));
       });
-      downloadCsv(csvRows, `sewing-actuals-${format(new Date(), "yyyy-MM-dd")}.csv`, rows.length);
+      downloadCsvRows(csvRows, `sewing-actuals-${format(new Date(), "yyyy-MM-dd")}.csv`, rows.length);
     }
   }
 
-  function downloadCsv(csvRows: string[], filename: string, count: number) {
+  async function downloadCsvRows(csvRows: string[], filename: string, count: number) {
+    const { downloadFile } = await import("@/lib/capacitor");
     const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    await downloadFile(blob, filename);
     toast.success(`Exported ${count} rows`);
   }
 
@@ -551,7 +557,7 @@ export default function AllSubmissions() {
             <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">All Submissions</h1>
+            <h1 className="text-xl md:text-2xl font-bold">All Submissions</h1>
             <p className="text-sm text-muted-foreground">
               View and export historical targets and end of day data
             </p>
@@ -706,79 +712,85 @@ export default function AllSubmissions() {
 
           {/* KPI Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Card className="border-border/50">
-              <CardContent className="pt-4 pb-3 px-4">
-                <div className="flex items-center gap-2.5 mb-2">
-                  <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-                    <ClipboardCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <Card className="bg-gradient-to-br from-blue-50 via-white to-blue-50/50 dark:from-blue-950/40 dark:via-card dark:to-blue-950/20 border-blue-200/60 dark:border-blue-800/40 hover:shadow-lg transition-all duration-300">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/20 flex items-center justify-center">
+                    <ClipboardCheck className="h-3.5 w-3.5 text-white" />
                   </div>
-                  <p className="text-xs text-muted-foreground font-medium">Submissions</p>
+                  <p className="text-[11px] text-muted-foreground font-medium">Submissions</p>
                 </div>
-                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{sewingKpiStats.count}</div>
+                <div className="text-xl font-bold text-blue-700 dark:text-blue-300">{sewingKpiStats.count}</div>
               </CardContent>
             </Card>
-            <Card className="border-border/50">
-              <CardContent className="pt-4 pb-3 px-4">
-                <div className="flex items-center gap-2.5 mb-2">
-                  <div className="h-8 w-8 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
-                    <TrendingUp className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+            <Card className="bg-gradient-to-br from-indigo-50 via-white to-indigo-50/50 dark:from-indigo-950/40 dark:via-card dark:to-indigo-950/20 border-indigo-200/60 dark:border-indigo-800/40 hover:shadow-lg transition-all duration-300">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 shadow-md shadow-indigo-500/20 flex items-center justify-center">
+                    <TrendingUp className="h-3.5 w-3.5 text-white" />
                   </div>
-                  <p className="text-xs text-muted-foreground font-medium">{sewingKpiStats.metric1Label}</p>
+                  <p className="text-[11px] text-muted-foreground font-medium">{sewingKpiStats.metric1Label}</p>
                 </div>
-                <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 font-mono tabular-nums">{sewingKpiStats.metric1.toLocaleString()}</div>
+                <div className="text-xl font-bold text-indigo-700 dark:text-indigo-300 font-mono tabular-nums">{sewingKpiStats.metric1.toLocaleString()}</div>
               </CardContent>
             </Card>
-            <Card className="border-border/50">
-              <CardContent className="pt-4 pb-3 px-4">
-                <div className="flex items-center gap-2.5 mb-2">
-                  <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
-                    <SewingMachine className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <Card className="bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 dark:from-emerald-950/40 dark:via-card dark:to-emerald-950/20 border-emerald-200/60 dark:border-emerald-800/40 hover:shadow-lg transition-all duration-300">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 shadow-md shadow-emerald-500/20 flex items-center justify-center">
+                    <SewingMachine className="h-3.5 w-3.5 text-white" />
                   </div>
-                  <p className="text-xs text-muted-foreground font-medium">{sewingKpiStats.metric2Label}</p>
+                  <p className="text-[11px] text-muted-foreground font-medium">{sewingKpiStats.metric2Label}</p>
                 </div>
-                <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 font-mono tabular-nums">{sewingKpiStats.metric2.toLocaleString()}</div>
+                <div className="text-xl font-bold text-emerald-700 dark:text-emerald-300 font-mono tabular-nums">{sewingKpiStats.metric2.toLocaleString()}</div>
               </CardContent>
             </Card>
-            <Card className="border-border/50">
-              <CardContent className="pt-4 pb-3 px-4">
-                <div className="flex items-center gap-2.5 mb-2">
-                  <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${category === 'actuals' && sewingKpiStats.metric3 > 0 ? 'bg-amber-500/10' : 'bg-muted/50'}`}>
+            <Card className={`bg-gradient-to-br ${category === 'actuals' && sewingKpiStats.metric3 > 0 ? 'from-amber-50 via-white to-amber-50/50 dark:from-amber-950/40 dark:via-card dark:to-amber-950/20 border-amber-200/60 dark:border-amber-800/40' : 'border-border/50'} hover:shadow-lg transition-all duration-300`}>
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className={`h-7 w-7 rounded-lg flex items-center justify-center shadow-md ${category === 'actuals' && sewingKpiStats.metric3 > 0 ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-amber-500/20' : 'bg-gradient-to-br from-gray-400 to-gray-500 shadow-gray-500/20'}`}>
                     {category === 'actuals' ? (
-                      <AlertTriangle className={`h-4 w-4 ${sewingKpiStats.metric3 > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`} />
+                      <AlertTriangle className="h-3.5 w-3.5 text-white" />
                     ) : (
-                      <SewingMachine className="h-4 w-4 text-muted-foreground" />
+                      <Rows3 className="h-3.5 w-3.5 text-white" />
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground font-medium">{sewingKpiStats.metric3Label}</p>
+                  <p className="text-[11px] text-muted-foreground font-medium">{sewingKpiStats.metric3Label}</p>
                 </div>
-                <div className={`text-2xl font-bold font-mono tabular-nums ${category === 'actuals' && sewingKpiStats.metric3 > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>
+                <div className={`text-xl font-bold font-mono tabular-nums ${category === 'actuals' && sewingKpiStats.metric3 > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>
                   {sewingKpiStats.metric3.toLocaleString()}
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Daily Output Trend Chart */}
+          {/* Daily Target vs Actual Chart */}
           {sewingDailyTrend.length > 1 && (
             <Card className="border-border/50">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                  Daily Output Trend
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/20 flex items-center justify-center">
+                    <TrendingUp className="h-3.5 w-3.5 text-white" />
+                  </div>
+                  Target vs Actual
                 </CardTitle>
               </CardHeader>
               <CardContent className="pb-4">
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={220}>
                   <AreaChart data={sewingDailyTrend}>
                     <defs>
                       <linearGradient id="colorSewingOutput" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3}/>
                         <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
                       </linearGradient>
+                      <linearGradient id="colorSewingTarget" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                      </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis dataKey="displayDate" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} />
-                    <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} width={40} />
+                    <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} width={45} />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: 'hsl(var(--card))',
@@ -789,20 +801,20 @@ export default function AllSubmissions() {
                     />
                     <Area
                       type="monotone"
-                      dataKey="output"
-                      name="Output"
-                      stroke="#2563eb"
-                      fill="url(#colorSewingOutput)"
+                      dataKey="target"
+                      name="Target"
+                      stroke="#10b981"
+                      fill="url(#colorSewingTarget)"
                       strokeWidth={2}
+                      strokeDasharray="5 3"
                     />
                     <Area
                       type="monotone"
-                      dataKey="rejects"
-                      name="Rejects"
-                      stroke="#dc2626"
-                      fill="#dc2626"
-                      fillOpacity={0.1}
-                      strokeWidth={1.5}
+                      dataKey="output"
+                      name="Actual"
+                      stroke="#2563eb"
+                      fill="url(#colorSewingOutput)"
+                      strokeWidth={2}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -815,9 +827,13 @@ export default function AllSubmissions() {
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 {category === 'targets' ? (
-                  <Target className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/20 flex items-center justify-center">
+                    <Target className="h-3.5 w-3.5 text-white" />
+                  </div>
                 ) : (
-                  <ClipboardCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/20 flex items-center justify-center">
+                    <ClipboardCheck className="h-3.5 w-3.5 text-white" />
+                  </div>
                 )}
                 Sewing {category === 'targets' ? 'Targets' : 'End of Day'}
                 <Badge variant="secondary" className="ml-2">{sewingData.length}</Badge>
@@ -858,7 +874,6 @@ export default function AllSubmissions() {
                         <SortableTableHead column="per_hour_target" sortConfig={sewingTargetsSortConfig} onSort={requestSewingTargetsSort} className="text-right">Target/hr</SortableTableHead>
                         <SortableTableHead column="manpower_planned" sortConfig={sewingTargetsSortConfig} onSort={requestSewingTargetsSort} className="text-right">Manpower</SortableTableHead>
                         <SortableTableHead column="planned_stage_progress" sortConfig={sewingTargetsSortConfig} onSort={requestSewingTargetsSort} className="text-right">Progress</SortableTableHead>
-                        <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -883,13 +898,6 @@ export default function AllSubmissions() {
                           <TableCell className="text-right font-mono font-bold">{target.per_hour_target}</TableCell>
                           <TableCell className="text-right">{target.manpower_planned}</TableCell>
                           <TableCell className="text-right">{target.planned_stage_progress}%</TableCell>
-                          <TableCell>
-                            {target.is_late ? (
-                              <StatusBadge variant="warning" size="sm">Late</StatusBadge>
-                            ) : (
-                              <StatusBadge variant="success" size="sm">On Time</StatusBadge>
-                            )}
-                          </TableCell>
                         </TableRow>
                       ))}
                       {sewingTargetsPagination.paginatedData.length === 0 && (

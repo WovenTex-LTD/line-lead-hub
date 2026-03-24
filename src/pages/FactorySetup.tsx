@@ -740,17 +740,17 @@ export default function FactorySetup() {
   }
 
   return (
-    <div className="py-4 lg:py-6">
+    <div className="py-3 md:py-4 lg:py-6 space-y-5 md:space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/setup')}>
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" onClick={() => navigate('/setup')} className="shrink-0">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-          <Settings className="h-5 w-5 text-primary" />
+        <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
+          <Rows3 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
         </div>
         <div>
-          <h1 className="text-xl font-bold">Lines, Units, Floors & Storage</h1>
+          <h1 className="text-xl md:text-2xl font-bold">Lines, Units & Floors</h1>
           <p className="text-sm text-muted-foreground">
             Manage production lines and factory structure
           </p>
@@ -758,10 +758,10 @@ export default function FactorySetup() {
       </div>
 
       {/* Factory Name Card */}
-      <Card className="mb-6">
+      <Card className="border-border/50">
         <CardHeader className="flex flex-row items-center justify-between py-4">
           <div className="flex items-center gap-3">
-            <Factory className="h-5 w-5 text-primary" />
+            <Factory className="h-5 w-5 text-muted-foreground" />
             <div>
               <CardTitle className="text-base">Factory Name</CardTitle>
               <CardDescription className="text-xs">
@@ -808,38 +808,38 @@ export default function FactorySetup() {
       </Card>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3 mb-6">
-          <TabsTrigger value="units" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Units</span>
+        <TabsList className="w-full grid grid-cols-3 h-auto p-1 rounded-xl bg-muted/60 border border-border/50 mb-5">
+          <TabsTrigger value="lines" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm px-2 py-2.5 rounded-lg data-[state=active]:shadow-sm data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 dark:data-[state=active]:bg-blue-950/40 dark:data-[state=active]:text-blue-300">
+            <Rows3 className="h-3.5 w-3.5" />
+            Lines
           </TabsTrigger>
-          <TabsTrigger value="floors" className="flex items-center gap-2">
-            <Layers className="h-4 w-4" />
-            <span className="hidden sm:inline">Floors</span>
+          <TabsTrigger value="units" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm px-2 py-2.5 rounded-lg data-[state=active]:shadow-sm data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 dark:data-[state=active]:bg-blue-950/40 dark:data-[state=active]:text-blue-300">
+            <Building2 className="h-3.5 w-3.5" />
+            Units
           </TabsTrigger>
-          <TabsTrigger value="lines" className="flex items-center gap-2">
-            <Rows3 className="h-4 w-4" />
-            <span className="hidden sm:inline">Lines</span>
+          <TabsTrigger value="floors" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm px-2 py-2.5 rounded-lg data-[state=active]:shadow-sm data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 dark:data-[state=active]:bg-blue-950/40 dark:data-[state=active]:text-blue-300">
+            <Layers className="h-3.5 w-3.5" />
+            Floors
           </TabsTrigger>
         </TabsList>
 
         {/* Units Tab */}
         <TabsContent value="units">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+          <Card className="border-border/50">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
               <div>
-                <CardTitle>Units</CardTitle>
-                <CardDescription>Manage factory units (e.g., Unit A, Unit B)</CardDescription>
+                <CardTitle className="text-base">Units</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">Manage factory units (e.g., Unit A, Unit B)</p>
               </div>
               <Button onClick={openCreateDialog} size="sm">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Unit
               </Button>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="bg-muted/50">
                     <TableHead>Code</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Active</TableHead>
@@ -849,13 +849,15 @@ export default function FactorySetup() {
                 <TableBody>
                   {units.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground">
-                        No units found. Add your first unit.
+                      <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
+                        <Building2 className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                        <p>No units yet</p>
+                        <p className="text-xs mt-1">Add your first unit to organize your factory</p>
                       </TableCell>
                     </TableRow>
                   ) : (
                     units.map((unit) => (
-                      <TableRow key={unit.id}>
+                      <TableRow key={unit.id} className="hover:bg-muted/50">
                         <TableCell className="font-mono">{unit.code}</TableCell>
                         <TableCell>{unit.name}</TableCell>
                         <TableCell>
@@ -883,21 +885,21 @@ export default function FactorySetup() {
 
         {/* Floors Tab */}
         <TabsContent value="floors">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+          <Card className="border-border/50">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
               <div>
-                <CardTitle>Floors</CardTitle>
-                <CardDescription>Manage floors within each unit</CardDescription>
+                <CardTitle className="text-base">Floors</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">Manage floors within each unit</p>
               </div>
               <Button onClick={openCreateDialog} size="sm">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Floor
               </Button>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="bg-muted/50">
                     <TableHead>Code</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Unit</TableHead>
@@ -908,13 +910,15 @@ export default function FactorySetup() {
                 <TableBody>
                   {floors.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground">
-                        No floors found. Add your first floor.
+                      <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                        <Layers className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                        <p>No floors yet</p>
+                        <p className="text-xs mt-1">Add floors within your units</p>
                       </TableCell>
                     </TableRow>
                   ) : (
                     floors.map((floor) => (
-                      <TableRow key={floor.id}>
+                      <TableRow key={floor.id} className="hover:bg-muted/50">
                         <TableCell className="font-mono">{floor.code}</TableCell>
                         <TableCell>{floor.name}</TableCell>
                         <TableCell>{units.find(u => u.id === floor.unit_id)?.name || '-'}</TableCell>
@@ -948,11 +952,11 @@ export default function FactorySetup() {
             <ActiveLinesMeter showUpgrade={!isNative} />
           </div>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+          <Card className="border-border/50">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
               <div>
-                <CardTitle>Production Lines</CardTitle>
-                <CardDescription>Manage production lines (e.g., L1, L2, L3)</CardDescription>
+                <CardTitle className="text-base">Production Lines</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">Manage production lines (e.g., L1, L2, L3)</p>
               </div>
               <div className="flex gap-2">
                 <Button 
@@ -984,10 +988,10 @@ export default function FactorySetup() {
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="bg-muted/50">
                     <TableHead>Line ID</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Unit</TableHead>
@@ -1000,8 +1004,10 @@ export default function FactorySetup() {
                 <TableBody>
                   {lines.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground">
-                        No lines found. Add your first production line.
+                      <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                        <Rows3 className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                        <p>No lines yet</p>
+                        <p className="text-xs mt-1">Add your first production line</p>
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -1039,45 +1045,6 @@ export default function FactorySetup() {
 
       </Tabs>
 
-      {/* Storage Settings Section */}
-      <Card className="mt-6">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Package className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg">Storage</CardTitle>
-          </div>
-          <CardDescription>Configure storage and inventory settings</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-            <div className="flex-1 space-y-2">
-              <Label htmlFor="lowStockThreshold">Low Stock Threshold</Label>
-              <Input
-                id="lowStockThreshold"
-                type="number"
-                min={0}
-                value={lowStockThreshold}
-                onChange={(e) => setLowStockThreshold(parseInt(e.target.value) || 0)}
-                placeholder="e.g., 10"
-                className="max-w-[200px]"
-              />
-              <p className="text-xs text-muted-foreground">
-                Items with balance at or below this value will be flagged as low stock
-              </p>
-            </div>
-            <Button 
-              onClick={handleSaveStorageSettings} 
-              disabled={isSavingStorage}
-            >
-              {isSavingStorage ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
-              ) : (
-                'Save'
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog

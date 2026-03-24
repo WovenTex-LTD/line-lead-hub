@@ -16,7 +16,8 @@ export type LiveDataCategory =
   | "finishing"
   | "storage"
   | "lines"
-  | "factory_summary";
+  | "factory_summary"
+  | "financials";
 
 export interface LiveDataResult {
   category: LiveDataCategory;
@@ -100,6 +101,11 @@ export function classifyMessage(message: string): Classification {
   // Storage
   if (/storage|bin.?card|\bbin\b|fabric|stock|inventory|warehouse|material|raw.?material/i.test(lower)) {
     cats.add("storage");
+  }
+
+  // Financials
+  if (/financ|revenue|profit|margin|\bcost\b|labor.?cost|labour.?cost|headcount.?cost|cm.?per.?dozen|cm.?\/?.?dz|earning|expense|budget|money|dollar|\$|৳|bdt|usd|loss|break.?even|cost.?breakdown/i.test(lower)) {
+    cats.add("financials");
   }
 
   // Lines
@@ -890,6 +896,190 @@ async function fetchFactorySummary(
 }
 
 // ---------------------------------------------------------------------------
+// Financials — Revenue, Cost, Profit, Margin (mirrors TodayUpdates logic)
+// ---------------------------------------------------------------------------
+
+async function fetchFinancials(
+  sb: SupabaseClient, factoryId: string, today: string,
+): Promise<LiveDataResult> {
+  try {
+    console.log(`[FINANCIALS] Fetching for factory=${factoryId}, today=${today}`);
+
+    // Fetch factory headcount cost config
+    const { data: factoryData, error: factoryError } = await sb
+      .from("factory_accounts")
+      .select("headcount_cost_value, headcount_cost_currency")
+      .eq("id", factoryId)
+      .single();
+
+    if (factoryError) console.log(`[FINANCIALS] Factory query error: ${factoryError.message}`);
+
+    const rate = factoryData?.headcount_cost_value ?? 0;
+    const costCurrency: string = factoryData?.headcount_cost_currency ?? "BDT";
+    console.log(`[FINANCIALS] Rate=${rate}, currency=${costCurrency}`);
+
+    // Fetch BDT → USD exchange rate if needed (with short timeout + hardcoded fallback)
+    let bdtToUsd: number | null = null;
+    if (costCurrency === "BDT") {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        const res = await fetch("https://open.er-api.com/v6/latest/USD", { signal: controller.signal });
+        clearTimeout(timeoutId);
+        const json = await res.json();
+        if (json?.rates?.BDT) bdtToUsd = 1 / json.rates.BDT;
+        console.log(`[FINANCIALS] Exchange rate fetched: 1 USD = ${json?.rates?.BDT} BDT`);
+      } catch (e) {
+        console.log(`[FINANCIALS] Exchange rate fetch failed, using fallback: ${e}`);
+        bdtToUsd = 1 / 122;
+      }
+    }
+
+    // Fetch production data with cm_per_dozen
+    const [sewingR, cuttingR, finishingR] = await Promise.all([
+      sb.from("sewing_actuals")
+        .select("manpower_actual, hours_actual, ot_manpower_actual, ot_hours_actual, work_orders(po_number, buyer, style, cm_per_dozen)")
+        .eq("factory_id", factoryId)
+        .eq("production_date", today),
+      sb.from("cutting_actuals")
+        .select("man_power, hours_actual, ot_manpower_actual, ot_hours_actual, work_orders(po_number, buyer, style, cm_per_dozen)")
+        .eq("factory_id", factoryId)
+        .eq("production_date", today),
+      sb.from("finishing_daily_logs")
+        .select("poly, m_power_actual, actual_hours, ot_manpower_actual, ot_hours_actual, log_type, work_orders(po_number, buyer, style, cm_per_dozen)")
+        .eq("factory_id", factoryId)
+        .eq("production_date", today),
+    ]);
+
+    if (sewingR.error) console.log(`[FINANCIALS] Sewing query error: ${sewingR.error.message}`);
+    if (cuttingR.error) console.log(`[FINANCIALS] Cutting query error: ${cuttingR.error.message}`);
+    if (finishingR.error) console.log(`[FINANCIALS] Finishing query error: ${finishingR.error.message}`);
+
+    const sewingActuals = sewingR.data || [];
+    const cuttingActuals = cuttingR.data || [];
+    const finishingLogs = finishingR.data || [];
+    const finishingOutputs = finishingLogs.filter((l: any) => l.log_type === "OUTPUT");
+    console.log(`[FINANCIALS] Data: sewing=${sewingActuals.length}, cutting=${cuttingActuals.length}, finishing=${finishingOutputs.length}`);
+
+    // Revenue: finishing poly output × (cm_per_dozen / 12)
+    let totalRevenue = 0;
+    const revenueByPo: { po: string; buyer: string; output: number; cmDz: number; revenue: number }[] = [];
+    finishingOutputs.forEach((log: any) => {
+      const cm = log.work_orders?.cm_per_dozen;
+      const output = log.poly || 0;
+      if (cm && output) {
+        const rev = (cm / 12) * output;
+        totalRevenue += rev;
+        revenueByPo.push({ po: log.work_orders?.po_number || "N/A", buyer: log.work_orders?.buyer || "", output, cmDz: cm, revenue: Math.round(rev * 100) / 100 });
+      }
+    });
+
+    // Cost by department (only POs with CM price)
+    const calcCost = (mp: number, hrs: number, otMp: number, otHrs: number) => {
+      let c = 0;
+      if (mp && hrs) c += rate * mp * hrs;
+      if (otMp && otHrs) c += rate * otMp * otHrs;
+      return c;
+    };
+
+    let sewingCost = 0, cuttingCost = 0, finishingCost = 0;
+    const costByPo: Record<string, { po: string; buyer: string; sewing: number; cutting: number; finishing: number }> = {};
+
+    const addCost = (po: string, buyer: string, dept: "sewing" | "cutting" | "finishing", amount: number) => {
+      if (!costByPo[po]) costByPo[po] = { po, buyer, sewing: 0, cutting: 0, finishing: 0 };
+      costByPo[po][dept] += amount;
+    };
+
+    if (rate > 0) {
+      sewingActuals.forEach((s: any) => {
+        if (!s.work_orders?.cm_per_dozen) return;
+        const c = calcCost(s.manpower_actual || 0, s.hours_actual || 0, s.ot_manpower_actual || 0, s.ot_hours_actual || 0);
+        sewingCost += c;
+        if (c > 0) addCost(s.work_orders?.po_number || "N/A", s.work_orders?.buyer || "", "sewing", c);
+      });
+      cuttingActuals.forEach((c: any) => {
+        if (!c.work_orders?.cm_per_dozen) return;
+        const cost = calcCost(c.man_power || 0, c.hours_actual || 0, c.ot_manpower_actual || 0, c.ot_hours_actual || 0);
+        cuttingCost += cost;
+        if (cost > 0) addCost(c.work_orders?.po_number || "N/A", c.work_orders?.buyer || "", "cutting", cost);
+      });
+      finishingOutputs.forEach((f: any) => {
+        if (!f.work_orders?.cm_per_dozen) return;
+        const c = calcCost(f.m_power_actual || 0, f.actual_hours || 0, f.ot_manpower_actual || 0, f.ot_hours_actual || 0);
+        finishingCost += c;
+        if (c > 0) addCost(f.work_orders?.po_number || "N/A", f.work_orders?.buyer || "", "finishing", c);
+      });
+    }
+
+    const totalCostNative = sewingCost + cuttingCost + finishingCost;
+    const toUsd = (v: number) => costCurrency === "BDT" && bdtToUsd ? v * bdtToUsd : v;
+    const totalCostUsd = toUsd(totalCostNative);
+    const profit = totalRevenue - totalCostUsd;
+    const margin = totalRevenue > 0 ? Math.round((profit / totalRevenue) * 1000) / 10 : 0;
+
+    const fUsd = (v: number) => `$${Math.round(v).toLocaleString()}`;
+    const fUsd2 = (v: number) => `$${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    let summary = `### Daily Financials (${today})\n`;
+    summary += `Currency: USD${costCurrency === "BDT" && bdtToUsd ? ` (rate: 1 USD = ${(1 / bdtToUsd).toFixed(1)} BDT)` : ""}\n`;
+    summary += `Headcount cost rate: ${rate > 0 ? `${rate} ${costCurrency}/person/hour` : "NOT CONFIGURED"}\n\n`;
+    summary += `REVENUE: ${fUsd2(totalRevenue)} (from finishing poly output × CM/dozen)\n`;
+    summary += `COST: ${fUsd2(totalCostUsd)}${costCurrency === "BDT" ? ` (৳${Math.round(totalCostNative).toLocaleString()} BDT)` : ""}\n`;
+    summary += `  - Sewing: ${fUsd(toUsd(sewingCost))}\n`;
+    summary += `  - Cutting: ${fUsd(toUsd(cuttingCost))}\n`;
+    summary += `  - Finishing: ${fUsd(toUsd(finishingCost))}\n`;
+    summary += `PROFIT: ${profit >= 0 ? "+" : "-"}${fUsd2(Math.abs(profit))}\n`;
+    summary += `MARGIN: ${margin}%\n\n`;
+
+    if (revenueByPo.length > 0) {
+      summary += `Revenue by PO:\n`;
+      revenueByPo.sort((a, b) => b.revenue - a.revenue);
+      revenueByPo.forEach((r) => {
+        summary += `  - ${r.po} (${r.buyer}): ${r.output} pcs × $${(r.cmDz / 12).toFixed(3)}/pc = ${fUsd2(r.revenue)}\n`;
+      });
+      summary += `\n`;
+    }
+
+    const costByPoList = Object.values(costByPo).map((p) => ({ ...p, total: toUsd(p.sewing + p.cutting + p.finishing) })).sort((a, b) => b.total - a.total);
+    if (costByPoList.length > 0) {
+      summary += `Cost by PO:\n`;
+      costByPoList.forEach((p) => {
+        summary += `  - ${p.po} (${p.buyer}): ${fUsd2(p.total)} (Sewing: ${fUsd(toUsd(p.sewing))}, Cutting: ${fUsd(toUsd(p.cutting))}, Finishing: ${fUsd(toUsd(p.finishing))})\n`;
+      });
+    }
+
+    if (rate === 0) {
+      summary += `\n⚠️ Headcount cost rate is not configured. Cost and profit cannot be calculated. The factory admin can set it in Factory Setup.\n`;
+    }
+
+    return {
+      category: "financials",
+      label: "Daily Financials",
+      data: [{
+        totalRevenue: Math.round(totalRevenue * 100) / 100,
+        totalCostUsd: Math.round(totalCostUsd * 100) / 100,
+        totalCostNative: Math.round(totalCostNative),
+        costCurrency,
+        profit: Math.round(profit * 100) / 100,
+        margin,
+        sewingCostUsd: Math.round(toUsd(sewingCost) * 100) / 100,
+        cuttingCostUsd: Math.round(toUsd(cuttingCost) * 100) / 100,
+        finishingCostUsd: Math.round(toUsd(finishingCost) * 100) / 100,
+        revenueByPo,
+        costByPo: costByPoList,
+        headcountCostRate: rate,
+        bdtToUsdRate: bdtToUsd,
+      }],
+      summary,
+      fetchedAt: new Date().toISOString(),
+    };
+  } catch (err) {
+    console.error(`[FINANCIALS] Fatal error:`, err);
+    return errorResult("financials", "Daily Financials", err);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Formatters — compact text for LLM context
 // ---------------------------------------------------------------------------
 
@@ -1218,11 +1408,11 @@ function fmtLines(lines: any[], actuals: any[], targets: any[], today: string, a
 const ROLE_ALLOWED_CATEGORIES: Record<string, Set<LiveDataCategory>> = {
   owner: new Set([
     "sewing_output", "sewing_targets", "blockers", "work_orders",
-    "cutting", "finishing", "storage", "lines", "factory_summary",
+    "cutting", "finishing", "storage", "lines", "factory_summary", "financials",
   ]),
   admin: new Set([
     "sewing_output", "sewing_targets", "blockers", "work_orders",
-    "cutting", "finishing", "storage", "lines", "factory_summary",
+    "cutting", "finishing", "storage", "lines", "factory_summary", "financials",
   ]),
   worker: new Set([
     "sewing_output", "sewing_targets", "blockers", "lines",
@@ -1259,11 +1449,12 @@ export async function fetchLiveData(
   // Always include core factory data so the LLM has full context
   const cats = new Set<LiveDataCategory>(classification.categories);
 
-  // Always include factory summary for comprehensive stats (if the role allows it)
+  // Always include core categories so the LLM has full context (if the role allows it)
   const allowed = allowedCategoriesForRole(userRole);
   if (allowed.has("factory_summary")) cats.add("factory_summary");
   if (allowed.has("work_orders")) cats.add("work_orders");
   if (allowed.has("lines")) cats.add("lines");
+  if (allowed.has("financials")) cats.add("financials");
 
   // Filter categories to only those the user's role is allowed to access
   classification.categories = Array.from(cats).filter((cat) => allowed.has(cat));
@@ -1281,6 +1472,7 @@ export async function fetchLiveData(
     storage: () => fetchStorage(supabase, factoryId),
     lines: () => fetchLines(supabase, factoryId, today),
     factory_summary: () => fetchFactorySummary(supabase, factoryId, today),
+    financials: () => fetchFinancials(supabase, factoryId, today),
   };
 
   const results = await Promise.all(

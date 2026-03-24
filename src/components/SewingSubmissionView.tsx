@@ -116,7 +116,7 @@ function FieldDisplay({ label, value, className, suffix }: {
 }) {
   return (
     <div>
-      <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
+      <p className="text-[11px] text-muted-foreground mb-0.5">{label}</p>
       <p className={`font-semibold ${className || ""}`}>
         {value != null ? (typeof value === "number" ? `${value.toLocaleString()}${suffix || ""}` : value) : "-"}
       </p>
@@ -180,35 +180,26 @@ export function SewingSubmissionView({ target, actual, open, onOpenChange, onEdi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Icon className="h-5 w-5 text-primary" />
-            {title}
-            <div className="flex gap-1.5 ml-auto">
-              {hasTarget && (
-                <Badge variant="outline" className="bg-primary/10 text-xs">
-                  {t('modals.target')}
-                </Badge>
-              )}
-              {hasActual && (
-                <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 text-xs">
-                  {t('modals.actual')}
-                </Badge>
-              )}
-            </div>
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
+        {/* Header bar */}
+        <div className="px-6 pt-6 pb-4 border-b border-border/40">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-sm shadow-blue-500/20 flex items-center justify-center">
+                <Icon className="h-4 w-4 text-white" />
+              </div>
+              {title}
+            </DialogTitle>
+          </DialogHeader>
 
-        <div className="space-y-5">
-          {/* Order Info */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {/* Order info */}
+          <div className="flex flex-wrap items-start gap-x-5 gap-y-1 mt-3 text-sm">
             <FieldDisplay label={t('modals.date')} value={formatDate(primary.production_date)} />
             <FieldDisplay label={t('modals.line')} value={primary.line_name} />
             <FieldDisplay label={t('modals.buyer')} value={primary.buyer} />
             <FieldDisplay label={t('modals.style')} value={primary.style} />
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">{t('modals.poNumber')}</p>
+              <p className="text-[11px] text-muted-foreground mb-0.5">{t('modals.poNumber')}</p>
               {primary.po_number ? (
                 <button
                   className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80 transition-colors cursor-pointer"
@@ -222,20 +213,22 @@ export function SewingSubmissionView({ target, actual, open, onOpenChange, onEdi
             </div>
             <FieldDisplay label={t('modals.orderQty')} value={primary.order_qty} />
           </div>
+        </div>
+
+        <div className="px-6 py-5 space-y-5">
 
           {/* Two-column Target & Actual display */}
           <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
             {/* Left Column: Target (blue) or placeholder */}
             {hasTarget && target ? (
-              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-4">
-                <h4 className="font-semibold text-sm flex items-center gap-2 text-primary">
-                  <Crosshair className="h-4 w-4" />
+              <div className="rounded-lg border-l-2 border-l-blue-500 border border-border/50 bg-blue-50/30 dark:bg-blue-950/10 p-4 space-y-4">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-400 flex items-center gap-2">
+                  <Crosshair className="h-3.5 w-3.5" />
                   {t('modals.morningTarget')}
                 </h4>
 
                 {/* Targets */}
                 <div>
-                  <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-2">{t('modals.targets')}</p>
                   <div className="grid grid-cols-2 gap-3">
                     <FieldDisplay label={t('modals.perHourTarget')} value={target.per_hour_target} suffix=" /hr" className="text-lg text-primary" />
                     <FieldDisplay
@@ -293,14 +286,14 @@ export function SewingSubmissionView({ target, actual, open, onOpenChange, onEdi
 
                 {/* Target Timestamp */}
                 {target.submitted_at && (
-                  <p className="text-xs text-muted-foreground pt-2 border-t border-primary/10">
+                  <p className="text-xs text-muted-foreground pt-2 border-t border-border/40">
                     {t('modals.submitted')}: {formatDateTime(target.submitted_at)}
                   </p>
                 )}
 
                 {/* Admin Actions */}
                 {(onEditTarget || onDeleteTarget) && (
-                  <div className="flex gap-2 pt-2 border-t border-primary/10">
+                  <div className="flex gap-2 pt-2 border-t border-border/40">
                     {onEditTarget && (
                       <Button variant="outline" size="sm" onClick={onEditTarget}>
                         <Pencil className="h-4 w-4 mr-1" />
@@ -325,9 +318,9 @@ export function SewingSubmissionView({ target, actual, open, onOpenChange, onEdi
 
             {/* Right Column: Actual (green) or placeholder */}
             {hasActual && actual ? (
-              <div className="rounded-lg border border-success/20 bg-success/5 p-4 space-y-4">
-                <h4 className="font-semibold text-sm flex items-center gap-2 text-success">
-                  <SewingMachine className="h-4 w-4" />
+              <div className="rounded-lg border-l-2 border-l-emerald-500 border border-border/50 bg-emerald-50/30 dark:bg-emerald-950/10 p-4 space-y-4">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+                  <SewingMachine className="h-3.5 w-3.5" />
                   {t('modals.endOfDayActual')}
                 </h4>
 
@@ -446,7 +439,7 @@ export function SewingSubmissionView({ target, actual, open, onOpenChange, onEdi
                   const fmtCost = (v: number) => `${currSym}${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
                   return (
-                    <div className="p-3 rounded-lg border border-primary/20 bg-primary/5">
+                    <div className="p-3 rounded-lg border border-border/50 bg-muted/20">
                       <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-2">
                         Cost Estimate{isLive ? ' (current rate)' : ''}
                       </p>
@@ -459,7 +452,7 @@ export function SewingSubmissionView({ target, actual, open, onOpenChange, onEdi
                         )}
                       </div>
                       {regularCost != null && otCost != null && (
-                        <div className="mt-2 pt-2 border-t border-primary/10">
+                        <div className="mt-2 pt-2 border-t border-border/40">
                           <FieldDisplay label="Total Cost" value={`${fmtCost(regularCost + otCost)} ${currency}`} className="text-lg font-bold" />
                         </div>
                       )}
@@ -477,14 +470,14 @@ export function SewingSubmissionView({ target, actual, open, onOpenChange, onEdi
 
                 {/* Actual Timestamp */}
                 {actual.submitted_at && (
-                  <p className="text-xs text-muted-foreground pt-2 border-t border-success/10">
+                  <p className="text-xs text-muted-foreground pt-2 border-t border-border/40">
                     {t('modals.submitted')}: {formatDateTime(actual.submitted_at)}
                   </p>
                 )}
 
                 {/* Admin Actions */}
                 {(onEditActual || onDeleteActual) && (
-                  <div className="flex gap-2 pt-2 border-t border-success/10">
+                  <div className="flex gap-2 pt-2 border-t border-border/40">
                     {onEditActual && (
                       <Button variant="outline" size="sm" onClick={onEditActual}>
                         <Pencil className="h-4 w-4 mr-1" />
@@ -510,11 +503,11 @@ export function SewingSubmissionView({ target, actual, open, onOpenChange, onEdi
 
           {/* Comparison table (full width, below columns) */}
           {isComparison && target && actual && (
-            <div className="border rounded-lg p-4 bg-muted/30">
-              <h4 className="font-semibold text-sm mb-3 flex items-center justify-between">
-                <span>{t('modals.targetVsActual')}</span>
-                <Badge variant="outline" className="text-xs">{t('modals.variance')}</Badge>
-              </h4>
+            <div className="rounded-lg border border-border/50 overflow-hidden">
+              <div className="px-4 py-2.5 bg-muted/30 border-b border-border/40">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-foreground">{t('modals.targetVsActual')}</h4>
+              </div>
+              <div className="p-4">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -555,6 +548,7 @@ export function SewingSubmissionView({ target, actual, open, onOpenChange, onEdi
                     })()}
                   </tbody>
                 </table>
+              </div>
               </div>
             </div>
           )}

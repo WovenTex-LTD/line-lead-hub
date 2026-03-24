@@ -7,10 +7,9 @@ import { getTodayInTimezone } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, AlertTriangle, ArrowLeft, CalendarIcon, Search, Factory } from "lucide-react";
+import { Loader2, AlertTriangle, CalendarIcon, Search, Factory } from "lucide-react";
 import {
   Command,
   CommandEmpty,
@@ -434,112 +433,77 @@ export default function ReportBlocker() {
   }
 
   return (
-    <div className="p-4 lg:p-6 max-w-2xl mx-auto pb-6">
+    <div className="max-w-2xl mx-auto py-3 md:py-4 lg:py-6 px-4 pb-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-warning/10 flex items-center justify-center">
-            <AlertTriangle className="h-5 w-5 text-warning" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold">{t('reportBlocker.title')}</h1>
-            <p className="text-sm text-muted-foreground">
-              {new Date(getTodayInTimezone(factory?.timezone || "Asia/Dhaka") + "T00:00:00").toLocaleDateString(i18n.language === 'bn' ? 'bn-BD' : 'en-US', { dateStyle: "full" })}
-            </p>
-          </div>
+        <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+          <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+        </div>
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold">{t('reportBlocker.title')}</h1>
+          <p className="text-sm text-muted-foreground">
+            {new Date(getTodayInTimezone(factory?.timezone || "Asia/Dhaka") + "T00:00:00").toLocaleDateString(i18n.language === 'bn' ? 'bn-BD' : 'en-US', { dateStyle: "full" })}
+          </p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Department */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">{t('reportBlocker.updateType')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Select value={updateType} onValueChange={(v) => setUpdateType(v as Department)}>
-              <SelectTrigger className="h-12">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="sewing">{t('dashboard.sewing')}</SelectItem>
-                <SelectItem value="finishing">{t('dashboard.finishing')}</SelectItem>
-                <SelectItem value="cutting">{t('dashboard.cutting')}</SelectItem>
-                <SelectItem value="storage">{t('dashboard.storage')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
+      <form onSubmit={handleSubmit}>
+      <div className="rounded-xl border border-border/50 bg-card p-5 md:p-6 space-y-6">
 
-        {/* Location Selection */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">{t('reportBlocker.location')}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Line Selection - optional for all users */}
+        {/* Department & Location */}
+        <div className="space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground">{t('reportBlocker.location')}</p>
+          <div className={`grid grid-cols-1 ${showLineSelection ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-4`}>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t('reportBlocker.updateType')}</Label>
+              <Select value={updateType} onValueChange={(v) => setUpdateType(v as Department)}>
+                <SelectTrigger className="h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sewing">{t('dashboard.sewing')}</SelectItem>
+                  <SelectItem value="finishing">{t('dashboard.finishing')}</SelectItem>
+                  <SelectItem value="cutting">{t('dashboard.cutting')}</SelectItem>
+                  <SelectItem value="storage">{t('dashboard.storage')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             {showLineSelection && (
-              <div className="space-y-2">
-                <Label>{t('sewing.lineNo')}</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">{t('sewing.lineNo')}</Label>
                 <Select value={selectedLine} onValueChange={setSelectedLine}>
-                  <SelectTrigger className="h-12">
-                    <SelectValue
-                      placeholder={
-                        lines.length === 0
-                          ? t('common.noLinesAvailable')
-                          : t('common.selectLine')
-                      }
-                    />
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder={lines.length === 0 ? t('common.noLinesAvailable') : t('common.selectLine')} />
                   </SelectTrigger>
                   <SelectContent>
                     {lines.map((line) => (
-                      <SelectItem key={line.id} value={line.id}>
-                        {line.name || line.line_id}
-                      </SelectItem>
+                      <SelectItem key={line.id} value={line.id}>{line.name || line.line_id}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             )}
-
-            <div className="space-y-2">
-              <Label>PO *</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">PO *</Label>
               <Popover open={poSearchOpen} onOpenChange={setPoSearchOpen}>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    className={`w-full h-12 justify-start ${errors.po ? "border-destructive" : ""}`}
-                  >
-                    <Search className="mr-2 h-4 w-4 shrink-0" />
-                    <span className="truncate">
+                  <Button variant="outline" role="combobox" className={`w-full h-10 justify-start ${errors.po ? "border-destructive" : ""}`}>
+                    <Search className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate text-sm">
                       {selectedPO
-                        ? (() => {
-                            const wo = workOrders.find(w => w.id === selectedPO);
-                            return wo ? `${wo.po_number} - ${wo.style} (${wo.buyer})` : t('common.selectPO');
-                          })()
+                        ? (() => { const wo = workOrders.find(w => w.id === selectedPO); return wo ? `${wo.po_number} - ${wo.style}` : t('common.selectPO'); })()
                         : workOrders.length === 0 ? t('common.noPOsAvailable') : t('common.selectPO')}
                     </span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[350px] p-0" align="start">
+                <PopoverContent className="w-[min(350px,calc(100vw-2rem))] p-0" align="start">
                   <Command shouldFilter={true}>
                     <CommandInput placeholder="Search PO, buyer, style..." />
                     <CommandList>
                       <CommandEmpty>No PO found.</CommandEmpty>
                       <CommandGroup>
                         {workOrders.map((wo) => (
-                          <CommandItem
-                            key={wo.id}
-                            value={`${wo.po_number} ${wo.buyer} ${wo.style}`}
-                            onSelect={() => {
-                              setSelectedPO(wo.id);
-                              setPoSearchOpen(false);
-                            }}
-                          >
+                          <CommandItem key={wo.id} value={`${wo.po_number} ${wo.buyer} ${wo.style}`} onSelect={() => { setSelectedPO(wo.id); setPoSearchOpen(false); }}>
                             <div className="flex flex-col">
                               <span className="font-medium">{wo.po_number} - {wo.style}</span>
                               <span className="text-xs text-muted-foreground">{wo.buyer}</span>
@@ -553,77 +517,49 @@ export default function ReportBlocker() {
               </Popover>
               {errors.po && <p className="text-xs text-destructive">{errors.po}</p>}
             </div>
+          </div>
+        </div>
 
-            {/* Auto-filled context */}
-            {(showLineSelection ? selectedLine : selectedPO) && (unitName || floorName) && (
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                {unitName && (
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">{t('sewing.unit')}</Label>
-                    <div className="p-2 bg-muted rounded border text-sm font-medium">{unitName}</div>
-                  </div>
-                )}
-                {floorName && (
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">{t('sewing.floor')}</Label>
-                    <div className="p-2 bg-muted rounded border text-sm font-medium">{floorName}</div>
-                  </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <div className="border-t border-border/40" />
 
         {/* Blocker Details */}
-        <Card className="border-warning">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-warning" />
-              {t('reportBlocker.blockerDetails')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Blocker Type */}
-            <div className="space-y-2">
-              <Label>{t('sewing.blockerType')} *</Label>
+        <div className="space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground">{t('reportBlocker.blockerDetails')}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t('sewing.blockerType')} *</Label>
               <Select value={blockerType} onValueChange={setBlockerType}>
-                <SelectTrigger className={`h-12 ${errors.blockerType ? "border-destructive" : ""}`}>
+                <SelectTrigger className={`h-10 ${errors.blockerType ? "border-destructive" : ""}`}>
                   <SelectValue placeholder={t('reportBlocker.selectBlockerType')} />
                 </SelectTrigger>
                 <SelectContent>
                   {blockerTypes.map((bt) => (
-                    <SelectItem key={bt.id} value={bt.id}>
-                      {bt.name}
-                    </SelectItem>
+                    <SelectItem key={bt.id} value={bt.id}>{bt.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               {errors.blockerType && <p className="text-xs text-destructive">{errors.blockerType}</p>}
             </div>
-
-            {/* Blocker Owner */}
-            <div className="space-y-2">
-              <Label>{t('sewing.blockerOwner')} *</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t('sewing.blockerOwner')} *</Label>
               <Select value={blockerOwner} onValueChange={setBlockerOwner}>
-                <SelectTrigger className={`h-12 ${errors.blockerOwner ? "border-destructive" : ""}`}>
+                <SelectTrigger className={`h-10 ${errors.blockerOwner ? "border-destructive" : ""}`}>
                   <SelectValue placeholder={t('reportBlocker.selectBlockerOwner')} />
                 </SelectTrigger>
                 <SelectContent>
                   {blockerOwnerOptions.map((option) => (
-                    <SelectItem key={option.id} value={option.id}>
-                      {option.label}
-                    </SelectItem>
+                    <SelectItem key={option.id} value={option.id}>{option.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               {errors.blockerOwner && <p className="text-xs text-destructive">{errors.blockerOwner}</p>}
             </div>
-
-            {/* Blocker Impact/Severity */}
-            <div className="space-y-2">
-              <Label>{t('sewing.blockerImpact')} *</Label>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t('sewing.blockerImpact')} *</Label>
               <Select value={blockerSeverity} onValueChange={setBlockerSeverity}>
-                <SelectTrigger className={`h-12 ${errors.blockerSeverity ? "border-destructive" : ""}`}>
+                <SelectTrigger className={`h-10 ${errors.blockerSeverity ? "border-destructive" : ""}`}>
                   <SelectValue placeholder={t('reportBlocker.selectSeverity')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -635,20 +571,11 @@ export default function ReportBlocker() {
               </Select>
               {errors.blockerSeverity && <p className="text-xs text-destructive">{errors.blockerSeverity}</p>}
             </div>
-
-            {/* Expected Resolution Date */}
-            <div className="space-y-2">
-              <Label>{t('reportBlocker.expectedResolution')} *</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t('reportBlocker.expectedResolution')} *</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full h-12 justify-start text-left font-normal",
-                      !blockerResolution && "text-muted-foreground",
-                      errors.blockerResolution && "border-destructive"
-                    )}
-                  >
+                  <Button variant="outline" className={cn("w-full h-10 justify-start text-left font-normal text-sm", !blockerResolution && "text-muted-foreground", errors.blockerResolution && "border-destructive")}>
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {blockerResolution ? format(blockerResolution, "PPP") : t('common.selectDate')}
                   </Button>
@@ -659,35 +586,26 @@ export default function ReportBlocker() {
               </Popover>
               {errors.blockerResolution && <p className="text-xs text-destructive">{errors.blockerResolution}</p>}
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">{t('blockers.description_label')} *</Label>
+            <Textarea
+              placeholder={t('sewing.actionTakenToday')}
+              value={blockerDescription}
+              onChange={(e) => setBlockerDescription(e.target.value)}
+              className={`min-h-[80px] ${errors.blockerDescription ? "border-destructive" : ""}`}
+            />
+            {errors.blockerDescription && <p className="text-xs text-destructive">{errors.blockerDescription}</p>}
+          </div>
+        </div>
+      </div>
 
-            {/* Description */}
-            <div className="space-y-2">
-              <Label>{t('blockers.description_label')} *</Label>
-              <Textarea
-                placeholder={t('sewing.actionTakenToday')}
-                value={blockerDescription}
-                onChange={(e) => setBlockerDescription(e.target.value)}
-                className={`min-h-[100px] ${errors.blockerDescription ? "border-destructive" : ""}`}
-              />
-              {errors.blockerDescription && (
-                <p className="text-xs text-destructive">{errors.blockerDescription}</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Submit Button */}
-        <Button type="submit" className="w-full h-12" size="lg" disabled={isSubmitting}>
+        {/* Submit */}
+        <Button type="submit" className="w-full h-11 font-semibold mt-5" disabled={isSubmitting}>
           {isSubmitting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {t('common.loading')}
-            </>
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('common.loading')}</>
           ) : (
-            <>
-              <AlertTriangle className="mr-2 h-4 w-4" />
-              {t('reportBlocker.title')}
-            </>
+            <><AlertTriangle className="mr-2 h-4 w-4" /> {t('reportBlocker.title')}</>
           )}
         </Button>
       </form>

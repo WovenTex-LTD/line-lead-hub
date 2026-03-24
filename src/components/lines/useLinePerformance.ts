@@ -15,9 +15,10 @@ import type {
   DataState,
 } from "./types";
 
+import { compareLineNames, lineNumber } from "@/lib/sort-lines";
+
 function extractLineNumber(lineId: string): number {
-  const match = lineId.match(/(\d+)/);
-  return match ? parseInt(match[1], 10) : 0;
+  return lineNumber(lineId);
 }
 
 function resolveTarget(row: {
@@ -369,7 +370,7 @@ export function useLinePerformance() {
     });
 
     // Sort by line number
-    result.sort((a, b) => extractLineNumber(a.lineId) - extractLineNumber(b.lineId));
+    result.sort((a, b) => compareLineNames(a.lineId, b.lineId));
     return result;
   }, [rawLines, rawTargets, rawActuals, woMap]);
 
@@ -379,16 +380,7 @@ export function useLinePerformance() {
 
     const map = new Map<string, LineTrendData>();
 
-    // Group targets by line_id + date
-    const targetsByLineDate = new Map<string, Map<string, number>>();
-    rawTargets.forEach((t: any) => {
-      const key = t.line_id;
-      if (!targetsByLineDate.has(key)) targetsByLineDate.set(key, new Map());
-      const dateMap = targetsByLineDate.get(key)!;
-      dateMap.set(t.production_date, (dateMap.get(t.production_date) || 0) + resolveTarget(t));
-    });
-
-    // Group actuals by line_id + date
+    // Group actuals by line_id + date (build first so we can pair targets)
     const actualsByLineDate = new Map<string, Map<string, { output: number; manpower: number; blockers: number }>>();
     rawActuals.forEach((a: any) => {
       const key = a.line_id;
@@ -399,6 +391,19 @@ export function useLinePerformance() {
       existing.manpower += a.manpower_actual || 0;
       if (a.has_blocker) existing.blockers += 1;
       dateMap.set(a.production_date, existing);
+    });
+
+    // Group targets by line_id + date — only include targets where actuals exist for that line+date
+    const targetsByLineDate = new Map<string, Map<string, number>>();
+    rawTargets.forEach((t: any) => {
+      const key = t.line_id;
+      // Skip target-only: only include if there's a matching actual for this line + date
+      const lineActuals = actualsByLineDate.get(key);
+      if (!lineActuals || !lineActuals.has(t.production_date)) return;
+
+      if (!targetsByLineDate.has(key)) targetsByLineDate.set(key, new Map());
+      const dateMap = targetsByLineDate.get(key)!;
+      dateMap.set(t.production_date, (dateMap.get(t.production_date) || 0) + resolveTarget(t));
     });
 
     // Group actuals by line_id + date + work_order_id for PO daily

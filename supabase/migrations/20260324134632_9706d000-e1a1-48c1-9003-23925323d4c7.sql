@@ -1,0 +1,1 @@
+UPDATE factory_accounts SET subscription_tier = 'growth', max_lines = 60 WHERE id = 'f7b308bb-cd58-497e-8164-89bd7028bde4';

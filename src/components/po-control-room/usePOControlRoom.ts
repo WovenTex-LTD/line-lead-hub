@@ -651,7 +651,7 @@ export function usePOControlRoom(filters: POFilters = EMPTY_FILTERS) {
         const factoryId = profile?.factory_id;
         if (!factoryId) return;
 
-        const [targetsRes, actualsRes, cuttingRes, finLogsRes, storageRes] =
+        const [targetsRes, actualsRes, cuttingTargetsRes, cuttingRes, finLogsRes, storageRes] =
           await Promise.all([
             supabase
               .from("sewing_targets")
@@ -671,6 +671,12 @@ export function usePOControlRoom(filters: POFilters = EMPTY_FILTERS) {
               .eq("factory_id", factoryId)
               .order("production_date", { ascending: false })
               .limit(30),
+            supabase
+              .from("cutting_targets")
+              .select("*, lines(name, line_id), work_orders(po_number, buyer, style, order_qty)")
+              .eq("work_order_id", id)
+              .eq("factory_id", factoryId)
+              .order("production_date", { ascending: false }),
             supabase
               .from("cutting_actuals")
               .select("*, lines!cutting_actuals_line_id_fkey(name, line_id), work_orders(po_number, buyer, style, order_qty)")
@@ -723,6 +729,18 @@ export function usePOControlRoom(filters: POFilters = EMPTY_FILTERS) {
           });
         });
 
+        cuttingTargetsRes.data?.forEach((ct: any) => {
+          submissions.push({
+            id: ct.id,
+            type: "cutting_target",
+            date: ct.production_date,
+            lineName: lineName(ct),
+            submittedAt: ct.submitted_at,
+            headline: `Cut Target ${(ct.cutting_capacity || 0).toLocaleString()}`,
+            raw: ct,
+          });
+        });
+
         cuttingRes.data?.forEach((c: any) => {
           submissions.push({
             id: c.id,
@@ -757,9 +775,10 @@ export function usePOControlRoom(filters: POFilters = EMPTY_FILTERS) {
         const typeOrder: Record<string, number> = {
           sewing_target: 0,
           sewing_actual: 1,
-          cutting_actual: 2,
-          finishing_target: 3,
-          finishing_actual: 4,
+          cutting_target: 2,
+          cutting_actual: 3,
+          finishing_target: 4,
+          finishing_actual: 5,
         };
         submissions.sort((a, b) => {
           const dc = b.date.localeCompare(a.date);

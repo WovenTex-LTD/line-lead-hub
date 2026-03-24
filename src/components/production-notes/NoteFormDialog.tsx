@@ -69,7 +69,10 @@ export function NoteFormDialog({ open, onOpenChange, defaultLine, defaultDepartm
       .eq('factory_id', factoryId)
       .eq('is_active', true)
       .order('line_id')
-      .then(({ data }) => setLines(data || []));
+      .then(async ({ data }) => {
+        const { sortByLineName } = await import("@/lib/sort-lines");
+        setLines(sortByLineName(data || [], l => l.name || l.line_id));
+      });
 
     supabase
       .from('work_orders')

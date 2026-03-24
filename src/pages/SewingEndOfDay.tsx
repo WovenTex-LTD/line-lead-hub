@@ -6,9 +6,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getTodayInTimezone } from "@/lib/date-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -400,74 +399,61 @@ export default function SewingEndOfDay() {
   }
 
   return (
-    <div className="container max-w-2xl py-4 px-4 pb-24">
-      <div className="mb-6">
-        <h1 className="text-xl font-bold">{t("forms.sewing")} — {t("forms.endOfDayOutput")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {new Date(getTodayInTimezone(factory?.timezone || "Asia/Dhaka") + "T00:00:00").toLocaleDateString(dateLocale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-        </p>
+    <div className="container max-w-2xl py-3 md:py-4 lg:py-6 px-4 pb-24">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+          <ClipboardCheck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+        </div>
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold">{t("forms.sewing")} {t("forms.endOfDayOutput")}</h1>
+          <p className="text-sm text-muted-foreground">
+            {new Date(getTodayInTimezone(factory?.timezone || "Asia/Dhaka") + "T00:00:00").toLocaleDateString(dateLocale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Line & PO Selection */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">{t("forms.selectLinePO")}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>{t("forms.lineNo")} *</Label>
+      <form onSubmit={handleSubmit}>
+      <div className="rounded-xl border border-border/50 bg-card p-5 md:p-6 space-y-6">
+        {/* ── Line & PO ── */}
+        <div className="space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground">{t("forms.selectLinePO")}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t("forms.lineNo")} *</Label>
               <Select value={selectedLineId} onValueChange={setSelectedLineId}>
-                <SelectTrigger className={errors.line ? "border-destructive" : ""}>
+                <SelectTrigger className={`h-10 ${errors.line ? "border-destructive" : ""}`}>
                   <SelectValue placeholder={t("forms.selectLine")} />
                 </SelectTrigger>
                 <SelectContent>
                   {lines.map((line) => (
-                    <SelectItem key={line.id} value={line.id}>
-                      {line.name || line.line_id}
-                    </SelectItem>
+                    <SelectItem key={line.id} value={line.id}>{line.name || line.line_id}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {errors.line && <p className="text-sm text-destructive">{errors.line}</p>}
+              {errors.line && <p className="text-xs text-destructive">{errors.line}</p>}
             </div>
-
-            <div className="space-y-2">
-              <Label>{t("forms.poNumber")} *</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t("forms.poNumber")} *</Label>
               <Popover open={poSearchOpen} onOpenChange={setPoSearchOpen}>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    disabled={!selectedLineId}
-                    className={`w-full justify-start ${errors.workOrder ? 'border-destructive' : ''}`}
-                  >
-                    <Search className="mr-2 h-4 w-4 shrink-0" />
-                    <span className="truncate">
+                  <Button variant="outline" role="combobox" disabled={!selectedLineId} className={`w-full h-10 justify-start ${errors.workOrder ? 'border-destructive' : ''}`}>
+                    <Search className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate text-sm">
                       {selectedWorkOrderId
-                        ? (() => {
-                            const wo = filteredWorkOrders.find(w => w.id === selectedWorkOrderId);
-                            return wo ? `${wo.po_number} - ${wo.style}` : (selectedLineId ? t("forms.selectPO") : "Select a line first");
-                          })()
+                        ? (() => { const wo = filteredWorkOrders.find(w => w.id === selectedWorkOrderId); return wo ? `${wo.po_number} - ${wo.style}` : t("forms.selectPO"); })()
                         : (selectedLineId ? t("forms.selectPO") : "Select a line first")}
                     </span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[350px] p-0" align="start">
+                <PopoverContent className="w-[min(350px,calc(100vw-2rem))] p-0" align="start">
                   <Command shouldFilter={true}>
                     <CommandInput placeholder={t("forms.selectPO")} />
                     <CommandList>
                       <CommandEmpty>No PO found.</CommandEmpty>
                       <CommandGroup>
                         {filteredWorkOrders.map((wo) => (
-                          <CommandItem
-                            key={wo.id}
-                            value={`${wo.po_number} ${wo.buyer} ${wo.style} ${wo.item || ''}`}
-                            onSelect={() => {
-                              setSelectedWorkOrderId(wo.id);
-                              setPoSearchOpen(false);
-                            }}
-                          >
+                          <CommandItem key={wo.id} value={`${wo.po_number} ${wo.buyer} ${wo.style} ${wo.item || ''}`} onSelect={() => { setSelectedWorkOrderId(wo.id); setPoSearchOpen(false); }}>
                             <div className="flex flex-col">
                               <span className="font-medium">{wo.po_number} - {wo.style}</span>
                               <span className="text-xs text-muted-foreground">{wo.buyer}{wo.item ? ` / ${wo.item}` : ''}</span>
@@ -479,239 +465,139 @@ export default function SewingEndOfDay() {
                   </Command>
                 </PopoverContent>
               </Popover>
-              {errors.workOrder && <p className="text-sm text-destructive">{errors.workOrder}</p>}
+              {errors.workOrder && <p className="text-xs text-destructive">{errors.workOrder}</p>}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Auto-filled Details */}
         {selectedWorkOrder && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">{t("forms.orderDetailsAuto")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">{t("forms.buyer")}:</span>
-                  <p className="font-medium">{selectedWorkOrder.buyer}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">{t("forms.style")}:</span>
-                  <p className="font-medium">{selectedWorkOrder.style}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">{t("forms.item")}:</span>
-                  <p className="font-medium">{selectedWorkOrder.item || "-"}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">{t("forms.orderQty")}:</span>
-                  <p className="font-medium">{selectedWorkOrder.order_qty.toLocaleString()}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">{t("forms.unit")}:</span>
-                  <p className="font-medium">{unitName || "-"}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">{t("forms.floor")}:</span>
-                  <p className="font-medium">{floorName || "-"}</p>
-                </div>
+          <div className="rounded-lg bg-muted/30 border border-border/40 px-4 py-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2 text-sm">
+              <div>
+                <span className="text-[11px] text-muted-foreground">{t("forms.buyer")}</span>
+                <p className="font-medium">{selectedWorkOrder.buyer}</p>
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <span className="text-[11px] text-muted-foreground">{t("forms.style")}</span>
+                <p className="font-medium">{selectedWorkOrder.style}</p>
+              </div>
+              <div>
+                <span className="text-[11px] text-muted-foreground">{t("forms.orderQty")}</span>
+                <p className="font-medium font-mono">{selectedWorkOrder.order_qty.toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
         )}
 
-        {/* Actual Output */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">{t("forms.todaysOutput")}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>{t("forms.goodOutput")} *</Label>
-                <Input
-                  type="number"
-                  value={goodToday}
-                  onChange={(e) => setGoodToday(e.target.value)}
-                  placeholder="0"
-                  className={errors.goodToday ? "border-destructive" : ""}
-                />
-                {errors.goodToday && <p className="text-sm text-destructive">{errors.goodToday}</p>}
-              </div>
+        <div className="border-t border-border/40" />
 
-              <div className="space-y-2">
-                <Label>{t("forms.reject")} *</Label>
-                <Input
-                  type="number"
-                  value={rejectToday}
-                  onChange={(e) => setRejectToday(e.target.value)}
-                  placeholder="0"
-                  className={errors.rejectToday ? "border-destructive" : ""}
-                />
-                {errors.rejectToday && <p className="text-sm text-destructive">{errors.rejectToday}</p>}
-              </div>
+        {/* ── Output ── */}
+        <div className="space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground">{t("forms.todaysOutput")}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t("forms.goodOutput")} *</Label>
+              <Input type="number" value={goodToday} onChange={(e) => setGoodToday(e.target.value)} placeholder="0" className={`h-10 ${errors.goodToday ? "border-destructive" : ""}`} />
+              {errors.goodToday && <p className="text-xs text-destructive">{errors.goodToday}</p>}
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>{t("forms.rework")} *</Label>
-                <Input
-                  type="number"
-                  value={reworkToday}
-                  onChange={(e) => setReworkToday(e.target.value)}
-                  placeholder="0"
-                  className={errors.reworkToday ? "border-destructive" : ""}
-                />
-                {errors.reworkToday && <p className="text-sm text-destructive">{errors.reworkToday}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label>{t("forms.cumulativeGoodTotal")}</Label>
-                <Input
-                  type="number"
-                  value={cumulativeGoodTotal}
-                  readOnly
-                  disabled
-                  className="bg-muted"
-                />
-                <p className="text-xs text-muted-foreground">{t("forms.autoCalculated")}</p>
-              </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t("forms.reject")} *</Label>
+              <Input type="number" value={rejectToday} onChange={(e) => setRejectToday(e.target.value)} placeholder="0" className={`h-10 ${errors.rejectToday ? "border-destructive" : ""}`} />
+              {errors.rejectToday && <p className="text-xs text-destructive">{errors.rejectToday}</p>}
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>{t("forms.manpowerActual")} *</Label>
-                <Input
-                  type="number"
-                  value={manpowerActual}
-                  onChange={(e) => setManpowerActual(e.target.value)}
-                  placeholder="0"
-                  className={errors.manpowerActual ? "border-destructive" : ""}
-                />
-                {errors.manpowerActual && <p className="text-sm text-destructive">{errors.manpowerActual}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label>Hours Actual *</Label>
-                <Input
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  max="24"
-                  value={hoursActual}
-                  onChange={(e) => setHoursActual(e.target.value)}
-                  placeholder="0"
-                  className={errors.hoursActual ? "border-destructive" : ""}
-                />
-                {errors.hoursActual && <p className="text-sm text-destructive">{errors.hoursActual}</p>}
-              </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t("forms.rework")} *</Label>
+              <Input type="number" value={reworkToday} onChange={(e) => setReworkToday(e.target.value)} placeholder="0" className={`h-10 ${errors.reworkToday ? "border-destructive" : ""}`} />
+              {errors.reworkToday && <p className="text-xs text-destructive">{errors.reworkToday}</p>}
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>{t("forms.otHoursActual")} *</Label>
-                <Input
-                  type="number"
-                  step="0.5"
-                  value={otHoursActual}
-                  onChange={(e) => setOtHoursActual(e.target.value)}
-                  placeholder="0"
-                  className={errors.otHoursActual ? "border-destructive" : ""}
-                />
-                {errors.otHoursActual && <p className="text-sm text-destructive">{errors.otHoursActual}</p>}
-              </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t("forms.cumulativeGoodTotal")}</Label>
+              <Input type="number" value={cumulativeGoodTotal} readOnly disabled className="h-10 bg-muted" />
+              <p className="text-[11px] text-muted-foreground">{t("forms.autoCalculated")}</p>
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>OT Manpower</Label>
-                <Input
-                  type="number"
-                  value={otManpowerActual}
-                  onChange={(e) => setOtManpowerActual(e.target.value)}
-                  placeholder="0"
-                  className={errors.otManpowerActual ? "border-destructive" : ""}
-                />
-                {errors.otManpowerActual && <p className="text-sm text-destructive">{errors.otManpowerActual}</p>}
-              </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t("forms.manpowerActual")} *</Label>
+              <Input type="number" value={manpowerActual} onChange={(e) => setManpowerActual(e.target.value)} placeholder="0" className={`h-10 ${errors.manpowerActual ? "border-destructive" : ""}`} />
+              {errors.manpowerActual && <p className="text-xs text-destructive">{errors.manpowerActual}</p>}
             </div>
-          </CardContent>
-        </Card>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Hours Actual *</Label>
+              <Input type="number" step="0.5" min="0" max="24" value={hoursActual} onChange={(e) => setHoursActual(e.target.value)} placeholder="0" className={`h-10 ${errors.hoursActual ? "border-destructive" : ""}`} />
+              {errors.hoursActual && <p className="text-xs text-destructive">{errors.hoursActual}</p>}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t("forms.otHoursActual")} *</Label>
+              <Input type="number" step="0.5" value={otHoursActual} onChange={(e) => setOtHoursActual(e.target.value)} placeholder="0" className={`h-10 ${errors.otHoursActual ? "border-destructive" : ""}`} />
+              {errors.otHoursActual && <p className="text-xs text-destructive">{errors.otHoursActual}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">OT Manpower</Label>
+              <Input type="number" value={otManpowerActual} onChange={(e) => setOtManpowerActual(e.target.value)} placeholder="0" className="h-10" />
+            </div>
+          </div>
+        </div>
 
-        {/* Stage & Progress */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">{t("forms.stageProgress")}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>{t("forms.actualStage")} *</Label>
+        <div className="border-t border-border/40" />
+
+        {/* ── Stage & Progress ── */}
+        <div className="space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-foreground">{t("forms.stageProgress")}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t("forms.actualStage")} *</Label>
               <Select value={actualStageId} onValueChange={setActualStageId}>
-                <SelectTrigger className={errors.actualStage ? "border-destructive" : ""}>
+                <SelectTrigger className={`h-10 ${errors.actualStage ? "border-destructive" : ""}`}>
                   <SelectValue placeholder={t("forms.selectStage")} />
                 </SelectTrigger>
                 <SelectContent>
                   {stages.map((stage) => (
-                    <SelectItem key={stage.id} value={stage.id}>
-                      {stage.name}
-                    </SelectItem>
+                    <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {errors.actualStage && <p className="text-sm text-destructive">{errors.actualStage}</p>}
+              {errors.actualStage && <p className="text-xs text-destructive">{errors.actualStage}</p>}
             </div>
-
-            <div className="space-y-2">
-              <Label>{t("forms.stageProgressLabel")} *</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{t("forms.stageProgressLabel")} *</Label>
               <Select value={actualStageProgress} onValueChange={setActualStageProgress}>
-                <SelectTrigger className={errors.actualStageProgress ? "border-destructive" : ""}>
+                <SelectTrigger className={`h-10 ${errors.actualStageProgress ? "border-destructive" : ""}`}>
                   <SelectValue placeholder={t("forms.selectProgress")} />
                 </SelectTrigger>
                 <SelectContent>
                   {progressOptions.map((opt) => (
-                    <SelectItem key={opt.id} value={opt.label}>
-                      {opt.label}
-                    </SelectItem>
+                    <SelectItem key={opt.id} value={opt.label}>{opt.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {errors.actualStageProgress && <p className="text-sm text-destructive">{errors.actualStageProgress}</p>}
+              {errors.actualStageProgress && <p className="text-xs text-destructive">{errors.actualStageProgress}</p>}
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Remarks */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">{t("forms.optional")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Label>{t("forms.remarks")}</Label>
-              <Textarea
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                placeholder={t("forms.addAnyNotes")}
-                rows={3}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Submit Button */}
-        <div className="mt-6 pb-6">
-          <Button type="submit" className="w-full h-12 text-base font-medium" disabled={submitting}>
-            {submitting ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                {t("forms.submitting")}
-              </>
-            ) : (
-              t("forms.submitActuals")
-            )}
-          </Button>
+          </div>
         </div>
+
+        <div className="border-t border-border/40" />
+
+        {/* ── Remarks ── */}
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">{t("forms.remarks")}</Label>
+          <Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder={t("forms.addAnyNotes")} rows={2} />
+        </div>
+      </div>
+
+        {/* Submit */}
+        <Button type="submit" className="w-full h-11 font-semibold mt-5" disabled={submitting}>
+          {submitting ? (
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("forms.submitting")}</>
+          ) : (
+            t("forms.submitActuals")
+          )}
+        </Button>
       </form>
     </div>
   );

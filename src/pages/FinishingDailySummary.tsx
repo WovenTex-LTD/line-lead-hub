@@ -112,7 +112,8 @@ export default function FinishingDailySummary() {
         .eq("is_active", true)
         .order("line_id");
 
-      setLines(linesData || []);
+      const { sortByLineName } = await import("@/lib/sort-lines");
+      setLines(sortByLineName(linesData || [], l => l.name || l.line_id));
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -189,7 +190,7 @@ export default function FinishingDailySummary() {
     </span>;
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     // Create CSV content
     const headers = ["PO", "Type", ...PROCESS_KEYS.map(k => PROCESS_LABELS[k]), "Total"];
     const rows = logs.map(log => [
@@ -200,12 +201,9 @@ export default function FinishingDailySummary() {
     ]);
     
     const csv = [headers, ...rows].map(row => row.join(",")).join("\n");
+    const { downloadFile } = await import("@/lib/capacitor");
     const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `finishing-summary-${format(selectedDate, "yyyy-MM-dd")}.csv`;
-    a.click();
+    await downloadFile(blob, `finishing-summary-${format(selectedDate, "yyyy-MM-dd")}.csv`);
   };
 
   if (loading) {

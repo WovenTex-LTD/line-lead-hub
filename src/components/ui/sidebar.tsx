@@ -184,10 +184,12 @@ function MobileSheetContent({
   children,
   side,
   onSwipeClose,
+  sidebarStyle,
 }: {
   children: React.ReactNode;
   side: "left" | "right";
   onSwipeClose: () => void;
+  sidebarStyle?: React.CSSProperties;
 }) {
   const touchStartX = React.useRef(0);
   const touchStartY = React.useRef(0);
@@ -257,6 +259,9 @@ function MobileSheetContent({
       style={
         {
           "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
+          ...(sidebarStyle?.["--sidebar-gradient" as keyof React.CSSProperties]
+            ? { background: sidebarStyle["--sidebar-gradient" as keyof React.CSSProperties] as string }
+            : {}),
         } as React.CSSProperties
       }
       side={side}
@@ -282,7 +287,7 @@ const Sidebar = React.forwardRef<
     variant?: "sidebar" | "floating" | "inset";
     collapsible?: "offcanvas" | "icon" | "none";
   }
->(({ side = "left", variant = "sidebar", collapsible = "offcanvas", className, children, ...props }, ref) => {
+>(({ side = "left", variant = "sidebar", collapsible = "offcanvas", className, style, children, ...props }, ref) => {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
 
   if (collapsible === "none") {
@@ -290,6 +295,7 @@ const Sidebar = React.forwardRef<
       <div
         className={cn("flex h-full w-[--sidebar-width] flex-col bg-sidebar text-sidebar-foreground", className)}
         ref={ref}
+        style={style}
         {...props}
       >
         {children}
@@ -303,6 +309,7 @@ const Sidebar = React.forwardRef<
         <MobileSheetContent
           side={side}
           onSwipeClose={() => setOpenMobile(false)}
+          sidebarStyle={style}
         >
           {children}
         </MobileSheetContent>
@@ -347,6 +354,11 @@ const Sidebar = React.forwardRef<
         <div
           data-sidebar="sidebar"
           className="flex h-full w-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
+          style={
+            style?.["--sidebar-gradient" as keyof React.CSSProperties]
+              ? { background: style["--sidebar-gradient" as keyof React.CSSProperties] as string }
+              : undefined
+          }
         >
           {children}
         </div>

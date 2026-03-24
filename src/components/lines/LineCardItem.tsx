@@ -89,11 +89,10 @@ export function LineCardItem({ line, onClick }: LineCardItemProps) {
 
   return (
     <Card
-      className="cursor-pointer hover:shadow-md hover:border-primary/30 transition-all group relative overflow-hidden"
+      className="cursor-pointer hover:shadow-lg hover:border-primary/30 transition-all duration-300 group relative overflow-hidden border-t-2"
+      style={{ borderTopColor: showMetrics ? (line.achievementPct >= 90 ? '#10b981' : line.achievementPct >= 70 ? '#f59e0b' : '#ef4444') : dataState === 'awaiting-eod' ? '#3b82f6' : '#9ca3af' }}
       onClick={onClick}
     >
-      {/* Left accent bar */}
-      <div className={cn("absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b", accentColor)} />
 
       <CardContent className="py-4 px-5 pl-5">
         {/* Top row: name, location, state badge */}

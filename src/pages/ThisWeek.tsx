@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getTodayInTimezone } from "@/lib/date-utils";
-import { effectivePoly } from "@/lib/finishing-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
@@ -187,8 +186,8 @@ export default function ThisWeek() {
           return sum + (((f as any).poly || 0) * hours);
         }, 0);
 
-        // Finishing output: poly is the primary metric (OT-adjusted)
-        const dayFinishingOutput = finishingOutputLogs.reduce((sum, f) => sum + effectivePoly((f as any).poly, (f as any).actual_hours, (f as any).ot_hours_actual), 0);
+        // Finishing output: poly is the primary metric
+        const dayFinishingOutput = finishingOutputLogs.reduce((sum, f) => sum + ((f as any).poly || 0), 0);
 
         // Cutting data - only count targets with matching actuals
         const cuttingActualExists = cuttingActualsData.length > 0;
@@ -216,11 +215,11 @@ export default function ThisWeek() {
         // ── Financial calculations for this day ──
         const rate = costConfigured && headcountCost.value ? headcountCost.value : 0;
 
-        // Revenue: sewing output × (cm_per_dozen / 12) — only POs with CM
+        // Revenue: finishing output × (cm_per_dozen / 12) — only POs with CM
         let dayRevenue = 0;
-        sewingData.forEach((s: any) => {
-          const cm = s.work_orders?.cm_per_dozen;
-          const output = s.good_today || 0;
+        finishingOutputLogs.forEach((f: any) => {
+          const cm = f.work_orders?.cm_per_dozen;
+          const output = f.poly || 0;
           if (cm && output) dayRevenue += (cm / 12) * output;
         });
 
@@ -307,15 +306,11 @@ export default function ThisWeek() {
 
     let totalRevenue = 0;
     let totalSewingCost = 0;
-    let totalCuttingCost = 0;
-    let totalFinishingCost = 0;
 
     const dailyFinancials = weekStats.map(day => {
       totalRevenue += day.revenue;
       totalSewingCost += day.sewingCostNative;
-      totalCuttingCost += day.cuttingCostNative;
-      totalFinishingCost += day.finishingCostNative;
-      const dayCostNative = day.sewingCostNative + day.cuttingCostNative + day.finishingCostNative;
+      const dayCostNative = day.sewingCostNative;
       const dayCostUsd = isBDT && bdtToUsd ? dayCostNative * bdtToUsd : dayCostNative;
       return {
         ...day,
@@ -325,7 +320,7 @@ export default function ThisWeek() {
       };
     });
 
-    const totalCostNative = totalSewingCost + totalCuttingCost + totalFinishingCost;
+    const totalCostNative = totalSewingCost;
     const toUsd = (v: number) => isBDT && bdtToUsd ? v * bdtToUsd : v;
     const totalCostUsd = toUsd(totalCostNative);
     const profit = totalRevenue - totalCostUsd;
@@ -336,9 +331,6 @@ export default function ThisWeek() {
       totalRevenue: Math.round(totalRevenue * 100) / 100,
       totalCostNative: Math.round(totalCostNative * 100) / 100,
       totalCostUsd: Math.round(totalCostUsd * 100) / 100,
-      sewingCostUsd: Math.round(toUsd(totalSewingCost) * 100) / 100,
-      cuttingCostUsd: Math.round(toUsd(totalCuttingCost) * 100) / 100,
-      finishingCostUsd: Math.round(toUsd(totalFinishingCost) * 100) / 100,
       profit: Math.round(profit * 100) / 100,
       margin: Math.round(margin * 10) / 10,
       costCurrency,
@@ -383,7 +375,7 @@ export default function ThisWeek() {
   const isCurrentWeek = weekOffset === 0;
 
   // ── PDF Export ──
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
     const pw = doc.internal.pageSize.getWidth();
     const ph = doc.internal.pageSize.getHeight();
@@ -408,7 +400,7 @@ export default function ThisWeek() {
       if (otMp && otHrs) c += rate * otMp * otHrs;
       return Math.round(c * 100) / 100;
     };
-    const numFromName = (name: string) => parseInt(name.replace(/\D/g, "")) || 9999;
+    const { compareLineNames: cmpLines } = await import("@/lib/sort-lines");
     const fmtDate = (d: string) => { const p = d.split("-"); return `${p[2]}.${p[1]}`; };
 
     // ── Generic bordered table ──
@@ -535,29 +527,22 @@ export default function ThisWeek() {
 
       const finCols: Col[] = [
         { label: "Day", w: 28 },
-        { label: "Revenue ($)", w: 35, align: "right" },
-        { label: "Sewing Cost", w: 35, align: "right" },
-        { label: "Cutting Cost", w: 35, align: "right" },
-        { label: "Finish Cost", w: 35, align: "right" },
-        { label: "Total Cost ($)", w: 35, align: "right" },
-        { label: "Profit ($)", w: 35, align: "right" },
+        { label: "Output Value ($)", w: 45, align: "right" },
+        { label: "Operating Cost ($)", w: 45, align: "right" },
+        { label: "Op. Margin ($)", w: 45, align: "right" },
       ];
       const finRows = weekFinancials.dailyFinancials.map(d => {
         const isFut = new Date(d.date) > new Date();
-        if (isFut) return [`${d.dayName} ${fmtDate(d.date)}`, "-", "-", "-", "-", "-", "-"];
+        if (isFut) return [`${d.dayName} ${fmtDate(d.date)}`, "-", "-", "-"];
         return [
           `${d.dayName} ${fmtDate(d.date)}`,
           fUsd(d.revenue),
-          fUsd(toUsd(d.sewingCostNative)),
-          fUsd(toUsd(d.cuttingCostNative)),
-          fUsd(toUsd(d.finishingCostNative)),
           fUsd(d.costUsd),
           `${d.profit >= 0 ? "+" : "-"}${fUsd(Math.abs(d.profit))}`,
         ];
       });
       finRows.push([
-        "TOTAL", fUsd(weekFinancials.totalRevenue), fUsd(weekFinancials.sewingCostUsd),
-        fUsd(weekFinancials.cuttingCostUsd), fUsd(weekFinancials.finishingCostUsd),
+        "TOTAL", fUsd(weekFinancials.totalRevenue),
         fUsd(weekFinancials.totalCostUsd),
         `${weekFinancials.profit >= 0 ? "+" : "-"}${fUsd(Math.abs(weekFinancials.profit))}`,
       ]);
@@ -597,7 +582,7 @@ export default function ThisWeek() {
         if (!sewByLine[ln]) sewByLine[ln] = [];
         sewByLine[ln].push(s);
       });
-      const sewLineKeys = Object.keys(sewByLine).sort((a, b) => numFromName(a) - numFromName(b));
+      const sewLineKeys = Object.keys(sewByLine).sort(cmpLines);
 
       let sewDeptCostNat = 0, sewDeptCostUsd = 0, sewDeptOutput = 0;
 
@@ -685,7 +670,7 @@ export default function ThisWeek() {
         const { buyer, entries } = cutByPo[po];
         entries.sort((a: any, b: any) => {
           if (a._date !== b._date) return a._date.localeCompare(b._date);
-          return numFromName(a.lines?.name || "") - numFromName(b.lines?.name || "");
+          return cmpLines(a.lines?.name || "", b.lines?.name || "");
         });
 
         // PO header label
@@ -776,14 +761,14 @@ export default function ThisWeek() {
           const costNat = lineCost(f.m_power_actual, f.actual_hours, f.ot_manpower_actual, f.ot_hours_actual);
           const costU = toUsd(costNat);
           poCostUsd += costU;
-          const rev = 0; // Revenue now driven by sewing output, not finishing poly
-          const adjPoly = effectivePoly(f.poly, f.actual_hours, f.ot_hours_actual);
-          const adjCarton = effectivePoly(f.carton, f.actual_hours, f.ot_hours_actual);
-          poPoly += adjPoly;
+          const cm = f.work_orders?.cm_per_dozen;
+          const rev = cm && f.poly ? (cm / 12) * f.poly : 0;
+          poRevenue += rev;
+          poPoly += f.poly || 0;
           return [
             fmtDate(f._date),
             fN(f.thread_cutting), fN(f.inside_check), fN(f.buttoning), fN(f.iron), fN(f.get_up),
-            fN(adjPoly), fN(adjCarton),
+            fN(f.poly), fN(f.carton),
             fN(f.m_power_actual), fN(f.actual_hours), fN(f.ot_manpower_actual), fN(f.ot_hours_actual),
             rate ? fUsd(costU) : "-",
             cm ? "$" + cm.toFixed(2) : "-",
@@ -829,19 +814,20 @@ export default function ThisWeek() {
     }
 
     const weekLabel = getWeekRange().replace(/\s/g, '_');
-    doc.save(`weekly_report_${weekLabel}.pdf`);
+    const { savePdf } = await import("@/lib/capacitor");
+    await savePdf(doc, `weekly_report_${weekLabel}.pdf`);
   };
 
   return (
     <div className="py-4 lg:py-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-3 mr-auto">
           <div className="h-10 w-10 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0">
             <Calendar className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">
+            <h1 className="text-xl md:text-2xl font-bold">
               {isCurrentWeek ? 'This Week' : weekOffset === -1 ? 'Last Week' : `${Math.abs(weekOffset)} Weeks Ago`}
             </h1>
             <p className="text-sm text-muted-foreground">{getWeekRange()}</p>
@@ -878,10 +864,10 @@ export default function ThisWeek() {
 
       {/* Week Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="relative overflow-hidden border-border/50">
+        <Card className="relative overflow-hidden border-blue-200/60 dark:border-blue-800/40 bg-gradient-to-br from-blue-50 via-white to-blue-50/50 dark:from-blue-950/40 dark:via-card dark:to-blue-950/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+              <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
                 <SewingMachine className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
@@ -891,10 +877,10 @@ export default function ThisWeek() {
             </div>
           </CardContent>
         </Card>
-        <Card className="relative overflow-hidden border-border/50">
+        <Card className="relative overflow-hidden border-violet-200/60 dark:border-violet-800/40 bg-gradient-to-br from-violet-50 via-white to-violet-50/50 dark:from-violet-950/40 dark:via-card dark:to-violet-950/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+              <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">
                 <Package className="h-5 w-5 text-violet-600 dark:text-violet-400" />
               </div>
               <div>
@@ -904,11 +890,11 @@ export default function ThisWeek() {
             </div>
           </CardContent>
         </Card>
-        <Card className="relative overflow-hidden border-border/50">
+        <Card className="relative overflow-hidden border-emerald-200/60 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 dark:from-emerald-950/40 dark:via-card dark:to-emerald-950/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
-                <Scissors className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
+                <Scissors className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
                 <p className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-400">{totals.leftoverYards.toLocaleString()} <span className="text-sm font-normal text-muted-foreground">yards</span></p>
@@ -917,11 +903,11 @@ export default function ThisWeek() {
             </div>
           </CardContent>
         </Card>
-        <Card className={`relative overflow-hidden border-border/50 ${totals.totalBlockers > 0 ? 'border-red-500/30' : ''}`}>
+        <Card className={`relative overflow-hidden border-amber-200/60 dark:border-amber-800/40 bg-gradient-to-br from-amber-50 via-white to-amber-50/50 dark:from-amber-950/40 dark:via-card dark:to-amber-950/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group ${totals.totalBlockers > 0 ? 'border-red-500/30' : ''}`}>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${totals.totalBlockers > 0 ? 'bg-red-500/10' : 'bg-muted/50'}`}>
-                <AlertTriangle className={`h-5 w-5 ${totals.totalBlockers > 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`} />
+              <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
               </div>
               <div>
                 <p className={`text-2xl font-bold font-mono ${totals.totalBlockers > 0 ? 'text-red-600 dark:text-red-400' : ''}`}>{totals.totalBlockers}</p>
@@ -931,6 +917,156 @@ export default function ThisWeek() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Daily Breakdown */}
+      <Tabs defaultValue="sewing">
+        <TabsList>
+          <TabsTrigger value="sewing" className="data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400">Sewing Output</TabsTrigger>
+          <TabsTrigger value="finishing" className="data-[state=active]:text-violet-600 dark:data-[state=active]:text-violet-400">Finishing Output</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="sewing" className="mt-4">
+          <Card className="border-border/50">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/20 flex items-center justify-center">
+                  <SewingMachine className="h-3.5 w-3.5 text-white" />
+                </div>
+                Daily Sewing Output
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="w-full overflow-x-auto">
+                <div className="min-w-[600px]">
+                  <div className="grid grid-cols-7 gap-4">
+                    {weekStats.map((day) => {
+                      const isToday = day.date === today;
+                      const isFuture = new Date(day.date) > new Date();
+                      // 0 sewing submissions = factory closed for sewing
+                      const isClosed = !isFuture && day.sewingUpdates === 0;
+                      const outputBarHeight = (isFuture || isClosed) ? 0 : Math.max((day.sewingOutput / maxSewing) * 100, day.sewingOutput > 0 ? 15 : 0);
+                      const targetBarHeight = (isFuture || isClosed) ? 0 : Math.max((day.sewingTarget / maxSewing) * 100, day.sewingTarget > 0 ? 10 : 0);
+                      const achievement = day.sewingTarget > 0 ? Math.round((day.sewingOutput / day.sewingTarget) * 100) : 0;
+                      const achievementColor = achievement >= 100 ? 'text-emerald-600 dark:text-emerald-400' : achievement >= 80 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400';
+
+                      return (
+                        <div key={day.date} className={`text-center p-3 rounded-xl transition-all ${isClosed ? 'opacity-50' : ''} ${isToday ? 'bg-blue-500/10 ring-2 ring-blue-500/30' : 'bg-muted/30'}`}>
+                          <p className={`text-sm font-semibold mb-3 ${isToday ? 'text-blue-600 dark:text-blue-400' : 'text-foreground'}`}>
+                            {day.dayName}
+                          </p>
+                          <div className="h-28 flex items-end justify-center gap-1 mb-3">
+                            {!(isFuture || isClosed) && day.sewingTarget > 0 && (
+                              <div
+                                className="w-5 rounded-t transition-all bg-blue-200 dark:bg-blue-900/40"
+                                style={{ height: `${targetBarHeight}%`, minHeight: '8px' }}
+                              />
+                            )}
+                            <div
+                              className={`w-7 rounded-t transition-all ${(isFuture || isClosed) ? 'bg-muted h-2' : isToday ? 'bg-blue-500' : 'bg-blue-500/70'}`}
+                              style={{ height: (isFuture || isClosed) ? '8px' : `${Math.max(outputBarHeight, 8)}%` }}
+                            />
+                          </div>
+                          <p className={`text-base font-mono font-bold ${(isFuture || isClosed) ? 'text-muted-foreground' : 'text-foreground'}`}>
+                            {(isFuture || isClosed) ? '-' : day.sewingOutput.toLocaleString()}
+                          </p>
+                          {!(isFuture || isClosed) && day.sewingTarget > 0 && (
+                            <p className={`text-xs font-medium mt-1 ${achievementColor}`}>
+                              {achievement}% of target
+                            </p>
+                          )}
+                          {!(isFuture || isClosed) && day.sewingTarget === 0 && (
+                            <p className="text-xs text-muted-foreground mt-1">No target</p>
+                          )}
+                          {isClosed && (
+                            <p className="text-xs text-muted-foreground mt-1">Closed</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center justify-center gap-6 mt-6 pt-4 border-t">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded bg-blue-200 dark:bg-blue-900/40" />
+                      <span className="text-sm text-muted-foreground">Target</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded bg-blue-500/70" />
+                      <span className="text-sm text-muted-foreground">Output</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="finishing" className="mt-4">
+          <Card className="border-border/50">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/20 flex items-center justify-center">
+                  <Package className="h-3.5 w-3.5 text-white" />
+                </div>
+                Daily Finishing Output
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="w-full overflow-x-auto">
+                <div className="min-w-[600px]">
+                  <div className="grid grid-cols-7 gap-4">
+                    {weekStats.map((day) => {
+                      const isToday = day.date === today;
+                      const isFuture = new Date(day.date) > new Date();
+                      // 0 finishing submissions = factory closed for finishing
+                      const isClosed = !isFuture && day.finishingUpdates === 0;
+                      const targetBarHeight = (isFuture || isClosed) ? 0 : Math.max((day.finishingTarget / maxFinishing) * 100, day.finishingTarget > 0 ? 15 : 0);
+                      const outputBarHeight = (isFuture || isClosed) ? 0 : Math.max((day.finishingOutput / maxFinishing) * 100, day.finishingOutput > 0 ? 10 : 0);
+                      const achievement = day.finishingTarget > 0 ? Math.round((day.finishingOutput / day.finishingTarget) * 100) : 0;
+
+                      return (
+                        <div key={day.date} className={`text-center p-3 rounded-xl transition-all ${isClosed ? 'opacity-50' : ''} ${isToday ? 'bg-violet-500/10 ring-2 ring-violet-500/30' : 'bg-muted/30'}`}>
+                          <p className={`text-sm font-semibold mb-3 ${isToday ? 'text-violet-600 dark:text-violet-400' : 'text-foreground'}`}>
+                            {day.dayName}
+                          </p>
+                          <div className="h-28 flex items-end justify-center gap-1 mb-3">
+                            <div
+                              className={`w-5 rounded-t transition-all ${(isFuture || isClosed) ? 'bg-muted h-2' : 'bg-violet-200 dark:bg-violet-900/40'}`}
+                              style={{ height: (isFuture || isClosed) ? '8px' : `${Math.max(targetBarHeight, 8)}%` }}
+                            />
+                            <div
+                              className={`w-7 rounded-t transition-all ${(isFuture || isClosed) ? 'bg-muted h-2' : isToday ? 'bg-violet-500' : 'bg-violet-500/70'}`}
+                              style={{ height: (isFuture || isClosed) ? '8px' : `${Math.max(outputBarHeight, 8)}%` }}
+                            />
+                          </div>
+                          <div className={`text-xs ${(isFuture || isClosed) ? 'text-muted-foreground' : 'text-foreground'}`}>
+                            <p className="font-mono font-bold">{(isFuture || isClosed) ? '-' : day.finishingOutput.toLocaleString()}</p>
+                            <p className="text-muted-foreground text-[10px]">{isClosed ? 'Closed' : 'Output'}</p>
+                          </div>
+                          {!isFuture && day.finishingTarget > 0 && (
+                            <p className={`text-xs font-medium mt-1 ${achievement >= 100 ? 'text-emerald-600 dark:text-emerald-400' : achievement >= 80 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
+                              {achievement}% of target
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center justify-center gap-6 mt-6 pt-4 border-t">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded bg-violet-200 dark:bg-violet-900/40" />
+                      <span className="text-sm text-muted-foreground">Target</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded bg-violet-500/70" />
+                      <span className="text-sm text-muted-foreground">Output</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Weekly Financials */}
       {weekFinancials.hasData && (
@@ -950,49 +1086,44 @@ export default function ThisWeek() {
             )}
           </div>
 
-          {/* Revenue / Cost / Profit cards */}
-          <div className="grid grid-cols-3 gap-2">
-            <Card className="relative overflow-hidden border-emerald-500/20">
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-emerald-500/0" />
-              <CardContent className="p-2 md:p-4 relative">
-                <p className="text-[9px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Revenue</p>
-                <p className="font-mono text-sm md:text-2xl font-bold text-emerald-700 dark:text-emerald-400 leading-tight break-all">
-                  ${weekFinancials.totalRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+          <div className="grid grid-cols-3 gap-2 md:gap-3">
+            <Card className="relative overflow-hidden border-emerald-200/60 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 dark:from-emerald-950/40 dark:via-card dark:to-emerald-950/20 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300">
+              <CardContent className="p-2.5 md:p-4 relative">
+                <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Output Value</p>
+                <p className="font-mono text-sm md:text-2xl font-bold text-emerald-700 dark:text-emerald-400 tracking-tight truncate">
+                  ${weekFinancials.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </p>
-                <p className="text-[9px] text-muted-foreground mt-0.5">Sewing output</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 truncate">Sewing output</p>
               </CardContent>
             </Card>
 
-            <Card className="relative overflow-hidden border-red-500/20">
-              <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-red-500/0" />
-              <CardContent className="p-2 md:p-4 relative">
-                <p className="text-[9px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Cost</p>
-                <p className="font-mono text-sm md:text-2xl font-bold text-red-600 dark:text-red-400 leading-tight break-all">
-                  ${weekFinancials.totalCostUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            <Card className="relative overflow-hidden border-orange-200/60 dark:border-orange-800/40 bg-gradient-to-br from-orange-50 via-white to-orange-50/50 dark:from-orange-950/40 dark:via-card dark:to-orange-950/20 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300">
+              <CardContent className="p-2.5 md:p-4 relative">
+                <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Operating Cost</p>
+                <p className="font-mono text-sm md:text-2xl font-bold text-red-600 dark:text-red-400 tracking-tight truncate">
+                  ${weekFinancials.totalCostUsd.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </p>
-                <p className="text-[9px] text-muted-foreground mt-0.5">
+                <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
                   {weekFinancials.costCurrency === 'BDT' && bdtToUsd
                     ? `৳${weekFinancials.totalCostNative.toLocaleString()}`
-                    : 'All depts'}
+                    : 'Sewing labor'}
                 </p>
               </CardContent>
             </Card>
 
-            <Card className={`relative overflow-hidden ${weekFinancials.profit >= 0 ? 'border-emerald-500/20' : 'border-red-500/20'}`}>
-              <div className={`absolute inset-0 bg-gradient-to-br ${weekFinancials.profit >= 0 ? 'from-emerald-500/5 to-emerald-500/0' : 'from-red-500/5 to-red-500/0'}`} />
-              <CardContent className="p-2 md:p-4 relative">
-                <p className="text-[9px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Profit</p>
-                <p className={`font-mono text-sm md:text-2xl font-bold leading-tight break-all ${weekFinancials.profit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {weekFinancials.profit >= 0 ? '+' : '-'}${Math.abs(weekFinancials.profit).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            <Card className={`relative overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ${weekFinancials.profit >= 0 ? 'border-emerald-200/60 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 dark:from-emerald-950/40 dark:via-card dark:to-emerald-950/20' : 'border-red-200/60 dark:border-red-800/40 bg-gradient-to-br from-red-50 via-white to-red-50/50 dark:from-red-950/40 dark:via-card dark:to-red-950/20'}`}>
+              <CardContent className="p-2.5 md:p-4 relative">
+                <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Operating Margin</p>
+                <p className={`font-mono text-sm md:text-2xl font-bold tracking-tight truncate ${weekFinancials.profit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {weekFinancials.profit >= 0 ? '+' : '-'}${Math.abs(weekFinancials.profit).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </p>
-                <p className="text-[9px] text-muted-foreground mt-0.5">
-                  {weekFinancials.margin !== 0 ? `${weekFinancials.margin}% margin` : '—'}
+                <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                  {weekFinancials.margin !== 0 ? `${weekFinancials.margin}%` : '—'}
                 </p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Expandable details */}
           <button
             onClick={() => setFinancialsExpanded(!financialsExpanded)}
             className="w-full flex items-center justify-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 py-1.5 transition-colors"
@@ -1003,45 +1134,40 @@ export default function ThisWeek() {
 
           {financialsExpanded && (
             <Card className="border-blue-500/20">
-              <CardContent className="p-4 space-y-4">
-                {/* Cost breakdown by department */}
-                {weekFinancials.totalCostUsd > 0 && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-2.5 uppercase tracking-wider">Cost Breakdown</p>
-                    <div className="space-y-2">
-                      {[
-                        { label: 'Sewing', value: weekFinancials.sewingCostUsd, color: 'bg-blue-500' },
-                        { label: 'Cutting', value: weekFinancials.cuttingCostUsd, color: 'bg-emerald-500' },
-                        { label: 'Finishing', value: weekFinancials.finishingCostUsd, color: 'bg-violet-500' },
-                      ].filter(d => d.value > 0).map((dept) => (
-                        <div key={dept.label} className="flex items-center gap-3">
-                          <span className="text-xs text-muted-foreground w-16">{dept.label}</span>
-                          <div className="flex-1 h-2.5 rounded-full bg-muted overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${dept.color}`}
-                              style={{ width: `${Math.min((dept.value / weekFinancials.totalCostUsd) * 100, 100)}%` }}
-                            />
-                          </div>
-                          <span className="font-mono text-xs font-medium w-20 text-right">
-                            ${dept.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Daily financials table */}
+              <CardContent className="p-3 md:p-4 space-y-4">
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2.5 uppercase tracking-wider">Daily Breakdown</p>
-                  <div className="overflow-x-auto">
+                  <p className="text-[10px] md:text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Daily Breakdown</p>
+                  <div className="space-y-1.5 md:hidden">
+                    {weekFinancials.dailyFinancials.map((d) => {
+                      const isFuture = new Date(d.date) > new Date();
+                      if (isFuture) return (
+                        <div key={d.date} className="flex items-center justify-between py-1 text-[11px] text-muted-foreground">
+                          <span>{d.dayName}</span>
+                          <span>—</span>
+                        </div>
+                      );
+                      return (
+                        <div key={d.date} className="rounded-lg bg-muted/40 p-2 flex items-center justify-between">
+                          <span className="text-[11px] font-medium w-10 shrink-0">{d.dayName.slice(0, 3)}</span>
+                          <div className="flex items-center gap-3 text-[11px] font-mono">
+                            <span className="text-emerald-700 dark:text-emerald-400">${Math.round(d.revenue).toLocaleString()}</span>
+                            <span className="text-red-600 dark:text-red-400">${Math.round(d.costUsd).toLocaleString()}</span>
+                            <span className={`font-medium ${d.profit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                              {d.profit >= 0 ? '+' : '-'}${Math.abs(Math.round(d.profit)).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b text-muted-foreground">
                           <th className="text-left py-1.5 font-medium">Day</th>
-                          <th className="text-right py-1.5 font-medium">Revenue</th>
-                          <th className="text-right py-1.5 font-medium">Cost</th>
-                          <th className="text-right py-1.5 font-medium">Profit</th>
+                          <th className="text-right py-1.5 font-medium">Output Value</th>
+                          <th className="text-right py-1.5 font-medium">Operating Cost</th>
+                          <th className="text-right py-1.5 font-medium">Operating Margin</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1080,145 +1206,6 @@ export default function ThisWeek() {
         </div>
       )}
 
-      {/* Daily Breakdown */}
-      <Tabs defaultValue="sewing">
-        <TabsList>
-          <TabsTrigger value="sewing" className="data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400">Sewing Output</TabsTrigger>
-          <TabsTrigger value="finishing" className="data-[state=active]:text-violet-600 dark:data-[state=active]:text-violet-400">Finishing Output</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="sewing" className="mt-4">
-          <Card className="border-border/50">
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <SewingMachine className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                Daily Sewing Output
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="w-full overflow-x-auto">
-                <div className="min-w-[600px]">
-                  <div className="grid grid-cols-7 gap-4">
-                    {weekStats.map((day) => {
-                      const isToday = day.date === today;
-                      const isFuture = new Date(day.date) > new Date();
-                      const outputBarHeight = isFuture ? 0 : Math.max((day.sewingOutput / maxSewing) * 100, day.sewingOutput > 0 ? 15 : 0);
-                      const targetBarHeight = isFuture ? 0 : Math.max((day.sewingTarget / maxSewing) * 100, day.sewingTarget > 0 ? 10 : 0);
-                      const achievement = day.sewingTarget > 0 ? Math.round((day.sewingOutput / day.sewingTarget) * 100) : 0;
-                      const achievementColor = achievement >= 100 ? 'text-emerald-600 dark:text-emerald-400' : achievement >= 80 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400';
-
-                      return (
-                        <div key={day.date} className={`text-center p-3 rounded-xl transition-all ${isToday ? 'bg-blue-500/10 ring-2 ring-blue-500/30' : 'bg-muted/30'}`}>
-                          <p className={`text-sm font-semibold mb-3 ${isToday ? 'text-blue-600 dark:text-blue-400' : 'text-foreground'}`}>
-                            {day.dayName}
-                          </p>
-                          <div className="h-28 flex items-end justify-center gap-1 mb-3">
-                            {!isFuture && day.sewingTarget > 0 && (
-                              <div
-                                className="w-5 rounded-t transition-all bg-blue-200 dark:bg-blue-900/40"
-                                style={{ height: `${targetBarHeight}%`, minHeight: '8px' }}
-                              />
-                            )}
-                            <div
-                              className={`w-7 rounded-t transition-all ${isFuture ? 'bg-muted h-2' : isToday ? 'bg-blue-500' : 'bg-blue-500/70'}`}
-                              style={{ height: isFuture ? '8px' : `${Math.max(outputBarHeight, 8)}%` }}
-                            />
-                          </div>
-                          <p className={`text-base font-mono font-bold ${isFuture ? 'text-muted-foreground' : 'text-foreground'}`}>
-                            {isFuture ? '-' : day.sewingOutput.toLocaleString()}
-                          </p>
-                          {!isFuture && day.sewingTarget > 0 && (
-                            <p className={`text-xs font-medium mt-1 ${achievementColor}`}>
-                              {achievement}% of target
-                            </p>
-                          )}
-                          {!isFuture && day.sewingTarget === 0 && (
-                            <p className="text-xs text-muted-foreground mt-1">No target</p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="flex items-center justify-center gap-6 mt-6 pt-4 border-t">
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded bg-blue-200 dark:bg-blue-900/40" />
-                      <span className="text-sm text-muted-foreground">Target</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded bg-blue-500/70" />
-                      <span className="text-sm text-muted-foreground">Output</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="finishing" className="mt-4">
-          <Card className="border-border/50">
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Package className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                Daily Finishing Output
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="w-full overflow-x-auto">
-                <div className="min-w-[600px]">
-                  <div className="grid grid-cols-7 gap-4">
-                    {weekStats.map((day) => {
-                      const isToday = day.date === today;
-                      const isFuture = new Date(day.date) > new Date();
-                      const targetBarHeight = isFuture ? 0 : Math.max((day.finishingTarget / maxFinishing) * 100, day.finishingTarget > 0 ? 15 : 0);
-                      const outputBarHeight = isFuture ? 0 : Math.max((day.finishingOutput / maxFinishing) * 100, day.finishingOutput > 0 ? 10 : 0);
-                      const achievement = day.finishingTarget > 0 ? Math.round((day.finishingOutput / day.finishingTarget) * 100) : 0;
-                      
-                      return (
-                        <div key={day.date} className={`text-center p-3 rounded-xl transition-all ${isToday ? 'bg-violet-500/10 ring-2 ring-violet-500/30' : 'bg-muted/30'}`}>
-                          <p className={`text-sm font-semibold mb-3 ${isToday ? 'text-violet-600 dark:text-violet-400' : 'text-foreground'}`}>
-                            {day.dayName}
-                          </p>
-                          <div className="h-28 flex items-end justify-center gap-1 mb-3">
-                            <div
-                              className={`w-5 rounded-t transition-all ${isFuture ? 'bg-muted h-2' : 'bg-violet-200 dark:bg-violet-900/40'}`}
-                              style={{ height: isFuture ? '8px' : `${Math.max(targetBarHeight, 8)}%` }}
-                            />
-                            <div
-                              className={`w-7 rounded-t transition-all ${isFuture ? 'bg-muted h-2' : isToday ? 'bg-violet-500' : 'bg-violet-500/70'}`}
-                              style={{ height: isFuture ? '8px' : `${Math.max(outputBarHeight, 8)}%` }}
-                            />
-                          </div>
-                          <div className={`text-xs ${isFuture ? 'text-muted-foreground' : 'text-foreground'}`}>
-                            <p className="font-mono font-bold">{isFuture ? '-' : day.finishingOutput.toLocaleString()}</p>
-                            <p className="text-muted-foreground text-[10px]">Output</p>
-                          </div>
-                          {!isFuture && day.finishingTarget > 0 && (
-                            <p className={`text-xs font-medium mt-1 ${achievement >= 100 ? 'text-emerald-600 dark:text-emerald-400' : achievement >= 80 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
-                              {achievement}% of target
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="flex items-center justify-center gap-6 mt-6 pt-4 border-t">
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded bg-violet-200 dark:bg-violet-900/40" />
-                      <span className="text-sm text-muted-foreground">Target</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded bg-violet-500/70" />
-                      <span className="text-sm text-muted-foreground">Output</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
       {/* Daily Details Table */}
       <Card className="border-border/50">
         <CardHeader>
@@ -1249,8 +1236,8 @@ export default function ThisWeek() {
                         <span className="font-medium">{day.dayName}</span>
                         {isToday && <span className="ml-2 text-xs font-medium text-indigo-600 dark:text-indigo-400">(Today)</span>}
                       </td>
-                      <td className="text-right font-mono px-3 whitespace-nowrap">{isFuture ? '-' : day.sewingOutput.toLocaleString()}</td>
-                      <td className="text-right font-mono px-3 whitespace-nowrap">{isFuture ? '-' : day.finishingOutput.toLocaleString()}</td>
+                      <td className="text-right font-mono px-3 whitespace-nowrap">{isFuture ? '-' : day.sewingUpdates === 0 ? '-' : day.sewingOutput.toLocaleString()}</td>
+                      <td className="text-right font-mono px-3 whitespace-nowrap">{isFuture ? '-' : day.finishingUpdates === 0 ? '-' : day.finishingOutput.toLocaleString()}</td>
                       <td className="text-right px-3 whitespace-nowrap">{isFuture ? '-' : day.sewingUpdates + day.finishingUpdates}</td>
                       <td className={`text-right px-3 whitespace-nowrap ${day.blockers > 0 ? 'text-red-600 dark:text-red-400 font-medium' : ''}`}>
                         {isFuture ? '-' : day.blockers}

@@ -54,7 +54,7 @@ function computeSummary(lines: LinePerformanceData[]) {
 
 // ── CSV Export ──
 
-function exportCsv(lines: LinePerformanceData[], timeRange: TimeRange, dateLabel: string) {
+async function exportCsv(lines: LinePerformanceData[], timeRange: TimeRange, dateLabel: string) {
   const s = computeSummary(lines);
   const esc = (cell: string) => `"${String(cell).replace(/"/g, '""')}"`;
 
@@ -140,20 +140,14 @@ function exportCsv(lines: LinePerformanceData[], timeRange: TimeRange, dateLabel
     ...rows.map((row) => row.map(esc).join(",")),
   ].join("\n");
 
-  const BOM = "\uFEFF";
-  const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
   const rangeLabel = timeRange === "daily" ? "daily" : `${timeRange}d`;
-  link.download = `line_performance_${rangeLabel}_${format(new Date(), "yyyy-MM-dd")}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+  const { downloadCsv } = await import("@/lib/capacitor");
+  await downloadCsv(csvContent, `line_performance_${rangeLabel}_${format(new Date(), "yyyy-MM-dd")}.csv`);
 }
 
 // ── PDF Export ──
 
-function exportPdf(lines: LinePerformanceData[], timeRange: TimeRange, dateLabel: string) {
+async function exportPdf(lines: LinePerformanceData[], timeRange: TimeRange, dateLabel: string) {
   const doc = new jsPDF();
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
@@ -271,10 +265,11 @@ function exportPdf(lines: LinePerformanceData[], timeRange: TimeRange, dateLabel
     return badgeW;
   };
 
-  // Sort lines by achievement for ranking
+  // Sort lines by number
+  const { compareLineNames: cmpLines } = await import("@/lib/sort-lines");
   const ranked = [...lines]
     .filter((l) => l.isActive)
-    .sort((a, b) => b.achievementPct - a.achievementPct);
+    .sort((a, b) => cmpLines(a.name || a.lineId, b.name || b.lineId));
 
   // ========== PAGE 1: COVER ==========
   doc.setFillColor(...blue);
@@ -588,7 +583,8 @@ function exportPdf(lines: LinePerformanceData[], timeRange: TimeRange, dateLabel
   // Footer on last page (already drawn by drawPageHeader)
   const fileDate = format(new Date(), "yyyy-MM-dd");
   const rangeLabel = timeRange === "daily" ? "daily" : `${timeRange}d`;
-  doc.save(`line_performance_${rangeLabel}_${fileDate}.pdf`);
+  const { savePdf } = await import("@/lib/capacitor");
+  await savePdf(doc, `line_performance_${rangeLabel}_${fileDate}.pdf`);
 }
 
 // ── Component ──

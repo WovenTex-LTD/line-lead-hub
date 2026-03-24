@@ -10,6 +10,9 @@ const RANGE_PRESETS = [
   { label: "7D", days: 7 },
   { label: "14D", days: 14 },
   { label: "30D", days: 30 },
+  { label: "3M", days: 90 },
+  { label: "6M", days: 180 },
+  { label: "12M", days: 365 },
 ] as const;
 
 interface InteractiveChartProps {

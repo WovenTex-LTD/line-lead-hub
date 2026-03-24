@@ -718,7 +718,7 @@ export async function downloadInsightsPdf(d: ExportData) {
   // ========== PAGE 4: LINE PERFORMANCE ==========
   if (d.linePerformance.length > 0) {
     doc.addPage();
-    y = drawPageHeader("Line Performance", `Ranked by efficiency across ${d.linePerformance.length} production lines`);
+    y = drawPageHeader("Line Performance", `${d.linePerformance.length} production lines`);
 
     // Summary badges
     drawStatusBadge(m, y, `${linesActive} ACTIVE`, blue, blueLight);
@@ -871,45 +871,19 @@ export async function downloadInsightsPdf(d: ExportData) {
     const fkw = (cw - 15) / 4;
     const fkh = 40;
     const finKpis = [
-      { label: "Total Revenue", value: `$${fin.totalRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, sub: `$${fin.revenuePerPiece.toFixed(2)}/piece`, accent: green },
-      { label: "Total Cost", value: `$${fin.totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, sub: `$${fin.costPerPiece.toFixed(2)}/piece`, accent: amber },
-      { label: "Profit", value: `${fin.profit < 0 ? '-' : ''}$${Math.abs(fin.profit).toLocaleString(undefined, { maximumFractionDigits: 0 })}`, sub: `vs $${fin.prevProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })} prev`, accent: fin.profit >= 0 ? green : red },
-      { label: "Profit Margin", value: `${fin.margin.toFixed(1)}%`, sub: `vs ${fin.prevMargin.toFixed(1)}% prev`, accent: fin.margin >= 20 ? green : fin.margin >= 0 ? amber : red },
+      { label: "Output Value", value: `$${fin.totalRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, sub: `$${fin.revenuePerPiece.toFixed(2)}/piece`, accent: green },
+      { label: "Oper. Cost", value: `$${fin.totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, sub: `$${fin.costPerPiece.toFixed(2)}/piece`, accent: amber },
+      { label: "Operating Margin", value: `${fin.profit < 0 ? '-' : ''}$${Math.abs(fin.profit).toLocaleString(undefined, { maximumFractionDigits: 0 })}`, sub: `vs $${fin.prevProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })} prev`, accent: fin.profit >= 0 ? green : red },
+      { label: "Margin %", value: `${fin.margin.toFixed(1)}%`, sub: `vs ${fin.prevMargin.toFixed(1)}% prev`, accent: fin.margin >= 20 ? green : fin.margin >= 0 ? amber : red },
     ];
     finKpis.forEach((k, i) => {
       drawKpiCard(m + i * (fkw + 5), y, fkw, fkh, k.label, k.value, k.sub, k.accent);
     });
     y += fkh + 12;
 
-    // Cost breakdown section
-    if (fin.sewingCost > 0 || fin.cuttingCost > 0 || fin.finishingCost > 0) {
-      y = drawSectionTitle("Cost Breakdown by Department", y);
-      const totalCost = fin.sewingCost + fin.cuttingCost + fin.finishingCost;
-      const depts = [
-        { name: "Sewing", cost: fin.sewingCost, color: blue },
-        { name: "Cutting", cost: fin.cuttingCost, color: amber },
-        { name: "Finishing", cost: fin.finishingCost, color: [124, 58, 237] as RGB },
-      ].filter(dept => dept.cost > 0);
-
-      depts.forEach(dept => {
-        if (y > ph - 30) return;
-        const pct = totalCost > 0 ? Math.round((dept.cost / totalCost) * 100) : 0;
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(...slate700);
-        doc.text(dept.name, m, y + 3);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(...slate500);
-        doc.text(`$${dept.cost.toLocaleString(undefined, { maximumFractionDigits: 0 })} (${pct}%)`, m + 35, y + 3);
-        drawProgressBar(m + 85, y, cw - 85, 4, pct, dept.color, slate200);
-        y += 10;
-      });
-      y += 6;
-    }
-
-    // Revenue vs Cost trend chart
+    // Output Value vs Oper. Cost trend chart
     if (fin.dailyFinancials.length > 0) {
-      y = drawSectionTitle("Daily Revenue vs Cost", y);
+      y = drawSectionTitle("Daily Output Value vs Oper. Cost", y);
       const chartH = 60;
       const days = fin.dailyFinancials;
       const maxVal = Math.max(...days.map(dd => Math.max(dd.revenue, dd.cost)), 1);
@@ -954,7 +928,7 @@ export async function downloadInsightsPdf(d: ExportData) {
       doc.rect(m, legY, 6, 3, "F");
       doc.setFontSize(6);
       doc.setTextColor(...slate500);
-      doc.text("Revenue", m + 8, legY + 3);
+      doc.text("Output Value", m + 8, legY + 3);
       doc.setFillColor(...amber);
       doc.rect(m + 35, legY, 6, 3, "F");
       doc.text("Cost", m + 43, legY + 3);
@@ -967,7 +941,7 @@ export async function downloadInsightsPdf(d: ExportData) {
 
       // Table header
       const fCols = [0, 45, 90, 125, 155];
-      const fHeaders = ["PO / BUYER", "REVENUE", "COST", "PROFIT", "MARGIN"];
+      const fHeaders = ["PO / BUYER", "OUTPUT VALUE", "OPER. COST", "MARGIN", "MARGIN %"];
       doc.setFillColor(...slate900);
       doc.roundedRect(m, y, cw, 10, 2, 2, "F");
       doc.rect(m, y + 5, cw, 5, "F");
@@ -1011,7 +985,8 @@ export async function downloadInsightsPdf(d: ExportData) {
 
   // Save
   const fileDate = d.endDate || format(new Date(), "yyyy-MM-dd");
-  doc.save(`insights-report-${d.periodDays}days-${fileDate}.pdf`);
+  const { savePdf } = await import("@/lib/capacitor");
+  await savePdf(doc, `insights-report-${d.periodDays}days-${fileDate}.pdf`);
 }
 
 // ─── CSV GENERATION ───────────────────────────────────────────────────
@@ -1101,18 +1076,12 @@ function buildCsvRows(d: ExportData): string[][] {
   return rows;
 }
 
-export function downloadInsightsCsv(d: ExportData) {
+export async function downloadInsightsCsv(d: ExportData) {
   const rows = buildCsvRows(d);
   const csvContent = rows.map((row) => row.map(esc).join(",")).join("\n");
-  const BOM = "\uFEFF";
-  const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
-  const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
   const fileDate = d.endDate || format(new Date(), "yyyy-MM-dd");
-  link.href = url;
-  link.download = `insights-report-${d.periodDays}days-${fileDate}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+  const { downloadCsv } = await import("@/lib/capacitor");
+  await downloadCsv(csvContent, `insights-report-${d.periodDays}days-${fileDate}.csv`);
 }
 
 // ─── COMPONENT ────────────────────────────────────────────────────────

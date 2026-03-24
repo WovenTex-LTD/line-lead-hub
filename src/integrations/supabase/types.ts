@@ -938,6 +938,146 @@ export type Database = {
           },
         ]
       }
+      dispatch_daily_sequence: {
+        Row: {
+          date: string
+          factory_id: string
+          last_sequence: number
+        }
+        Insert: {
+          date: string
+          factory_id: string
+          last_sequence?: number
+        }
+        Update: {
+          date?: string
+          factory_id?: string
+          last_sequence?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispatch_daily_sequence_factory_id_fkey"
+            columns: ["factory_id"]
+            isOneToOne: false
+            referencedRelation: "factory_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dispatch_requests: {
+        Row: {
+          buyer_name: string | null
+          carton_count: number | null
+          created_at: string
+          destination: string
+          dispatch_quantity: number
+          driver_name: string
+          driver_nid: string | null
+          factory_id: string
+          gate_pass_pdf_url: string | null
+          id: string
+          photo_url: string | null
+          reference_number: string
+          rejection_reason: string | null
+          remarks: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          style_name: string | null
+          submitted_at: string
+          submitted_by: string
+          truck_number: string
+          updated_at: string
+          work_order_id: string | null
+        }
+        Insert: {
+          buyer_name?: string | null
+          carton_count?: number | null
+          created_at?: string
+          destination: string
+          dispatch_quantity?: number
+          driver_name: string
+          driver_nid?: string | null
+          factory_id: string
+          gate_pass_pdf_url?: string | null
+          id?: string
+          photo_url?: string | null
+          reference_number: string
+          rejection_reason?: string | null
+          remarks?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          style_name?: string | null
+          submitted_at?: string
+          submitted_by: string
+          truck_number: string
+          updated_at?: string
+          work_order_id?: string | null
+        }
+        Update: {
+          buyer_name?: string | null
+          carton_count?: number | null
+          created_at?: string
+          destination?: string
+          dispatch_quantity?: number
+          driver_name?: string
+          driver_nid?: string | null
+          factory_id?: string
+          gate_pass_pdf_url?: string | null
+          id?: string
+          photo_url?: string | null
+          reference_number?: string
+          rejection_reason?: string | null
+          remarks?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          style_name?: string | null
+          submitted_at?: string
+          submitted_by?: string
+          truck_number?: string
+          updated_at?: string
+          work_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispatch_requests_factory_id_fkey"
+            columns: ["factory_id"]
+            isOneToOne: false
+            referencedRelation: "factory_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispatch_requests_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_dispatch_reviewed_by"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_dispatch_submitted_by"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_dispatch_work_order"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_ingestion_queue: {
         Row: {
           chunks_created: number | null
@@ -2009,6 +2149,120 @@ export type Database = {
             columns: ["factory_id"]
             isOneToOne: false
             referencedRelation: "factory_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_line_items: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          invoice_id: string
+          quantity: number
+          sort_order: number
+          style_number: string | null
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          invoice_id: string
+          quantity?: number
+          sort_order?: number
+          style_number?: string | null
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_id?: string
+          quantity?: number
+          sort_order?: number
+          style_number?: string | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_line_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          buyer_name: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          due_date: string | null
+          exchange_rate: number
+          factory_id: string
+          id: string
+          invoice_number: string
+          issue_date: string
+          notes: string | null
+          status: string
+          updated_at: string
+          work_order_id: string | null
+        }
+        Insert: {
+          buyer_name: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          due_date?: string | null
+          exchange_rate?: number
+          factory_id: string
+          id?: string
+          invoice_number: string
+          issue_date?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          work_order_id?: string | null
+        }
+        Update: {
+          buyer_name?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          due_date?: string | null
+          exchange_rate?: number
+          factory_id?: string
+          id?: string
+          invoice_number?: string
+          issue_date?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          work_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_factory_id_fkey"
+            columns: ["factory_id"]
+            isOneToOne: false
+            referencedRelation: "factory_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
             referencedColumns: ["id"]
           },
         ]
@@ -3508,6 +3762,41 @@ export type Database = {
           },
         ]
       }
+      user_signatures: {
+        Row: {
+          factory_id: string
+          id: string
+          registered_at: string
+          signature_url: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          factory_id: string
+          id?: string
+          registered_at?: string
+          signature_url: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          factory_id?: string
+          id?: string
+          registered_at?: string
+          signature_url?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_signatures_factory_id_fkey"
+            columns: ["factory_id"]
+            isOneToOne: false
+            referencedRelation: "factory_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_order_line_assignments: {
         Row: {
           created_at: string
@@ -3692,6 +3981,10 @@ export type Database = {
         Returns: boolean
       }
       has_storage_role: { Args: { _user_id: string }; Returns: boolean }
+      increment_dispatch_sequence: {
+        Args: { p_date: string; p_factory_id: string }
+        Returns: number
+      }
       is_admin_or_higher: { Args: { _user_id: string }; Returns: boolean }
       is_buyer_role: { Args: { _user_id: string }; Returns: boolean }
       is_superadmin: { Args: { _user_id: string }; Returns: boolean }
@@ -3744,6 +4037,7 @@ export type Database = {
         | "sewing"
         | "finishing"
         | "buyer"
+        | "gate_officer"
       blocker_impact: "low" | "medium" | "high" | "critical"
       blocker_status: "open" | "in_progress" | "resolved"
       extras_transaction_type:
@@ -3917,6 +4211,7 @@ export const Constants = {
         "sewing",
         "finishing",
         "buyer",
+        "gate_officer",
       ],
       blocker_impact: ["low", "medium", "high", "critical"],
       blocker_status: ["open", "in_progress", "resolved"],
