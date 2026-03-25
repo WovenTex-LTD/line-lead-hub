@@ -64,7 +64,9 @@ export function useBuyerMemberships() {
       // Count POs per factory
       const poCountMap = new Map<string, number>();
       for (const row of poCountData || []) {
-        poCountMap.set(row.factory_id, (poCountMap.get(row.factory_id) || 0) + 1);
+        if (row.factory_id) {
+          poCountMap.set(row.factory_id, (poCountMap.get(row.factory_id) || 0) + 1);
+        }
       }
 
       const result: BuyerMembership[] = membershipData.map(m => {
