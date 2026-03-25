@@ -2242,29 +2242,26 @@ export type Database = {
       invoice_charges: {
         Row: {
           amount: number
-          charge_type: string
-          created_at: string
-          description: string
           id: string
           invoice_id: string
+          is_deduct: boolean
+          label: string
           sort_order: number
         }
         Insert: {
           amount?: number
-          charge_type?: string
-          created_at?: string
-          description: string
           id?: string
           invoice_id: string
+          is_deduct?: boolean
+          label: string
           sort_order?: number
         }
         Update: {
           amount?: number
-          charge_type?: string
-          created_at?: string
-          description?: string
           id?: string
           invoice_id?: string
+          is_deduct?: boolean
+          label?: string
           sort_order?: number
         }
         Relationships: [
@@ -2345,29 +2342,26 @@ export type Database = {
       invoice_tax_lines: {
         Row: {
           amount: number
-          created_at: string
-          description: string
           id: string
           invoice_id: string
-          rate: number | null
+          label: string
+          rate_pct: number
           sort_order: number
         }
         Insert: {
           amount?: number
-          created_at?: string
-          description?: string
           id?: string
           invoice_id: string
-          rate?: number | null
+          label: string
+          rate_pct?: number
           sort_order?: number
         }
         Update: {
           amount?: number
-          created_at?: string
-          description?: string
           id?: string
           invoice_id?: string
-          rate?: number | null
+          label?: string
+          rate_pct?: number
           sort_order?: number
         }
         Relationships: [
