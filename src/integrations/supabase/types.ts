@@ -1333,60 +1333,72 @@ export type Database = {
       }
       factory_finance_settings: {
         Row: {
-          bank_account: string | null
+          bank_account_name: string | null
+          bank_account_no: string | null
           bank_branch: string | null
           bank_name: string | null
-          bank_routing: string | null
+          bank_routing_no: string | null
           bank_swift: string | null
-          bin: string | null
+          bin_number: string | null
           created_at: string
           factory_id: string
           id: string
           invoice_prefix: string
           seller_address: string | null
-          seller_contact: string | null
+          seller_city: string | null
+          seller_country: string | null
+          seller_email: string | null
+          seller_name: string | null
+          seller_phone: string | null
           signature_url: string | null
           stamp_url: string | null
-          tin: string | null
-          trade_licence: string | null
+          tin_number: string | null
           updated_at: string
         }
         Insert: {
-          bank_account?: string | null
+          bank_account_name?: string | null
+          bank_account_no?: string | null
           bank_branch?: string | null
           bank_name?: string | null
-          bank_routing?: string | null
+          bank_routing_no?: string | null
           bank_swift?: string | null
-          bin?: string | null
+          bin_number?: string | null
           created_at?: string
           factory_id: string
           id?: string
           invoice_prefix?: string
           seller_address?: string | null
-          seller_contact?: string | null
+          seller_city?: string | null
+          seller_country?: string | null
+          seller_email?: string | null
+          seller_name?: string | null
+          seller_phone?: string | null
           signature_url?: string | null
           stamp_url?: string | null
-          tin?: string | null
-          trade_licence?: string | null
+          tin_number?: string | null
           updated_at?: string
         }
         Update: {
-          bank_account?: string | null
+          bank_account_name?: string | null
+          bank_account_no?: string | null
           bank_branch?: string | null
           bank_name?: string | null
-          bank_routing?: string | null
+          bank_routing_no?: string | null
           bank_swift?: string | null
-          bin?: string | null
+          bin_number?: string | null
           created_at?: string
           factory_id?: string
           id?: string
           invoice_prefix?: string
           seller_address?: string | null
-          seller_contact?: string | null
+          seller_city?: string | null
+          seller_country?: string | null
+          seller_email?: string | null
+          seller_name?: string | null
+          seller_phone?: string | null
           signature_url?: string | null
           stamp_url?: string | null
-          tin?: string | null
-          trade_licence?: string | null
+          tin_number?: string | null
           updated_at?: string
         }
         Relationships: [
