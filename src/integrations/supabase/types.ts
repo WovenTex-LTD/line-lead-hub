@@ -1331,6 +1331,68 @@ export type Database = {
         }
         Relationships: []
       }
+      factory_bank_accounts: {
+        Row: {
+          account_label: string
+          account_name: string | null
+          account_number: string | null
+          bank_address: string | null
+          bank_name: string | null
+          branch: string | null
+          created_at: string
+          currency: string | null
+          factory_id: string
+          iban: string | null
+          id: string
+          is_default: boolean
+          routing_number: string | null
+          sort_order: number
+          swift_bic: string | null
+        }
+        Insert: {
+          account_label?: string
+          account_name?: string | null
+          account_number?: string | null
+          bank_address?: string | null
+          bank_name?: string | null
+          branch?: string | null
+          created_at?: string
+          currency?: string | null
+          factory_id: string
+          iban?: string | null
+          id?: string
+          is_default?: boolean
+          routing_number?: string | null
+          sort_order?: number
+          swift_bic?: string | null
+        }
+        Update: {
+          account_label?: string
+          account_name?: string | null
+          account_number?: string | null
+          bank_address?: string | null
+          bank_name?: string | null
+          branch?: string | null
+          created_at?: string
+          currency?: string | null
+          factory_id?: string
+          iban?: string | null
+          id?: string
+          is_default?: boolean
+          routing_number?: string | null
+          sort_order?: number
+          swift_bic?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "factory_bank_accounts_factory_id_fkey"
+            columns: ["factory_id"]
+            isOneToOne: false
+            referencedRelation: "factory_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       factory_finance_settings: {
         Row: {
           bank_account_name: string | null
@@ -2417,6 +2479,7 @@ export type Database = {
           port_of_discharge: string | null
           port_of_loading: string | null
           remarks: string | null
+          selected_bank_account_id: string | null
           ship_to_address: string | null
           show_bank_details: boolean
           status: string
@@ -2470,6 +2533,7 @@ export type Database = {
           port_of_discharge?: string | null
           port_of_loading?: string | null
           remarks?: string | null
+          selected_bank_account_id?: string | null
           ship_to_address?: string | null
           show_bank_details?: boolean
           status?: string
@@ -2523,6 +2587,7 @@ export type Database = {
           port_of_discharge?: string | null
           port_of_loading?: string | null
           remarks?: string | null
+          selected_bank_account_id?: string | null
           ship_to_address?: string | null
           show_bank_details?: boolean
           status?: string
@@ -2547,6 +2612,13 @@ export type Database = {
             columns: ["factory_id"]
             isOneToOne: false
             referencedRelation: "factory_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_selected_bank_account_id_fkey"
+            columns: ["selected_bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "factory_bank_accounts"
             referencedColumns: ["id"]
           },
           {
