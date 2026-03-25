@@ -24,11 +24,25 @@ const TIER_MAX_LINES: Record<string, number> = {
   'enterprise': 999999, // Unlimited
 };
 
+const TIER_PRIORITY: Record<string, number> = {
+  'starter': 1,
+  'growth': 2,
+  'scale': 3,
+  'enterprise': 4,
+};
+
+const getHigherTier = (defaultTier: string, existingTier: string | null | undefined): string => {
+  if (!existingTier) return defaultTier;
+  const defaultPriority = TIER_PRIORITY[defaultTier] ?? 0;
+  const existingPriority = TIER_PRIORITY[existingTier] ?? 0;
+  return existingPriority > defaultPriority ? existingTier : defaultTier;
+};
+
 // Emails granted free access without Stripe subscription.
 // Map email → tier. These users skip all Stripe checks.
 const GRANTED_FREE_ACCESS: Record<string, string> = {
   'karimsabbagh21@gmail.com': 'starter',
-  'karimsabbagh@woventex.co': 'starter',
+  'karimsabbagh@woventex.co': 'growth',
 };
 
 // Stripe may return timestamps as Unix seconds (number) or ISO strings depending on API version.
@@ -104,29 +118,32 @@ serve(async (req) => {
         .single();
 
       if (grantedProfile?.factory_id) {
-        // Sync the factory record so DB-based checks also work
+        const { data: existingFactory } = await supabaseClient
+          .from('factory_accounts')
+          .select('name, subscription_tier')
+          .eq('id', grantedProfile.factory_id)
+          .maybeSingle();
+
+        const effectiveTier = getHigherTier(grantedTier, existingFactory?.subscription_tier);
+
+        // Sync the factory record so DB-based checks also work.
+        // Never downgrade an existing tier for free-access users.
         await supabaseClient
           .from('factory_accounts')
           .update({
             subscription_status: 'active',
-            subscription_tier: grantedTier,
-            max_lines: TIER_MAX_LINES[grantedTier] || 30,
+            subscription_tier: effectiveTier,
+            max_lines: TIER_MAX_LINES[effectiveTier] || 30,
           })
           .eq('id', grantedProfile.factory_id);
-
-        const { data: grantedFactory } = await supabaseClient
-          .from('factory_accounts')
-          .select('name')
-          .eq('id', grantedProfile.factory_id)
-          .single();
 
         return new Response(JSON.stringify({
           subscribed: true,
           hasAccess: true,
           isTrial: false,
-          currentTier: grantedTier,
-          maxLines: TIER_MAX_LINES[grantedTier] || 30,
-          factoryName: grantedFactory?.name,
+          currentTier: effectiveTier,
+          maxLines: TIER_MAX_LINES[effectiveTier] || 30,
+          factoryName: existingFactory?.name,
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 200,
