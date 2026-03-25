@@ -91,7 +91,7 @@ export default function UsersPage() {
       const profileUserIds = new Set((profilesRes.data || []).map(p => p.id));
       const buyerUserIdsToFetch = (buyerMembershipsRes.data || [])
         .map(m => m.user_id)
-        .filter(uid => !profileUserIds.has(uid));
+        .filter((uid): uid is string => uid != null && !profileUserIds.has(uid));
 
       // Fetch those extra buyer profiles
       let extraBuyerProfiles: typeof profilesRes.data = [];
