@@ -16,13 +16,13 @@ export type Database = {
     Tables: {
       app_error_logs: {
         Row: {
-          acknowledged: boolean
-          created_at: string
+          acknowledged: boolean | null
+          created_at: string | null
           factory_id: string | null
           id: string
           message: string
           metadata: Json | null
-          severity: string
+          severity: string | null
           source: string | null
           stack: string | null
           url: string | null
@@ -30,13 +30,13 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
-          acknowledged?: boolean
-          created_at?: string
+          acknowledged?: boolean | null
+          created_at?: string | null
           factory_id?: string | null
           id?: string
           message: string
           metadata?: Json | null
-          severity?: string
+          severity?: string | null
           source?: string | null
           stack?: string | null
           url?: string | null
@@ -44,13 +44,13 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
-          acknowledged?: boolean
-          created_at?: string
+          acknowledged?: boolean | null
+          created_at?: string | null
           factory_id?: string | null
           id?: string
           message?: string
           metadata?: Json | null
-          severity?: string
+          severity?: string | null
           source?: string | null
           stack?: string | null
           url?: string | null
@@ -211,31 +211,37 @@ export type Database = {
       }
       buyer_factory_memberships: {
         Row: {
+          buyer_id: string | null
           company_name: string | null
           created_at: string | null
           factory_id: string
           id: string
           invited_by: string | null
-          is_active: boolean
-          user_id: string
+          is_active: boolean | null
+          role: string | null
+          user_id: string | null
         }
         Insert: {
+          buyer_id?: string | null
           company_name?: string | null
           created_at?: string | null
           factory_id: string
           id?: string
           invited_by?: string | null
-          is_active?: boolean
-          user_id: string
+          is_active?: boolean | null
+          role?: string | null
+          user_id?: string | null
         }
         Update: {
+          buyer_id?: string | null
           company_name?: string | null
           created_at?: string | null
           factory_id?: string
           id?: string
           invited_by?: string | null
-          is_active?: boolean
-          user_id?: string
+          is_active?: boolean | null
+          role?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -249,27 +255,30 @@ export type Database = {
       }
       buyer_po_access: {
         Row: {
-          factory_id: string
+          buyer_id: string | null
+          factory_id: string | null
           granted_at: string | null
           granted_by: string | null
           id: string
-          user_id: string
+          user_id: string | null
           work_order_id: string
         }
         Insert: {
-          factory_id: string
+          buyer_id?: string | null
+          factory_id?: string | null
           granted_at?: string | null
           granted_by?: string | null
           id?: string
-          user_id: string
+          user_id?: string | null
           work_order_id: string
         }
         Update: {
-          factory_id?: string
+          buyer_id?: string | null
+          factory_id?: string | null
           granted_at?: string | null
           granted_by?: string | null
           id?: string
-          user_id?: string
+          user_id?: string | null
           work_order_id?: string
         }
         Relationships: [
@@ -291,43 +300,30 @@ export type Database = {
       }
       buyer_workspace_prefs: {
         Row: {
-          alert_thresholds: Json | null
-          created_at: string | null
-          daily_digest_enabled: boolean | null
-          default_po_id: string | null
+          created_at: string
           factory_id: string
           id: string
-          updated_at: string | null
+          is_default: boolean
+          updated_at: string
           user_id: string
         }
         Insert: {
-          alert_thresholds?: Json | null
-          created_at?: string | null
-          daily_digest_enabled?: boolean | null
-          default_po_id?: string | null
+          created_at?: string
           factory_id: string
           id?: string
-          updated_at?: string | null
+          is_default?: boolean
+          updated_at?: string
           user_id: string
         }
         Update: {
-          alert_thresholds?: Json | null
-          created_at?: string | null
-          daily_digest_enabled?: boolean | null
-          default_po_id?: string | null
+          created_at?: string
           factory_id?: string
           id?: string
-          updated_at?: string | null
+          is_default?: boolean
+          updated_at?: string
           user_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "buyer_workspace_prefs_default_po_id_fkey"
-            columns: ["default_po_id"]
-            isOneToOne: false
-            referencedRelation: "work_orders"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "buyer_workspace_prefs_factory_id_fkey"
             columns: ["factory_id"]
@@ -1128,6 +1124,7 @@ export type Database = {
       email_schedules: {
         Row: {
           created_at: string | null
+          day_of_month: number | null
           day_of_week: number | null
           email: string
           factory_id: string
@@ -1141,6 +1138,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          day_of_month?: number | null
           day_of_week?: number | null
           email: string
           factory_id: string
@@ -1154,6 +1152,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          day_of_month?: number | null
           day_of_week?: number | null
           email?: string
           factory_id?: string
@@ -1236,7 +1235,7 @@ export type Database = {
         Row: {
           created_at: string | null
           cutoff_time: string | null
-          enabled_modules: string[] | null
+          enabled_modules: Json | null
           evening_actual_cutoff: string | null
           headcount_cost_currency: string | null
           headcount_cost_value: number | null
@@ -1266,7 +1265,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           cutoff_time?: string | null
-          enabled_modules?: string[] | null
+          enabled_modules?: Json | null
           evening_actual_cutoff?: string | null
           headcount_cost_currency?: string | null
           headcount_cost_value?: number | null
@@ -1296,7 +1295,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           cutoff_time?: string | null
-          enabled_modules?: string[] | null
+          enabled_modules?: Json | null
           evening_actual_cutoff?: string | null
           headcount_cost_currency?: string | null
           headcount_cost_value?: number | null
@@ -3091,6 +3090,44 @@ export type Database = {
           },
         ]
       }
+      push_tokens: {
+        Row: {
+          created_at: string
+          factory_id: string | null
+          id: string
+          platform: string
+          token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          factory_id?: string | null
+          id?: string
+          platform: string
+          token: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          factory_id?: string | null
+          id?: string
+          platform?: string
+          token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_tokens_factory_id_fkey"
+            columns: ["factory_id"]
+            isOneToOne: false
+            referencedRelation: "factory_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rate_limits: {
         Row: {
           action_type: string
@@ -3944,6 +3981,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      broadcast_notification: {
+        Args: { p_data?: Json; p_message: string; p_title: string }
+        Returns: number
+      }
       can_activate_line: { Args: { _factory_id: string }; Returns: boolean }
       check_rate_limit: {
         Args: {
@@ -3959,10 +4000,6 @@ export type Database = {
       factory_has_active_access: {
         Args: { _factory_id: string }
         Returns: boolean
-      }
-      get_buyer_membership_count: {
-        Args: { _user_id: string }
-        Returns: number
       }
       get_plan_max_lines: { Args: { _factory_id: string }; Returns: number }
       get_user_accessible_features: {
@@ -3986,7 +4023,6 @@ export type Database = {
         Returns: number
       }
       is_admin_or_higher: { Args: { _user_id: string }; Returns: boolean }
-      is_buyer_role: { Args: { _user_id: string }; Returns: boolean }
       is_superadmin: { Args: { _user_id: string }; Returns: boolean }
       is_supervisor_or_higher: { Args: { _user_id: string }; Returns: boolean }
       log_security_event: {
@@ -3997,6 +4033,24 @@ export type Database = {
           p_ip_address?: string
           p_user_agent?: string
           p_user_id?: string
+        }
+        Returns: undefined
+      }
+      process_daily_summary: {
+        Args: { p_factory_id: string; p_factory_name: string; p_today: string }
+        Returns: undefined
+      }
+      process_late_submissions: {
+        Args: { p_factory_id: string; p_factory_name: string; p_today: string }
+        Returns: undefined
+      }
+      process_scheduled_notifications: { Args: never; Returns: Json }
+      process_shift_reminders: {
+        Args: {
+          p_factory_id: string
+          p_factory_name: string
+          p_morning_cutoff: string
+          p_today: string
         }
         Returns: undefined
       }
