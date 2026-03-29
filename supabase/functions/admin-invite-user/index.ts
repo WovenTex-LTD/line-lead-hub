@@ -79,9 +79,13 @@ Deno.serve(async (req) => {
     let userId: string;
     let isExistingUser = false;
 
-    // Check if user already exists
-    const { data: existingUsers } = await adminClient.auth.admin.listUsers();
-    const existingUser = existingUsers?.users?.find(u => u.email === email);
+    // Check if user already exists (lookup by email instead of listing all users)
+    const { data: existingUsers } = await adminClient.auth.admin.listUsers({
+      page: 1,
+      perPage: 1,
+      filter: { email },
+    });
+    const existingUser = existingUsers?.users?.[0];
 
     if (existingUser) {
       userId = existingUser.id;
