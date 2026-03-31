@@ -379,44 +379,6 @@ export function CuttingSubmissionView({ target, actual, open, onOpenChange, onEd
                   </div>
                 )}
 
-                {/* Cost Estimate */}
-                {(() => {
-                  const fmt = (v: number, sym: string) => `${sym}${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                  let regularCost: number | null = null;
-                  let otCost: number | null = null;
-                  let currency = getCurrencySymbol() === '$' ? 'USD' : 'BDT';
-
-                  if (isConfigured) {
-                    const reg = calculateEstimatedCost(actual.man_power, actual.hours_actual);
-                    if (reg.value != null) { regularCost = reg.value; currency = reg.currency; }
-                    if (actual.ot_hours_actual && actual.ot_manpower_actual) {
-                      const ot = calculateEstimatedCost(actual.ot_manpower_actual, actual.ot_hours_actual);
-                      if (ot.value != null) otCost = ot.value;
-                    }
-                  }
-
-                  if (regularCost == null && otCost == null) return null;
-                  const sym = currency === 'USD' ? '$' : '৳';
-
-                  return (
-                    <div className="p-3 rounded-lg border border-border/50 bg-muted/20">
-                      <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-2">Cost Estimate (current rate)</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {regularCost != null && (
-                          <FieldDisplay label="Regular Cost" value={`${fmt(regularCost, sym)} ${currency}`} />
-                        )}
-                        {otCost != null && (
-                          <FieldDisplay label="OT Cost" value={`${fmt(otCost, sym)} ${currency}`} />
-                        )}
-                      </div>
-                      {regularCost != null && otCost != null && (
-                        <div className="mt-2 pt-2 border-t border-border/40">
-                          <FieldDisplay label="Total Cost" value={`${fmt(regularCost + otCost, sym)} ${currency}`} className="text-lg font-bold" />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
 
                 {/* Actual Timestamp */}
                 {actual.submitted_at && (

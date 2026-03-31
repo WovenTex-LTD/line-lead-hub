@@ -305,9 +305,12 @@ export function useLinePerformance() {
 
     // Also track all target dates (including target-only) for dataState detection
     const allTargetsByLine = new Map<string, Set<string>>();
+    // Unfiltered target totals per line (for display when awaiting EOD)
+    const allTargetTotalsByLine = new Map<string, number>();
     rawTargets.forEach((t: any) => {
       if (!allTargetsByLine.has(t.line_id)) allTargetsByLine.set(t.line_id, new Set());
       allTargetsByLine.get(t.line_id)!.add(t.work_order_id);
+      allTargetTotalsByLine.set(t.line_id, (allTargetTotalsByLine.get(t.line_id) || 0) + resolveTarget(t));
     });
 
     const result: LinePerformanceData[] = rawLines.map((line: any) => {
@@ -389,6 +392,11 @@ export function useLinePerformance() {
         eodSubmitted ? "output-only" :
         "no-target";
 
+      // For awaiting-eod lines, use the unfiltered target total so the target is visible
+      const displayTarget = dataState === "awaiting-eod"
+        ? (allTargetTotalsByLine.get(line.id) || 0)
+        : totalTarget;
+
       return {
         id: line.id,
         lineId: line.line_id,
@@ -396,7 +404,7 @@ export function useLinePerformance() {
         unitName: line.units?.name || null,
         floorName: line.floors?.name || null,
         isActive: line.is_active,
-        totalTarget,
+        totalTarget: displayTarget,
         totalOutput,
         achievementPct,
         variance: totalOutput - totalTarget,
