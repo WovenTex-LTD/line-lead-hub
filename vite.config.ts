@@ -2,7 +2,6 @@ import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { writeFileSync } from "fs";
-import { componentTagger } from "lovable-tagger";
 
 // Generates a version.json in the build output so the app can detect new deployments.
 function versionPlugin(): Plugin {
@@ -36,11 +35,8 @@ const tauriPackages = [
 const isTauriBuild = !!process.env.TAURI_ENV_PLATFORM;
 
 export default defineConfig(({ mode }) => ({
-  // Lovable Cloud injects VITE_SUPABASE_* env vars automatically.
-  // In rare cases (cache/build issues), they can be missing at runtime which
-  // causes `@supabase/supabase-js` to throw: "supabaseUrl is required".
-  //
-  // These defines provide a safe fallback so the app doesn't blank-screen.
+  // Bake Supabase env vars at build time so the app never blank-screens
+  // if env vars are missing at runtime.
   define: {
     "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(
       process.env.VITE_SUPABASE_URL ?? "https://varolnwetchstlfholbl.supabase.co"
@@ -55,7 +51,7 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
-  plugins: [react(), versionPlugin(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [react(), versionPlugin()],
   esbuild: {
     drop: mode === "production" ? ["console", "debugger"] : [],
   },

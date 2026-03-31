@@ -5,8 +5,8 @@ import { getTodayInTimezone } from '@/lib/date-utils';
 import type { DispatchRequest, DispatchStatus, DispatchFormData } from '@/types/dispatch';
 
 // NOTE: FK joins are disabled until FK constraints are confirmed in the DB.
-// To re-enable, replace '*' with the full join string and ask Lovable to run
-// the corrected migration SQL (with factory_accounts, not factories).
+// To re-enable, replace '*' with the full join string and apply the corrected
+// migration SQL (join against factory_accounts, not factories).
 const DISPATCH_SELECT = '*';
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -35,9 +35,8 @@ npx cap open android
 
 ## First-Time Capacitor Setup
 
-### 1. Export and Clone
+### 1. Clone
 ```bash
-# Export from Lovable to GitHub, then:
 git clone <your-repo-url>
 cd <repo-name>
 npm install
@@ -73,7 +72,7 @@ npx cap run android
 
 ### Required Redirect URLs
 
-Add these URLs in the Lovable Cloud dashboard under **Users → Auth Settings → Redirect URLs**:
+Add these URLs in the Supabase dashboard under **Authentication → URL Configuration → Redirect URLs**:
 
 #### Local Development
 ```
@@ -87,12 +86,6 @@ http://localhost:5173/auth/callback
 https://your-custom-domain.com
 https://your-custom-domain.com/reset-password
 https://your-custom-domain.com/auth/callback
-```
-
-#### Lovable Preview
-```
-https://12eae2b2-c622-4589-bd88-ae25411192d0.lovableproject.com
-https://12eae2b2-c622-4589-bd88-ae25411192d0.lovableproject.com/reset-password
 ```
 
 #### Mobile Deep Links
@@ -121,7 +114,7 @@ Edit `ios/App/App/Info.plist` and add:
 <array>
   <dict>
     <key>CFBundleURLName</key>
-    <string>app.lovable.12eae2b2c6224589bd88ae25411192d0</string>
+    <string>com.woventex.productionportal</string>
     <key>CFBundleURLSchemes</key>
     <array>
       <string>productionportal</string>
