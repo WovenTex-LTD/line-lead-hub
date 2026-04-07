@@ -168,7 +168,7 @@ export default function Finances() {
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
   const [sewingData, setSewingData] = useState<any[]>([]);
-  const [bdtToUsd, setBdtToUsd] = useState<number | null>(null);
+  const [usdPerBdt, setUsdPerBdt] = useState<number | null>(null);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("line");
   const [sortField, setSortField] = useState<SortField>("value");
@@ -198,8 +198,8 @@ export default function Finances() {
     let cancelled = false;
     fetch("https://open.er-api.com/v6/latest/USD")
       .then(r => r.json())
-      .then(j => { if (!cancelled && j?.rates?.BDT) setBdtToUsd(1 / j.rates.BDT); })
-      .catch(() => { if (!cancelled) setBdtToUsd(1 / 121); });
+      .then(j => { if (!cancelled && j?.rates?.BDT) setUsdPerBdt(1 / j.rates.BDT); })
+      .catch(() => { if (!cancelled) setUsdPerBdt(1 / 121); });
     return () => { cancelled = true; };
   }, []);
 
@@ -247,7 +247,7 @@ export default function Finances() {
   const { lineRows, poRows, summary } = useMemo(() => {
     const rate = headcountCost.value ?? 0;
     const isBdt = headcountCost.currency === "BDT";
-    const fx = bdtToUsd ?? (1 / 121);
+    const fx = usdPerBdt ?? (1 / 121);
 
     const lineMap = new Map<string, { id: string; name: string; output: number; value: number; rawCost: number; posMap: Map<string, { po: string; buyer: string; output: number }> }>();
     const poMap = new Map<string, { po: string; buyer: string; style: string; cmDz: number; output: number; value: number; rawCost: number; linesMap: Map<string, { name: string; output: number }> }>();
@@ -298,7 +298,7 @@ export default function Finances() {
     const worstLine = linesWithValue.length > 1 ? linesWithValue.reduce((w, r) => r.marginPct < w.marginPct ? r : w, linesWithValue[0]) : null;
 
     return { lineRows, poRows, summary: { totalValue, totalCost, totalMargin, totalMarginPct, hasData: lineRows.some(r => r.output > 0), totalOutput, bestLine, worstLine } };
-  }, [sewingData, headcountCost.value, headcountCost.currency, bdtToUsd]);
+  }, [sewingData, headcountCost.value, headcountCost.currency, usdPerBdt]);
 
   // ── Sort ──────────────────────────────────────────────────────────────────
 
@@ -505,7 +505,7 @@ export default function Finances() {
     if (rangeMode !== "day") {
       const rate = headcountCost.value ?? 0;
       const isBdt = headcountCost.currency === "BDT";
-      const fx = bdtToUsd ?? (1 / 121);
+      const fx = usdPerBdt ?? (1 / 121);
       const toUsd = (r: number) => isBdt ? r * fx : r;
 
       // Build map: date → lineId → { name, output, value, rawCost }
@@ -703,7 +703,7 @@ export default function Finances() {
     if (rangeMode !== "day") {
       const rate = headcountCost.value ?? 0;
       const isBdt = headcountCost.currency === "BDT";
-      const fx = bdtToUsd ?? (1 / 121);
+      const fx = usdPerBdt ?? (1 / 121);
       const toUsd = (r: number) => isBdt ? r * fx : r;
 
       const dayMap = new Map<string, Map<string, { name: string; output: number; value: number; rawCost: number }>>();
@@ -795,9 +795,9 @@ export default function Finances() {
               <h1 className="text-xl md:text-2xl font-bold">
                 Finances
               </h1>
-              {isBDT && bdtToUsd && (
+              {isBDT && usdPerBdt && (
                 <span className="text-[10px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                  {(1 / bdtToUsd).toFixed(1)} BDT/USD
+                  {(1 / usdPerBdt).toFixed(1)} BDT/USD
                 </span>
               )}
             </div>

@@ -45,7 +45,13 @@ export function toUsd(
   bdtToUsdRate: number | null,
 ): number {
   if (currency === 'BDT' && bdtToUsdRate) {
-    return Math.round(nativeAmount * bdtToUsdRate * 100) / 100;
+    // Backward-compatible handling:
+    // - If rate looks like BDT per USD (e.g. 121), convert by dividing.
+    // - If rate looks like USD per BDT (e.g. 0.0083), convert by multiplying.
+    const usdAmount = bdtToUsdRate > 10
+      ? nativeAmount / bdtToUsdRate
+      : nativeAmount * bdtToUsdRate;
+    return Math.round(usdAmount * 100) / 100;
   }
   return nativeAmount;
 }

@@ -44,8 +44,8 @@ const BUYER_NAV = [
 export function BuyerSidebar() {
   const { profile, signOut } = useAuth();
   const location = useLocation();
-  const { state, toggleSidebar } = useSidebar();
-  const collapsed = state === "collapsed";
+  const { state, toggleSidebar, isMobile } = useSidebar();
+  const collapsed = !isMobile && state === "collapsed";
 
   const isActive = (path: string) => location.pathname === path;
 

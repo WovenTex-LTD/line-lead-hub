@@ -39,9 +39,13 @@ interface WorkOrder {
   po_number: string;
   buyer: string;
   style: string;
+  style_number: string | null;
+  hs_code: string | null;
   item: string | null;
   color: string | null;
   order_qty: number;
+  selling_price: number | null;
+  commercial_price: number | null;
   smv: number | null;
   cm_per_dozen: number | null;
   planned_ex_factory: string | null;
@@ -73,6 +77,10 @@ const workOrderSchema = z.object({
   item: z.string().max(200, "Item too long").optional().nullable(),
   color: z.string().max(100, "Color too long").optional().nullable(),
   order_qty: z.number().min(0, "Cannot be negative").max(100000000, "Too high"),
+  style_number: z.string().max(100).optional().nullable(),
+  hs_code: z.string().max(20).optional().nullable(),
+  selling_price: z.number().min(0, "Cannot be negative").optional().nullable(),
+  commercial_price: z.number().min(0, "Cannot be negative").optional().nullable(),
   smv: z.number().min(0, "Cannot be negative").max(1000, "Too high").optional().nullable(),
   cm_per_dozen: z.number().min(0, "Cannot be negative").max(100000, "Too high").optional().nullable(),
   planned_ex_factory: z.string().optional().nullable(),
@@ -124,9 +132,13 @@ export default function WorkOrders() {
     po_number: '',
     buyer: '',
     style: '',
+    style_number: '',
+    hs_code: '',
     item: '',
     color: '',
     order_qty: '',
+    selling_price: '',
+    commercial_price: '',
     smv: '',
     cm_per_dozen: '',
     planned_ex_factory: '',
@@ -229,9 +241,13 @@ export default function WorkOrders() {
       po_number: '',
       buyer: '',
       style: '',
+      style_number: '',
+      hs_code: '',
       item: '',
       color: '',
       order_qty: '',
+      selling_price: '',
+      commercial_price: '',
       smv: '',
       cm_per_dozen: '',
       planned_ex_factory: '',
@@ -251,9 +267,13 @@ export default function WorkOrders() {
       po_number: wo.po_number,
       buyer: wo.buyer,
       style: wo.style,
+      style_number: wo.style_number || '',
+      hs_code: wo.hs_code || '',
       item: wo.item || '',
       color: wo.color || '',
       order_qty: wo.order_qty.toString(),
+      selling_price: wo.selling_price?.toString() || '',
+      commercial_price: (wo as any).commercial_price?.toString() || '',
       smv: wo.smv?.toString() || '',
       cm_per_dozen: wo.cm_per_dozen?.toString() || '',
       planned_ex_factory: wo.planned_ex_factory || '',
@@ -273,9 +293,13 @@ export default function WorkOrders() {
       po_number: formData.po_number.trim(),
       buyer: formData.buyer.trim(),
       style: formData.style.trim(),
+      style_number: formData.style_number.trim() || null,
+      hs_code: formData.hs_code.trim() || null,
       item: formData.item.trim() || null,
       color: formData.color.trim() || null,
       order_qty: parseInt(formData.order_qty) || 0,
+      selling_price: formData.selling_price ? parseFloat(formData.selling_price) : null,
+      commercial_price: formData.commercial_price ? parseFloat(formData.commercial_price) : null,
       smv: formData.smv ? parseFloat(formData.smv) : null,
       cm_per_dozen: formData.cm_per_dozen ? parseFloat(formData.cm_per_dozen) : null,
       planned_ex_factory: formData.planned_ex_factory || null,
@@ -305,9 +329,13 @@ export default function WorkOrders() {
         po_number: result.data.po_number,
         buyer: result.data.buyer,
         style: result.data.style,
+        style_number: result.data.style_number ?? null,
+        hs_code: result.data.hs_code ?? null,
         item: result.data.item ?? null,
         color: result.data.color ?? null,
         order_qty: result.data.order_qty,
+        selling_price: result.data.selling_price ?? null,
+        commercial_price: result.data.commercial_price ?? null,
         smv: result.data.smv ?? null,
         cm_per_dozen: result.data.cm_per_dozen ?? null,
         planned_ex_factory: result.data.planned_ex_factory ?? null,
@@ -828,13 +856,32 @@ export default function WorkOrders() {
                 {formErrors.style && <p className="text-sm text-destructive">{formErrors.style}</p>}
               </div>
               <div className="space-y-2">
-                <Label>Item</Label>
+                <Label>Item / Description</Label>
                 <Input
                   value={formData.item}
                   onChange={(e) => setFormData({ ...formData, item: e.target.value })}
-                  placeholder="T-Shirt"
+                  placeholder="e.g. Low Rise Jeans"
                 />
                 {formErrors.item && <p className="text-sm text-destructive">{formErrors.item}</p>}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Style Number</Label>
+                <Input
+                  value={formData.style_number}
+                  onChange={(e) => setFormData({ ...formData, style_number: e.target.value })}
+                  placeholder="e.g. 47364"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>HS Code</Label>
+                <Input
+                  value={formData.hs_code}
+                  onChange={(e) => setFormData({ ...formData, hs_code: e.target.value })}
+                  placeholder="e.g. 6203.42"
+                />
               </div>
             </div>
 
@@ -860,6 +907,19 @@ export default function WorkOrders() {
               </div>
             </div>
 
+            <div className="space-y-2">
+              <Label>Selling Price (per unit, USD)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.selling_price}
+                onChange={(e) => setFormData({ ...formData, selling_price: e.target.value })}
+                placeholder="e.g. 5.00"
+              />
+              <p className="text-xs text-muted-foreground">Used to auto-fill invoice line items</p>
+            </div>
+
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>SMV</Label>
@@ -882,6 +942,17 @@ export default function WorkOrders() {
                   placeholder="$45.00"
                 />
                 {formErrors.cm_per_dozen && <p className="text-sm text-destructive">{formErrors.cm_per_dozen}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label>Commercial Price / Pc (USD)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.commercial_price}
+                  onChange={(e) => setFormData({ ...formData, commercial_price: e.target.value })}
+                  placeholder="$5.80"
+                />
+                {formErrors.commercial_price && <p className="text-sm text-destructive">{formErrors.commercial_price}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Planned Ex-Factory</Label>

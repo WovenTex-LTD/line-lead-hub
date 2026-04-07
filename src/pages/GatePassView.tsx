@@ -51,21 +51,25 @@ export default function GatePassView() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 -ml-1">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
             <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h1 className="text-xl md:text-2xl font-bold">Gate Pass</h1>
-            <p className="text-sm font-mono text-muted-foreground">{request.reference_number}</p>
+            <p className="text-sm font-mono text-muted-foreground truncate">{request.reference_number}</p>
           </div>
         </div>
         {request.gate_pass_pdf_url && (
           <Button
+            size="sm"
             onClick={handleDownload}
             className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0"
           >
-            <FileDown className="h-4 w-4 mr-2" />
-            Download PDF
+            <FileDown className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Download PDF</span>
           </Button>
         )}
       </div>
@@ -138,7 +142,7 @@ export default function GatePassView() {
           <CardContent className="p-0 overflow-hidden rounded-b-xl">
             <iframe
               src={request.gate_pass_pdf_url}
-              className="w-full h-[600px] border-0"
+              className="w-full h-[50vh] md:h-[600px] border-0"
               title="Gate Pass PDF"
             />
           </CardContent>

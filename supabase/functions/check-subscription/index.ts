@@ -41,7 +41,7 @@ const getHigherTier = (defaultTier: string, existingTier: string | null | undefi
 // Emails granted free access without Stripe subscription.
 // Map email → tier. These users skip all Stripe checks.
 const GRANTED_FREE_ACCESS: Record<string, string> = {
-  'karimsabbagh21@gmail.com': 'starter',
+  'karimsabbagh21@gmail.com': 'growth',
   'karimsabbagh@woventex.co': 'growth',
 };
 

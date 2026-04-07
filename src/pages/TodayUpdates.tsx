@@ -238,7 +238,7 @@ export default function TodayUpdates() {
 
   const navigate = useNavigate();
   const { headcountCost, isConfigured: costConfigured } = useHeadcountCost();
-  const [bdtToUsd, setBdtToUsd] = useState<number | null>(null);
+  const [usdPerBdt, setUsdPerBdt] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -247,10 +247,10 @@ export default function TodayUpdates() {
         const res = await fetch('https://open.er-api.com/v6/latest/USD');
         const json = await res.json();
         if (!cancelled && json?.rates?.BDT) {
-          setBdtToUsd(1 / json.rates.BDT);
+          setUsdPerBdt(1 / json.rates.BDT);
         }
       } catch {
-        if (!cancelled) setBdtToUsd(1 / 121);
+        if (!cancelled) setUsdPerBdt(1 / 121);
       }
     }
     fetchRate();
@@ -740,15 +740,15 @@ export default function TodayUpdates() {
 
     // Convert cost to USD
     let totalCostUsd = totalCostNative;
-    if (costCurrency === 'BDT' && bdtToUsd) {
-      totalCostUsd = totalCostNative * bdtToUsd;
+    if (costCurrency === 'BDT' && usdPerBdt) {
+      totalCostUsd = totalCostNative * usdPerBdt;
     }
 
     const profit = totalRevenue - totalCostUsd;
     const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
 
     // Convert costByPo to USD
-    const toUsd = (v: number) => costCurrency === 'BDT' && bdtToUsd ? Math.round(v * bdtToUsd * 100) / 100 : Math.round(v * 100) / 100;
+    const toUsd = (v: number) => costCurrency === 'BDT' && usdPerBdt ? Math.round(v * usdPerBdt * 100) / 100 : Math.round(v * 100) / 100;
     const costByPoUsd = costByPo.map(p => ({ po: p.po, buyer: p.buyer, style: p.style, cost: toUsd(p.cost) }));
 
     return {
@@ -762,7 +762,7 @@ export default function TodayUpdates() {
       costCurrency,
       hasData: totalRevenue > 0 || totalCostNative > 0,
     };
-  }, [finishingDailyLogs, sewingActuals, cuttingActuals, costConfigured, headcountCost.value, headcountCost.currency, bdtToUsd]);
+  }, [finishingDailyLogs, sewingActuals, cuttingActuals, costConfigured, headcountCost.value, headcountCost.currency, usdPerBdt]);
 
   // ── Daily Production Report PDF data ──
   const dailyReportData = useMemo((): DailyReportData => {
@@ -856,12 +856,12 @@ export default function TodayUpdates() {
         sewingCostUsd: financials.totalCostUsd,
         cuttingCostUsd: 0,
         finishingCostUsd: 0,
-        bdtToUsdRate: bdtToUsd,
+        bdtToUsdRate: usdPerBdt,
         revenueByPo: financials.revenueByPo,
       } : null,
       generatedBy: profile?.full_name || null,
     };
-  }, [sewingActuals, sewingTargets, cuttingActuals, finishingDailyLogs, factory?.name, selectedDateStr, financials, bdtToUsd, profile?.full_name, headcountCost.value, headcountCost.currency, productionNotes]);
+  }, [sewingActuals, sewingTargets, cuttingActuals, finishingDailyLogs, factory?.name, selectedDateStr, financials, usdPerBdt, profile?.full_name, headcountCost.value, headcountCost.currency, productionNotes]);
 
   const handleSewingClick = (update: SewingUpdate) => {
     setSewingViewKey(null);
@@ -1163,9 +1163,9 @@ export default function TodayUpdates() {
               <span className="text-sm font-semibold">Daily Financials</span>
               <span className="text-[10px] text-muted-foreground">(USD)</span>
             </div>
-            {financials.costCurrency === 'BDT' && bdtToUsd && (
+            {financials.costCurrency === 'BDT' && usdPerBdt && (
               <span className="text-[10px] text-muted-foreground">
-                Rate: {(1 / bdtToUsd).toFixed(1)} BDT/USD
+                Rate: {(1 / usdPerBdt).toFixed(1)} BDT/USD
               </span>
             )}
           </div>
@@ -1189,7 +1189,7 @@ export default function TodayUpdates() {
                   ${financials.totalCostUsd.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {financials.costCurrency === 'BDT' && bdtToUsd
+                  {financials.costCurrency === 'BDT' && usdPerBdt
                     ? `৳${financials.totalCostNative.toLocaleString()}`
                     : 'All departments'}
                 </p>

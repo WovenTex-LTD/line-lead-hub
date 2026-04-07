@@ -56,6 +56,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { NAV_ITEMS, DEV_FACTORY_ID_PREFIX } from "@/lib/constants";
+import { mapLegacyTier } from "@/lib/plan-tiers";
 import { cn } from "@/lib/utils";
 import { openExternalUrl, isTauri, isNative } from "@/lib/capacitor";
 import { isRunningFromDMG } from "@/lib/dmg-detection";
@@ -72,6 +73,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { useNavigate } from "react-router-dom";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Package,
@@ -158,9 +160,10 @@ export function AppSidebar() {
   const { t } = useTranslation();
   const { profile, roles, factory, signOut } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
-  const isFinanceTheme = location.pathname === '/finances';
+  const isFinanceTheme = location.pathname.startsWith('/finance');
   const [expandedMenus, setExpandedMenus] = React.useState<string[]>(['/setup']);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [appVersion, setAppVersion] = useState<string>(WEB_APP_VERSION);
@@ -185,6 +188,9 @@ export function AppSidebar() {
 
   const { data: pendingApprovals } = usePendingApprovals();
   const pendingDispatchCount = isAdminOrOwner ? (pendingApprovals?.length ?? 0) : 0;
+
+  const currentTier = mapLegacyTier(factory?.subscription_tier ?? null);
+  const hasFinanceAccess = true; // Finance Portal available to all tiers
 
   useEffect(() => {
     let cancelled = false;
@@ -351,6 +357,11 @@ export function AppSidebar() {
   if (isNative) {
     const billingPaths = ['/billing', '/billing-plan', '/subscription'];
     navItems = navItems.filter(item => !billingPaths.includes(item.path));
+  }
+
+  // Growth+ users get the Finance Portal — hide the basic Finances page
+  if (hasFinanceAccess) {
+    navItems = navItems.filter(item => item.path !== '/finances');
   }
 
   const isActive = (path: string) => location.pathname === path;
@@ -604,9 +615,39 @@ export function AppSidebar() {
           ));
         })()}
 
+        {/* Finance Portal entry point — admins and owners only, above settings */}
+        {isAdminOrOwner && (
+          <SidebarGroup className="mt-auto">
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    tooltip={collapsed ? "Finance Portal" : undefined}
+                  >
+                    <button
+                      onClick={() => navigate("/finance/dashboard")}
+                      className={cn(
+                        "relative flex items-center gap-3 rounded-lg px-3 py-2 w-full transition-all duration-200",
+                        "bg-gradient-to-r from-purple-500/15 to-violet-500/10 hover:from-purple-500/25 hover:to-violet-500/20",
+                        "border border-purple-500/20 hover:border-purple-500/40",
+                        "text-purple-300 hover:text-purple-200"
+                      )}
+                    >
+                      <DollarSign className="h-5 w-5 shrink-0 text-purple-400" />
+                      {!collapsed && (
+                        <span className="text-sm font-medium">Finance Portal</span>
+                      )}
+                    </button>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
         {/* Bottom navigation items (settings section) */}
         {(navItems as NavItem[]).some(item => item.bottom) && (
-          <SidebarGroup className="mt-auto">
+          <SidebarGroup className={!isAdminOrOwner ? "mt-auto" : undefined}>
             {!collapsed && (
               <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-[0.15em] text-sidebar-foreground/35 px-3">
                 Settings

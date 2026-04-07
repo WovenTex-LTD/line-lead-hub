@@ -26,13 +26,14 @@ function matchesSearch(d: DispatchRequest, q: string) {
 // ── Summary KPIs ────────────────────────────────────────────────────────────
 function SummaryKpis({ requests }: { requests: DispatchRequest[] }) {
   const totalPieces = requests.reduce((sum, d) => sum + d.dispatch_quantity, 0);
+  const totalCartons = requests.reduce((sum, d) => sum + (d.carton_count ?? 0), 0);
   const oldest = requests[requests.length - 1];
   const oldestWait = oldest
     ? formatDistanceToNow(new Date(oldest.submitted_at), { addSuffix: false })
     : "—";
 
   return (
-    <div className="grid grid-cols-3 gap-3 md:gap-4">
+    <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
       <div className="relative overflow-hidden rounded-xl border border-amber-200/60 dark:border-amber-800/40 bg-gradient-to-br from-amber-50 via-white to-orange-50/50 dark:from-amber-950/40 dark:via-card dark:to-orange-950/20 p-4 md:p-5 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 group">
         <div className="absolute top-0 right-0 w-28 h-28 bg-gradient-to-bl from-amber-500/8 to-transparent rounded-bl-full pointer-events-none" />
         <div className="relative flex items-start justify-between">
@@ -56,6 +57,20 @@ function SummaryKpis({ requests }: { requests: DispatchRequest[] }) {
             <p className="text-[10px] md:text-xs text-muted-foreground">Pending approval</p>
           </div>
           <div className="rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 p-2.5 shadow-lg shadow-orange-500/25 group-hover:shadow-orange-500/40 transition-shadow">
+            <Package className="h-5 w-5 text-white" />
+          </div>
+        </div>
+      </div>
+
+      <div className="relative overflow-hidden rounded-xl border border-blue-200/60 dark:border-blue-800/40 bg-gradient-to-br from-blue-50 via-white to-indigo-50/50 dark:from-blue-950/40 dark:via-card dark:to-indigo-950/20 p-4 md:p-5 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 group">
+        <div className="absolute top-0 right-0 w-28 h-28 bg-gradient-to-bl from-blue-500/8 to-transparent rounded-bl-full pointer-events-none" />
+        <div className="relative flex items-start justify-between">
+          <div className="space-y-1">
+            <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-blue-600/70 dark:text-blue-400/70">Total Cartons</p>
+            <p className="font-mono text-2xl md:text-3xl font-bold tracking-tight text-blue-900 dark:text-blue-100">{totalCartons.toLocaleString()}</p>
+            <p className="text-[10px] md:text-xs text-muted-foreground">Pending approval</p>
+          </div>
+          <div className="rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 p-2.5 shadow-lg shadow-blue-500/25 group-hover:shadow-blue-500/40 transition-shadow">
             <Package className="h-5 w-5 text-white" />
           </div>
         </div>
@@ -158,16 +173,16 @@ export default function PendingApprovals() {
 
       {/* KPI summary */}
       {isLoading ? (
-        <div className="grid grid-cols-3 gap-3 md:gap-4">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-[88px] w-full rounded-xl" />)}
+        <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-[88px] w-full rounded-xl" />)}
         </div>
-      ) : pending && pending.length > 0 ? (
-        <SummaryKpis requests={pending} />
-      ) : null}
+      ) : (
+        <SummaryKpis requests={pending ?? []} />
+      )}
 
       {/* Search */}
       {!isLoading && pending && pending.length > 0 && (
-        <div className="relative max-w-sm">
+        <div className="relative w-full max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
             placeholder="Reference, driver, destination…"

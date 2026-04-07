@@ -7,7 +7,9 @@ import { ThemeProvider } from "next-themes";
 import { AuthProvider, AuthContext } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { BuyerLayout } from "@/components/layout/BuyerLayout";
+import { FinanceLayout } from "@/components/layout/FinanceLayout";
 import { SubscriptionGate } from "@/components/SubscriptionGate";
+import { FinancePortalGate } from "@/components/FinancePortalGate";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AccountNotActive } from "@/components/AccountNotActive";
 import { LoadingScreen } from "@/components/LoadingScreen";
@@ -73,6 +75,27 @@ const PendingApprovals = lazy(() => import("./pages/PendingApprovals"));
 const DispatchReview = lazy(() => import("./pages/DispatchReview"));
 const AllDispatches = lazy(() => import("./pages/AllDispatches"));
 const GatePassView = lazy(() => import("./pages/GatePassView"));
+const FinanceDashboard = lazy(() => import("./pages/finance/FinanceDashboard"));
+const FinanceSettings = lazy(() => import("./pages/finance/FinanceSettings"));
+const InvoiceList = lazy(() => import("./pages/finance/InvoiceList"));
+const InvoiceForm = lazy(() => import("./pages/finance/InvoiceForm"));
+const InvoiceDetail = lazy(() => import("./pages/finance/InvoiceDetail"));
+const CostSheetList = lazy(() => import("./pages/finance/CostSheetList"));
+const CostSheetForm = lazy(() => import("./pages/finance/CostSheetForm"));
+const CostSheetDetail = lazy(() => import("./pages/finance/CostSheetDetail"));
+const ContractList = lazy(() => import("./pages/finance/ContractList"));
+const ContractForm = lazy(() => import("./pages/finance/ContractForm"));
+const ContractDetail = lazy(() => import("./pages/finance/ContractDetail"));
+const BuyerList = lazy(() => import("./pages/finance/BuyerList"));
+const BuyerProfileDetail = lazy(() => import("./pages/finance/BuyerProfileDetail"));
+const LCList = lazy(() => import("./pages/finance/LCList"));
+const LCDetail = lazy(() => import("./pages/finance/LCDetail"));
+const LCForm = lazy(() => import("./pages/finance/LCForm"));
+const LCSettings = lazy(() => import("./pages/finance/LCSettings"));
+const LCReports = lazy(() => import("./pages/finance/LCReports"));
+const ProductionFinancials = lazy(() => import("./pages/finance/ProductionFinancials"));
+const ExportCosts = lazy(() => import("./pages/finance/ExportCosts"));
+const Payments = lazy(() => import("./pages/finance/Payments"));
 const BuyerDashboard = lazy(() => import("./pages/buyer/BuyerDashboard"));
 const BuyerTodayUpdates = lazy(() => import("./pages/buyer/BuyerTodayUpdates"));
 const BuyerSubmissions = lazy(() => import("./pages/buyer/BuyerSubmissions"));
@@ -221,6 +244,35 @@ function AppRoutes() {
         <Route path="/dispatch/review/:id" element={<SubscriptionGate><ProtectedRoute adminOnly><DispatchReview /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/dispatch/all" element={<SubscriptionGate><ProtectedRoute adminOnly><AllDispatches /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/dispatch/pass/:id" element={<SubscriptionGate><ProtectedRoute allowedRoles={['gate_officer', 'admin', 'owner']}><GatePassView /></ProtectedRoute></SubscriptionGate>} />
+      </Route>
+
+      {/* Finance Portal routes */}
+      <Route element={<FinanceLayout />}>
+        <Route path="/finance/dashboard" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><FinanceDashboard /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/invoices" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><InvoiceList /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/invoices/new" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><InvoiceForm /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/invoices/:id" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><InvoiceDetail /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/invoices/:id/edit" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><InvoiceForm /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/costing" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><CostSheetList /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/costing/new" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><CostSheetForm /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/costing/:id" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><CostSheetDetail /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/costing/:id/edit" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><CostSheetForm /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/contracts" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><ContractList /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/contracts/new" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><ContractForm /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/contracts/:id" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><ContractDetail /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/contracts/:id/edit" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><ContractForm /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/buyers" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><BuyerList /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/buyers/:id" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><BuyerProfileDetail /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/lc" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><LCList /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/lc/new" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><LCForm /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/lc/settings" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><LCSettings /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/lc/reports" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><LCReports /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/lc/:id" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><LCDetail /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/lc/:id/edit" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><LCForm /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/production-financials" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><ProductionFinancials /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/export-costs" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><ExportCosts /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/payments" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><Payments /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finance/settings" element={<SubscriptionGate><ProtectedRoute adminOnly><FinancePortalGate><FinanceSettings /></FinancePortalGate></ProtectedRoute></SubscriptionGate>} />
       </Route>
 
       {/* Buyer portal routes */}

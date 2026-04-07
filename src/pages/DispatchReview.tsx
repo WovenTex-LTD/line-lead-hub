@@ -165,7 +165,7 @@ export default function DispatchReview() {
           ) : (
             <XCircle className="h-4 w-4 shrink-0" />
           )}
-          <span className="text-sm font-medium capitalize">
+          <span className="text-sm font-medium capitalize min-w-0">
             This request was {request.status}
             {request.reviewed_at && ` on ${format(new Date(request.reviewed_at), "MMM d, yyyy 'at' h:mm a")}`}
           </span>
