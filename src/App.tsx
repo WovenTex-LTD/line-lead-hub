@@ -81,8 +81,8 @@ const BuyerWorkspaceSelector = lazy(() => import("./pages/buyer/BuyerWorkspaceSe
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: true,
-      staleTime: 1000 * 30, // 30s — prevents hammering on rapid tab switches
+      refetchOnWindowFocus: false, // Disabled — tab switches were causing full data refetches that reset form state
+      staleTime: 1000 * 60 * 5, // 5 minutes — data stays fresh longer, reducing unnecessary refetches
     },
   },
 });

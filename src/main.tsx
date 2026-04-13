@@ -37,16 +37,15 @@ if ("serviceWorker" in navigator) {
     // Reload the page when a new service worker takes control.
     // This handles the case where the new SW activates (skipWaiting + clients.claim)
     // and ensures users always run the latest code.
-    let swRefreshing = false;
+    // When a new service worker takes control, clear stale caches but DON'T
+    // hard-reload — the version check hook already handles deployment updates
+    // on a 1-minute interval. A hard reload here destroys unsaved form data.
     navigator.serviceWorker.addEventListener("controllerchange", async () => {
-      if (swRefreshing) return;
-      swRefreshing = true;
-      // Clear all caches before reloading so the browser fetches everything fresh
       if ("caches" in window) {
         const keys = await caches.keys();
         await Promise.all(keys.map((k) => caches.delete(k)));
       }
-      window.location.reload();
+      // The next navigation or periodic version check will pick up new assets.
     });
 
     window.addEventListener("load", () => {

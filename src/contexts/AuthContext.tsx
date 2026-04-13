@@ -87,17 +87,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       (event, session) => {
         if (!isMounted) return;
 
+        if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+          // Token refreshed or session re-emitted (e.g. tab became visible).
+          // Don't update state to avoid re-renders that unmount forms.
+          return;
+        }
+
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // On sign-in, set loading=true BEFORE the async fetchUserData starts.
-          // Without this, React flushes user (set) + loading (still false) + profile (still null)
-          // and Auth.tsx's redirect useEffect fires prematurely, sending everyone to /setup/factory.
-          if (event === 'SIGNED_IN') {
+          // Only fetch user data if this is a genuinely new sign-in (different user
+          // or first time). Supabase fires SIGNED_IN on _recoverAndRefresh when the
+          // tab becomes visible — skip that to avoid loading flips that destroy forms.
+          if (lastFetchedUserId.current !== session.user.id) {
             setLoading(true);
+            fetchUserData(session.user.id);
           }
-          fetchUserData(session.user.id);
         } else {
           setProfile(null);
           setRoles([]);
@@ -120,36 +126,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    // Re-validate session when tab becomes visible (handles sign-out in other tabs)
-    const handleVisibilityChange = () => {
-      if (document.visibilityState !== 'visible' || !isMounted) return;
-
-      supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-        if (!isMounted) return;
-
-        if (!currentSession && lastFetchedUserId.current) {
-          // Session was removed in another tab — clear local state
-          setSession(null);
-          setUser(null);
-          setProfile(null);
-          setRoles([]);
-          setFactory(null);
-          setErrorLoggerUserContext(null, null);
-          lastFetchedUserId.current = null;
-        } else if (currentSession?.user?.id && currentSession.user.id !== lastFetchedUserId.current) {
-          // Session user changed — re-fetch user data
-          setSession(currentSession);
-          setUser(currentSession.user);
-          fetchUserData(currentSession.user.id);
-        }
-      });
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    // No manual visibilitychange handler needed — Supabase's GoTrue client
+    // already listens for visibility changes internally and refreshes the
+    // session token when the tab becomes visible. That fires onAuthStateChange
+    // with TOKEN_REFRESHED (handled above as a no-op). Adding our own handler
+    // was double-triggering getSession() calls and causing state churn.
 
     return () => {
       isMounted = false;
       subscription.unsubscribe();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 

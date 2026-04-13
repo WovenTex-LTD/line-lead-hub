@@ -2,12 +2,11 @@ import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 /**
- * Polls /version.json to detect new deployments.
+ * Polls /version.json every minute to detect new deployments.
  * When a newer build is found, shows a toast and hard-reloads after a short delay
  * so every user automatically gets the latest code.
  *
- * Also checks immediately when the tab becomes visible (e.g. user switches back
- * after the app was in the background).
+ * Does NOT check on tab visibility change to avoid destroying unsaved form data.
  *
  * The hook is a no-op in development (VITE_BUILD_ID is only defined in prod builds).
  */
@@ -77,13 +76,9 @@ export function useVersionCheck() {
       }
     }
 
-    // Check when tab becomes visible (user switches back after being away)
-    function onVisibilityChange() {
-      if (document.visibilityState === "visible") {
-        check();
-      }
-    }
-    document.addEventListener("visibilitychange", onVisibilityChange);
+    // Don't check on visibility change — it causes hard reloads that destroy
+    // unsaved form data. The periodic interval is sufficient to pick up new
+    // deployments within a minute.
 
     // First check shortly after mount (give the page time to settle)
     const initial = setTimeout(check, 3_000);
@@ -93,7 +88,6 @@ export function useVersionCheck() {
     return () => {
       clearTimeout(initial);
       clearInterval(timer);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
 }
