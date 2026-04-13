@@ -61,6 +61,7 @@ interface WorkOrder {
   target_per_hour: number | null;
   target_per_day: number | null;
   line_id: string | null;
+  planned_ex_factory: string | null;
 }
 
 interface Stage {
@@ -125,7 +126,6 @@ export default function SewingUpdate() {
   // SECTION D - Tracking fields
   const [currentStage, setCurrentStage] = useState("");
   const [stageProgress, setStageProgress] = useState("");
-  const [estimatedExFactory, setEstimatedExFactory] = useState<Date | undefined>();
   const [nextMilestone, setNextMilestone] = useState("");
 
   // SECTION E - Photos and Notes
@@ -351,7 +351,6 @@ export default function SewingUpdate() {
         // Tracking fields
         stage_id: currentStage || null,
         stage_progress: stageProgressValue,
-        estimated_ex_factory: estimatedExFactory ? format(estimatedExFactory, 'yyyy-MM-dd') : null,
         next_milestone: nextMilestoneLabel,
         
         // No blocker from production form - use separate blocker form
@@ -587,6 +586,15 @@ export default function SewingUpdate() {
                   <p className="font-medium text-sm">{smv || "-"}</p>
                 </div>
               </div>
+              {(() => {
+                const po = workOrders.find(w => w.id === selectedPO);
+                return po?.planned_ex_factory ? (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">{t('sewing.estimatedExFactory')}</Label>
+                    <p className="font-medium text-sm">{new Date(po.planned_ex_factory + "T00:00:00").toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                  </div>
+                ) : null;
+              })()}
             </CardContent>
           </Card>
         )}
@@ -745,33 +753,6 @@ export default function SewingUpdate() {
                 </SelectContent>
               </Select>
               {errors.stageProgress && <p className="text-xs text-destructive">{errors.stageProgress}</p>}
-            </div>
-
-            {/* Estimated ExFactory */}
-            <div className="space-y-2">
-              <Label>{t('sewing.estimatedExFactory')}</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full h-12 justify-start text-left font-normal",
-                      !estimatedExFactory && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {estimatedExFactory ? format(estimatedExFactory, "PPP") : t('common.optional')}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={estimatedExFactory}
-                    onSelect={setEstimatedExFactory}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
             </div>
 
             {/* Next Milestone */}

@@ -45,6 +45,7 @@ interface WorkOrder {
   item: string | null;
   order_qty: number;
   line_id: string | null;
+  planned_ex_factory: string | null;
 }
 
 interface Unit {
@@ -79,7 +80,6 @@ const sewingTargetSchema = z.object({
   planned_stage_id: z.string().min(1, "Stage is required"),
   planned_stage_progress: z.string().min(1, "Progress is required"),
   next_milestone: z.string().min(1, "Milestone is required"),
-  estimated_ex_factory: z.string().optional(),
   remarks: z.string().max(1000, "Remarks too long").optional(),
 });
 
@@ -112,7 +112,6 @@ export default function SewingMorningTargets() {
   const [plannedStageId, setPlannedStageId] = useState("");
   const [plannedStageProgress, setPlannedStageProgress] = useState("");
   const [nextMilestone, setNextMilestone] = useState("");
-  const [estimatedExFactory, setEstimatedExFactory] = useState("");
   const [remarks, setRemarks] = useState("");
 
   // Auto-filled
@@ -212,7 +211,6 @@ export default function SewingMorningTargets() {
       planned_stage_id: plannedStageId,
       planned_stage_progress: plannedStageProgress,
       next_milestone: nextMilestone,
-      estimated_ex_factory: estimatedExFactory || undefined,
       remarks: remarks || undefined,
     };
 
@@ -283,7 +281,6 @@ export default function SewingMorningTargets() {
         planned_stage_id: plannedStageId,
         planned_stage_progress: parseInt(plannedStageProgress),
         next_milestone: nextMilestone,
-        estimated_ex_factory: estimatedExFactory || null,
         remarks: remarks || null,
         is_late: isLate,
       };
@@ -455,6 +452,12 @@ export default function SewingMorningTargets() {
                 <span className="text-[11px] text-muted-foreground">{t("forms.orderQty")}</span>
                 <p className="font-medium font-mono">{selectedWorkOrder.order_qty.toLocaleString()}</p>
               </div>
+              {selectedWorkOrder.planned_ex_factory && (
+                <div>
+                  <span className="text-[11px] text-muted-foreground">{t("forms.estimatedExFactory")}</span>
+                  <p className="font-medium">{new Date(selectedWorkOrder.planned_ex_factory + "T00:00:00").toLocaleDateString(dateLocale, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -539,10 +542,6 @@ export default function SewingMorningTargets() {
                 </SelectContent>
               </Select>
               {errors.nextMilestone && <p className="text-xs text-destructive">{errors.nextMilestone}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">{t("forms.estimatedExFactory")}</Label>
-              <Input type="date" value={estimatedExFactory} onChange={(e) => setEstimatedExFactory(e.target.value)} className="h-10" />
             </div>
           </div>
         </div>

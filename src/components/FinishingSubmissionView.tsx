@@ -49,6 +49,7 @@ export interface FinishingTargetData {
   po_number: string | null;
   buyer: string | null;
   style: string | null;
+  planned_ex_factory: string | null;
   thread_cutting: number;
   inside_check: number;
   top_side_check: number;
@@ -71,6 +72,7 @@ export interface FinishingActualData {
   po_number: string | null;
   buyer: string | null;
   style: string | null;
+  planned_ex_factory: string | null;
   thread_cutting: number;
   inside_check: number;
   top_side_check: number;
@@ -226,6 +228,7 @@ export function FinishingSubmissionView({ target, actual, open, onOpenChange, on
                 <p className="font-semibold">-</p>
               )}
             </div>
+            {primary.planned_ex_factory && <FieldDisplay label={t('forms.estimatedExFactory')} value={formatDate(primary.planned_ex_factory)} />}
           </div>
         </div>
 

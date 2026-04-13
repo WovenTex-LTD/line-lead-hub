@@ -63,6 +63,7 @@ interface FinishingDailyLog {
     po_number: string;
     style: string;
     buyer: string;
+    planned_ex_factory: string | null;
   } | null;
 }
 
@@ -93,7 +94,7 @@ export default function FinishingMySubmissions() {
         .select(`
           *,
           line:lines(line_id, name),
-          work_order:work_orders(po_number, style, buyer)
+          work_order:work_orders(po_number, style, buyer, planned_ex_factory)
         `)
         .eq("factory_id", profile!.factory_id!)
         .eq("submitted_by", user!.id)
@@ -459,6 +460,7 @@ export default function FinishingMySubmissions() {
           po_number: targetLog.work_order?.po_number ?? null,
           buyer: targetLog.work_order?.buyer ?? null,
           style: targetLog.work_order?.style ?? null,
+          planned_ex_factory: targetLog.work_order?.planned_ex_factory ?? null,
           thread_cutting: targetLog.thread_cutting,
           inside_check: targetLog.inside_check,
           top_side_check: targetLog.top_side_check,
@@ -481,6 +483,7 @@ export default function FinishingMySubmissions() {
           po_number: actualLog.work_order?.po_number ?? null,
           buyer: actualLog.work_order?.buyer ?? null,
           style: actualLog.work_order?.style ?? null,
+          planned_ex_factory: actualLog.work_order?.planned_ex_factory ?? null,
           thread_cutting: actualLog.thread_cutting,
           inside_check: actualLog.inside_check,
           top_side_check: actualLog.top_side_check,

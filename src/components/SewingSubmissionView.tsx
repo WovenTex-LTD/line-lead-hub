@@ -56,6 +56,7 @@ export interface SewingTargetData {
   planned_stage_progress: number | null;
   next_milestone: string | null;
   estimated_ex_factory: string | null;
+  planned_ex_factory: string | null;
   remarks: string | null;
 }
 
@@ -85,6 +86,7 @@ export interface SewingActualData {
   blocker_impact: string | null;
   blocker_owner: string | null;
   blocker_status: string | null;
+  planned_ex_factory: string | null;
   estimated_cost_value: number | null;
   estimated_cost_currency: string | null;
 }
@@ -212,6 +214,7 @@ export function SewingSubmissionView({ target, actual, open, onOpenChange, onEdi
               )}
             </div>
             <FieldDisplay label={t('modals.orderQty')} value={primary.order_qty} />
+            {primary.planned_ex_factory && <FieldDisplay label={t('forms.estimatedExFactory')} value={formatDate(primary.planned_ex_factory)} />}
           </div>
         </div>
 

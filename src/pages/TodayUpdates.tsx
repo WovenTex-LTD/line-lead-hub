@@ -338,37 +338,37 @@ export default function TodayUpdates() {
       const [sewingRes, sewingTargetsRes, sewingActualsRes, finishingRes, cuttingRes, cuttingTargetsRes, storageRes, notesRes] = await Promise.all([
         supabase
           .from('production_updates_sewing')
-          .select('*, lines(line_id, name), work_orders(po_number, buyer, style)')
+          .select('*, lines(line_id, name), work_orders(po_number, buyer, style, planned_ex_factory)')
           .eq('factory_id', profile.factory_id)
           .eq('production_date', today)
           .order('submitted_at', { ascending: false }),
         supabase
           .from('sewing_targets')
-          .select('*, stages:planned_stage_id(name), lines(line_id, name), work_orders(po_number, buyer, style)')
+          .select('*, stages:planned_stage_id(name), lines(line_id, name), work_orders(po_number, buyer, style, planned_ex_factory)')
           .eq('factory_id', profile.factory_id)
           .eq('production_date', today)
           .order('submitted_at', { ascending: false }),
         supabase
           .from('sewing_actuals')
-          .select('*, stages:actual_stage_id(name), lines(line_id, name), work_orders(po_number, buyer, style, cm_per_dozen)')
+          .select('*, stages:actual_stage_id(name), lines(line_id, name), work_orders(po_number, buyer, style, cm_per_dozen, planned_ex_factory)')
           .eq('factory_id', profile.factory_id)
           .eq('production_date', today)
           .order('submitted_at', { ascending: false }),
         supabase
           .from('finishing_daily_logs')
-          .select('*, lines(line_id, name), work_orders(po_number, buyer, style, cm_per_dozen)')
+          .select('*, lines(line_id, name), work_orders(po_number, buyer, style, cm_per_dozen, planned_ex_factory)')
           .eq('factory_id', profile.factory_id)
           .eq('production_date', today)
           .order('submitted_at', { ascending: false }),
         supabase
           .from('cutting_actuals')
-          .select('*, lines!cutting_actuals_line_id_fkey(line_id, name), work_orders(po_number, buyer, style, order_qty, color, cm_per_dozen)')
+          .select('*, lines!cutting_actuals_line_id_fkey(line_id, name), work_orders(po_number, buyer, style, order_qty, color, cm_per_dozen, planned_ex_factory)')
           .eq('factory_id', profile.factory_id)
           .eq('production_date', today)
           .order('submitted_at', { ascending: false }),
         supabase
           .from('cutting_targets')
-          .select('*, lines!cutting_targets_line_id_fkey(line_id, name), work_orders(po_number, buyer, style, order_qty, color)')
+          .select('*, lines!cutting_targets_line_id_fkey(line_id, name), work_orders(po_number, buyer, style, order_qty, color, planned_ex_factory)')
           .eq('factory_id', profile.factory_id)
           .eq('production_date', today)
           .order('submitted_at', { ascending: false }),
@@ -2156,6 +2156,7 @@ export default function TodayUpdates() {
             planned_stage_progress: t.planned_stage_progress,
             next_milestone: t.next_milestone,
             estimated_ex_factory: t.estimated_ex_factory,
+            planned_ex_factory: t.work_orders?.planned_ex_factory ?? null,
             remarks: t.remarks,
           };
         }
@@ -2188,6 +2189,7 @@ export default function TodayUpdates() {
             blocker_impact: a.blocker_impact,
             blocker_owner: a.blocker_owner,
             blocker_status: null,
+            planned_ex_factory: a.work_orders?.planned_ex_factory ?? null,
             estimated_cost_value: (a as any).estimated_cost_value ?? null,
             estimated_cost_currency: (a as any).estimated_cost_currency ?? null,
           };
@@ -2222,6 +2224,7 @@ export default function TodayUpdates() {
             blocker_impact: u.blocker_impact,
             blocker_owner: u.blocker_owner,
             blocker_status: u.blocker_status,
+            planned_ex_factory: u.work_orders?.planned_ex_factory ?? null,
             estimated_cost_value: (u as any).estimated_cost_value ?? null,
             estimated_cost_currency: (u as any).estimated_cost_currency ?? null,
           };
@@ -2256,6 +2259,7 @@ export default function TodayUpdates() {
               po_number: matchingTarget.work_orders?.po_number || matchingTarget.po_no || null,
               colour: matchingTarget.colour || null,
               order_qty: matchingTarget.order_qty || null,
+              planned_ex_factory: matchingTarget.work_orders?.planned_ex_factory ?? null,
               submitted_at: matchingTarget.submitted_at,
               man_power: matchingTarget.man_power,
               marker_capacity: matchingTarget.marker_capacity,
@@ -2278,6 +2282,7 @@ export default function TodayUpdates() {
               po_number: selectedCutting.po_number || null,
               colour: selectedCutting.colour || null,
               order_qty: selectedCutting.order_qty || null,
+              planned_ex_factory: (selectedCutting as any).work_orders?.planned_ex_factory ?? null,
               submitted_at: selectedCutting.submitted_at,
               man_power: selectedCutting.man_power,
               marker_capacity: selectedCutting.marker_capacity,
@@ -2344,6 +2349,7 @@ export default function TodayUpdates() {
           po_number: targetLog.work_orders?.po_number ?? null,
           buyer: targetLog.work_orders?.buyer ?? null,
           style: targetLog.work_orders?.style ?? null,
+          planned_ex_factory: targetLog.work_orders?.planned_ex_factory ?? null,
           thread_cutting: targetLog.thread_cutting || 0,
           inside_check: targetLog.inside_check || 0,
           top_side_check: targetLog.top_side_check || 0,
@@ -2366,6 +2372,7 @@ export default function TodayUpdates() {
           po_number: actualLog.work_orders?.po_number ?? null,
           buyer: actualLog.work_orders?.buyer ?? null,
           style: actualLog.work_orders?.style ?? null,
+          planned_ex_factory: actualLog.work_orders?.planned_ex_factory ?? null,
           thread_cutting: actualLog.thread_cutting || 0,
           inside_check: actualLog.inside_check || 0,
           top_side_check: actualLog.top_side_check || 0,
@@ -2410,6 +2417,7 @@ export default function TodayUpdates() {
               po_number: selectedCuttingTarget.work_orders?.po_number || selectedCuttingTarget.po_no || null,
               colour: selectedCuttingTarget.colour || null,
               order_qty: selectedCuttingTarget.order_qty || null,
+              planned_ex_factory: selectedCuttingTarget.work_orders?.planned_ex_factory ?? null,
               submitted_at: selectedCuttingTarget.submitted_at,
               man_power: selectedCuttingTarget.man_power,
               marker_capacity: selectedCuttingTarget.marker_capacity,
@@ -2432,6 +2440,7 @@ export default function TodayUpdates() {
               po_number: matchingActual.work_orders?.po_number || null,
               colour: matchingActual.colour || null,
               order_qty: matchingActual.order_qty || null,
+              planned_ex_factory: matchingActual.work_orders?.planned_ex_factory ?? null,
               submitted_at: matchingActual.submitted_at,
               man_power: matchingActual.man_power,
               marker_capacity: matchingActual.marker_capacity,

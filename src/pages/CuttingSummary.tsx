@@ -58,7 +58,7 @@ interface CuttingSubmission {
   ot_hours_actual: number | null;
   ot_manpower_actual: number | null;
   lines?: { line_id: string; name: string | null };
-  work_orders?: { po_number: string; buyer: string; style: string };
+  work_orders?: { po_number: string; buyer: string; style: string; planned_ex_factory: string | null };
 }
 
 interface Line {
@@ -96,7 +96,7 @@ export default function CuttingSummary() {
       const [actualsRes, linesRes] = await Promise.all([
         supabase
           .from("cutting_actuals")
-          .select("*, lines!cutting_actuals_line_id_fkey(line_id, name), work_orders(po_number, buyer, style)")
+          .select("*, lines!cutting_actuals_line_id_fkey(line_id, name), work_orders(po_number, buyer, style, planned_ex_factory)")
           .eq("factory_id", profile.factory_id)
           .gte("production_date", dateFrom)
           .lte("production_date", dateTo)
@@ -110,7 +110,7 @@ export default function CuttingSummary() {
 
       const { data: targetsData } = await supabase
         .from("cutting_targets")
-        .select("*, lines(line_id, name), work_orders(po_number, buyer, style)")
+        .select("*, lines(line_id, name), work_orders(po_number, buyer, style, planned_ex_factory)")
         .eq("factory_id", profile.factory_id)
         .gte("production_date", dateFrom)
         .lte("production_date", dateTo);

@@ -47,6 +47,7 @@ export interface CuttingTargetData {
   po_number: string | null;
   colour: string | null;
   order_qty: number | null;
+  planned_ex_factory: string | null;
   submitted_at: string | null;
   man_power: number | null;
   marker_capacity: number | null;
@@ -70,6 +71,7 @@ export interface CuttingActualData {
   po_number: string | null;
   colour: string | null;
   order_qty: number | null;
+  planned_ex_factory: string | null;
   submitted_at: string | null;
   man_power: number | null;
   marker_capacity: number | null;
@@ -214,6 +216,7 @@ export function CuttingSubmissionView({ target, actual, open, onOpenChange, onEd
             </div>
             <FieldDisplay label={t('cutting.colour')} value={primary.colour} />
             <FieldDisplay label={t('cutting.orderQtyLabel')} value={primary.order_qty} />
+            {primary.planned_ex_factory && <FieldDisplay label={t('forms.estimatedExFactory')} value={formatDate(primary.planned_ex_factory)} />}
           </div>
         </div>
 

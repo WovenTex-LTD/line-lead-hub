@@ -45,7 +45,7 @@ interface CuttingTarget {
   ot_manpower_planned: number | null;
   target_per_hour: number | null;
   lines?: { line_id: string; name: string | null };
-  work_orders?: { po_number: string; buyer: string; style: string };
+  work_orders?: { po_number: string; buyer: string; style: string; planned_ex_factory: string | null };
 }
 
 interface CuttingActual {
@@ -81,7 +81,7 @@ interface CuttingActual {
   hours_actual: number | null;
   actual_per_hour: number | null;
   lines?: { line_id: string; name: string | null };
-  work_orders?: { po_number: string; buyer: string; style: string };
+  work_orders?: { po_number: string; buyer: string; style: string; planned_ex_factory: string | null };
 }
 
 interface Line {
@@ -123,14 +123,14 @@ export default function CuttingAllSubmissions() {
       const [targetsRes, actualsRes, linesRes] = await Promise.all([
         supabase
           .from("cutting_targets")
-          .select("*, lines(line_id, name), work_orders(po_number, buyer, style)")
+          .select("*, lines(line_id, name), work_orders(po_number, buyer, style, planned_ex_factory)")
           .eq("factory_id", profile.factory_id)
           .gte("production_date", dateFrom)
           .lte("production_date", dateTo)
           .order("production_date", { ascending: false }),
         supabase
           .from("cutting_actuals")
-          .select("*, lines!cutting_actuals_line_id_fkey(line_id, name), work_orders(po_number, buyer, style)")
+          .select("*, lines!cutting_actuals_line_id_fkey(line_id, name), work_orders(po_number, buyer, style, planned_ex_factory)")
           .eq("factory_id", profile.factory_id)
           .gte("production_date", dateFrom)
           .lte("production_date", dateTo)
@@ -652,6 +652,7 @@ export default function CuttingAllSubmissions() {
               po_number: selectedTarget.work_orders?.po_number || selectedTarget.po_no,
               colour: selectedTarget.colour,
               order_qty: selectedTarget.order_qty,
+              planned_ex_factory: selectedTarget.work_orders?.planned_ex_factory ?? null,
               submitted_at: selectedTarget.submitted_at,
               man_power: selectedTarget.man_power,
               marker_capacity: selectedTarget.marker_capacity,
@@ -674,6 +675,7 @@ export default function CuttingAllSubmissions() {
               po_number: matchingActual.work_orders?.po_number || matchingActual.po_no,
               colour: matchingActual.colour,
               order_qty: matchingActual.order_qty,
+              planned_ex_factory: matchingActual.work_orders?.planned_ex_factory ?? null,
               submitted_at: matchingActual.submitted_at,
               man_power: matchingActual.man_power,
               marker_capacity: matchingActual.marker_capacity,
@@ -721,6 +723,7 @@ export default function CuttingAllSubmissions() {
               po_number: matchingTarget.work_orders?.po_number || matchingTarget.po_no,
               colour: matchingTarget.colour,
               order_qty: matchingTarget.order_qty,
+              planned_ex_factory: matchingTarget.work_orders?.planned_ex_factory ?? null,
               submitted_at: matchingTarget.submitted_at,
               man_power: matchingTarget.man_power,
               marker_capacity: matchingTarget.marker_capacity,
@@ -743,6 +746,7 @@ export default function CuttingAllSubmissions() {
               po_number: selectedActual.work_orders?.po_number || selectedActual.po_no,
               colour: selectedActual.colour,
               order_qty: selectedActual.order_qty,
+              planned_ex_factory: selectedActual.work_orders?.planned_ex_factory ?? null,
               submitted_at: selectedActual.submitted_at,
               man_power: selectedActual.man_power,
               marker_capacity: selectedActual.marker_capacity,

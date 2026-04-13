@@ -56,6 +56,7 @@ interface SewingTarget {
     style: string;
     buyer: string;
     order_qty: number;
+    planned_ex_factory: string | null;
   } | null;
 }
 
@@ -83,6 +84,7 @@ interface SewingActual {
     style: string;
     buyer: string;
     order_qty: number;
+    planned_ex_factory: string | null;
   } | null;
 }
 
@@ -128,7 +130,7 @@ export default function SewingMySubmissions() {
           is_late,
           submitted_at,
           line:lines(line_id, name),
-          work_order:work_orders(po_number, style, buyer, order_qty)
+          work_order:work_orders(po_number, style, buyer, order_qty, planned_ex_factory)
         `)
         .eq("factory_id", profile!.factory_id!)
         .eq("submitted_by", user!.id)
@@ -156,7 +158,7 @@ export default function SewingMySubmissions() {
           line_id,
           submitted_at,
           line:lines(line_id, name),
-          work_order:work_orders(po_number, style, buyer, order_qty)
+          work_order:work_orders(po_number, style, buyer, order_qty, planned_ex_factory)
         `)
         .eq("factory_id", profile!.factory_id!)
         .eq("submitted_by", user!.id)
@@ -614,6 +616,7 @@ export default function SewingMySubmissions() {
           buyer: t.work_order?.buyer || null,
           style: t.work_order?.style || null,
           order_qty: t.work_order?.order_qty ?? null,
+          planned_ex_factory: t.work_order?.planned_ex_factory ?? null,
           submitted_at: t.submitted_at,
           per_hour_target: t.per_hour_target,
           manpower_planned: t.manpower_planned,
@@ -637,6 +640,7 @@ export default function SewingMySubmissions() {
           buyer: ma.work_order?.buyer || null,
           style: ma.work_order?.style || null,
           order_qty: ma.work_order?.order_qty ?? null,
+          planned_ex_factory: ma.work_order?.planned_ex_factory ?? null,
           submitted_at: ma.submitted_at,
           good_today: ma.good_today,
           reject_today: ma.reject_today,
@@ -680,6 +684,7 @@ export default function SewingMySubmissions() {
           buyer: a.work_order?.buyer || null,
           style: a.work_order?.style || null,
           order_qty: a.work_order?.order_qty ?? null,
+          planned_ex_factory: a.work_order?.planned_ex_factory ?? null,
           submitted_at: a.submitted_at,
           good_today: a.good_today,
           reject_today: a.reject_today,
@@ -712,6 +717,7 @@ export default function SewingMySubmissions() {
           buyer: mt.work_order?.buyer || null,
           style: mt.work_order?.style || null,
           order_qty: mt.work_order?.order_qty ?? null,
+          planned_ex_factory: mt.work_order?.planned_ex_factory ?? null,
           submitted_at: mt.submitted_at,
           per_hour_target: mt.per_hour_target,
           manpower_planned: mt.manpower_planned,

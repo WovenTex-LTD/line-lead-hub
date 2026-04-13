@@ -431,7 +431,7 @@ export default function Dashboard() {
         // Fetch sewing targets
         supabase
           .from('sewing_targets')
-          .select('*, stages:planned_stage_id(name), lines(id, line_id, name), work_orders(po_number, buyer, style)', { count: 'exact' })
+          .select('*, stages:planned_stage_id(name), lines(id, line_id, name), work_orders(po_number, buyer, style, planned_ex_factory)', { count: 'exact' })
           .eq('factory_id', profile.factory_id)
           .eq('production_date', today)
           .order('submitted_at', { ascending: false }),
@@ -439,7 +439,7 @@ export default function Dashboard() {
         // Fetch finishing targets
         supabase
           .from('finishing_targets')
-          .select('*, lines(id, line_id, name), work_orders(po_number, buyer, style)', { count: 'exact' })
+          .select('*, lines(id, line_id, name), work_orders(po_number, buyer, style, planned_ex_factory)', { count: 'exact' })
           .eq('factory_id', profile.factory_id)
           .eq('production_date', today)
           .order('submitted_at', { ascending: false }),
@@ -447,7 +447,7 @@ export default function Dashboard() {
         // Fetch sewing end of day (actuals)
         supabase
           .from('sewing_actuals')
-          .select('*, stages:actual_stage_id(name), lines(id, line_id, name), work_orders(po_number, buyer, style, order_qty, cm_per_dozen)', { count: 'exact' })
+          .select('*, stages:actual_stage_id(name), lines(id, line_id, name), work_orders(po_number, buyer, style, order_qty, cm_per_dozen, planned_ex_factory)', { count: 'exact' })
           .eq('factory_id', profile.factory_id)
           .eq('production_date', today)
           .order('submitted_at', { ascending: false }),
@@ -455,7 +455,7 @@ export default function Dashboard() {
         // Fetch finishing daily logs
         supabase
           .from('finishing_daily_logs')
-          .select('*, lines(id, line_id, name), work_orders(po_number, buyer, style, cm_per_dozen)', { count: 'exact' })
+          .select('*, lines(id, line_id, name), work_orders(po_number, buyer, style, cm_per_dozen, planned_ex_factory)', { count: 'exact' })
           .eq('factory_id', profile.factory_id)
           .eq('production_date', today)
           .order('submitted_at', { ascending: false }),
@@ -463,7 +463,7 @@ export default function Dashboard() {
         // Fetch cutting targets
         supabase
           .from('cutting_targets')
-          .select('*, lines(id, line_id, name), work_orders(po_number, buyer, style, color)', { count: 'exact' })
+          .select('*, lines(id, line_id, name), work_orders(po_number, buyer, style, color, planned_ex_factory)', { count: 'exact' })
           .eq('factory_id', profile.factory_id)
           .eq('production_date', today)
           .order('submitted_at', { ascending: false }),
@@ -471,7 +471,7 @@ export default function Dashboard() {
         // Fetch cutting actuals
         supabase
           .from('cutting_actuals')
-          .select('*, lines!cutting_actuals_line_id_fkey(id, line_id, name), work_orders(po_number, buyer, style, color, cm_per_dozen)', { count: 'exact' })
+          .select('*, lines!cutting_actuals_line_id_fkey(id, line_id, name), work_orders(po_number, buyer, style, color, cm_per_dozen, planned_ex_factory)', { count: 'exact' })
           .eq('factory_id', profile.factory_id)
           .eq('production_date', today)
           .order('submitted_at', { ascending: false }),
@@ -555,6 +555,7 @@ export default function Dashboard() {
         planned_stage_progress: t.planned_stage_progress,
         next_milestone: t.next_milestone,
         estimated_ex_factory: t.estimated_ex_factory,
+        planned_ex_factory: t.work_orders?.planned_ex_factory ?? null,
         order_qty: t.order_qty,
         remarks: t.remarks,
         submitted_at: t.submitted_at,
@@ -576,6 +577,7 @@ export default function Dashboard() {
         m_power_planned: t.m_power_planned,
         day_hour_planned: t.day_hour_planned,
         day_over_time_planned: t.day_over_time_planned,
+        planned_ex_factory: t.work_orders?.planned_ex_factory ?? null,
         order_qty: t.order_qty,
         remarks: t.remarks,
         submitted_at: t.submitted_at,
@@ -623,6 +625,7 @@ export default function Dashboard() {
           actual_stage_progress: u.actual_stage_progress,
           actual_per_hour: u.actual_per_hour ?? null,
           order_qty: u.work_orders?.order_qty ?? null,
+          planned_ex_factory: u.work_orders?.planned_ex_factory ?? null,
           estimated_cost_value: u.estimated_cost_value ?? null,
           estimated_cost_currency: u.estimated_cost_currency ?? null,
           cm_per_dozen: u.work_orders?.cm_per_dozen ?? null,
@@ -652,6 +655,7 @@ export default function Dashboard() {
           total_poly: log.poly || 0,
           total_carton: log.carton || 0,
           cm_per_dozen: log.work_orders?.cm_per_dozen ?? null,
+          planned_ex_factory: log.work_orders?.planned_ex_factory ?? null,
         };
       });
 
@@ -679,6 +683,7 @@ export default function Dashboard() {
         ot_manpower_planned: c.ot_manpower_planned ?? null,
         hours_planned: c.hours_planned ?? null,
         target_per_hour: c.target_per_hour ?? null,
+        planned_ex_factory: c.work_orders?.planned_ex_factory ?? null,
       }));
 
       // Format cutting submissions (actuals)
@@ -716,6 +721,7 @@ export default function Dashboard() {
         leftover_photo_urls: c.leftover_photo_urls ?? null,
         actual_per_hour: c.actual_per_hour ?? null,
         cm_per_dozen: c.work_orders?.cm_per_dozen ?? null,
+        planned_ex_factory: c.work_orders?.planned_ex_factory ?? null,
       }));
 
       // Format storage bin cards
@@ -1774,6 +1780,7 @@ export default function Dashboard() {
               blocker_impact: eod.blocker_impact,
               blocker_owner: eod.blocker_owner,
               blocker_status: eod.blocker_status,
+              planned_ex_factory: eod.planned_ex_factory ?? null,
               estimated_cost_value: eod.estimated_cost_value ?? null,
               estimated_cost_currency: eod.estimated_cost_currency ?? null,
             };
@@ -1801,6 +1808,7 @@ export default function Dashboard() {
                 planned_stage_progress: mt.planned_stage_progress ?? null,
                 next_milestone: mt.next_milestone ?? null,
                 estimated_ex_factory: mt.estimated_ex_factory ?? null,
+                planned_ex_factory: mt.planned_ex_factory ?? null,
                 remarks: mt.remarks ?? null,
               };
             }
@@ -1826,6 +1834,7 @@ export default function Dashboard() {
               planned_stage_progress: tgt.planned_stage_progress ?? null,
               next_milestone: tgt.next_milestone ?? null,
               estimated_ex_factory: tgt.estimated_ex_factory ?? null,
+              planned_ex_factory: tgt.planned_ex_factory ?? null,
               remarks: tgt.remarks ?? null,
             };
             const ma = sewingEndOfDay.find(e =>
@@ -1860,6 +1869,7 @@ export default function Dashboard() {
                 blocker_impact: ma.blocker_impact,
                 blocker_owner: ma.blocker_owner,
                 blocker_status: ma.blocker_status,
+                planned_ex_factory: ma.planned_ex_factory ?? null,
                 estimated_cost_value: ma.estimated_cost_value ?? null,
                 estimated_cost_currency: ma.estimated_cost_currency ?? null,
               };
@@ -1902,6 +1912,7 @@ export default function Dashboard() {
           po_number: targetLog.work_orders?.po_number ?? null,
           buyer: targetLog.work_orders?.buyer ?? null,
           style: targetLog.work_orders?.style ?? null,
+          planned_ex_factory: targetLog.work_orders?.planned_ex_factory ?? null,
           thread_cutting: targetLog.thread_cutting || 0,
           inside_check: targetLog.inside_check || 0,
           top_side_check: targetLog.top_side_check || 0,
@@ -1924,6 +1935,7 @@ export default function Dashboard() {
           po_number: actualLog.work_orders?.po_number ?? null,
           buyer: actualLog.work_orders?.buyer ?? null,
           style: actualLog.work_orders?.style ?? null,
+          planned_ex_factory: actualLog.work_orders?.planned_ex_factory ?? null,
           thread_cutting: actualLog.thread_cutting || 0,
           inside_check: actualLog.inside_check || 0,
           top_side_check: actualLog.top_side_check || 0,
@@ -1968,6 +1980,7 @@ export default function Dashboard() {
               po_number: matchingTarget.po_number,
               colour: matchingTarget.colour,
               order_qty: matchingTarget.order_qty,
+              planned_ex_factory: matchingTarget.planned_ex_factory ?? null,
               submitted_at: matchingTarget.submitted_at,
               man_power: matchingTarget.man_power,
               marker_capacity: matchingTarget.marker_capacity,
@@ -1990,6 +2003,7 @@ export default function Dashboard() {
               po_number: selectedCutting.po_number,
               colour: selectedCutting.colour,
               order_qty: selectedCutting.order_qty,
+              planned_ex_factory: selectedCutting.planned_ex_factory ?? null,
               submitted_at: selectedCutting.submitted_at,
               man_power: selectedCutting.man_power,
               marker_capacity: selectedCutting.marker_capacity,
@@ -2038,6 +2052,7 @@ export default function Dashboard() {
               po_number: selectedCuttingTarget.po_number,
               colour: selectedCuttingTarget.colour,
               order_qty: selectedCuttingTarget.order_qty,
+              planned_ex_factory: selectedCuttingTarget.planned_ex_factory ?? null,
               submitted_at: selectedCuttingTarget.submitted_at,
               man_power: selectedCuttingTarget.man_power,
               marker_capacity: selectedCuttingTarget.marker_capacity,
@@ -2060,6 +2075,7 @@ export default function Dashboard() {
               po_number: matchingActual.po_number,
               colour: matchingActual.colour,
               order_qty: matchingActual.order_qty,
+              planned_ex_factory: matchingActual.planned_ex_factory ?? null,
               submitted_at: matchingActual.submitted_at,
               man_power: matchingActual.man_power,
               marker_capacity: matchingActual.marker_capacity,

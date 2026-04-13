@@ -59,7 +59,7 @@ interface SewingTarget {
   is_late: boolean | null;
   stages: { name: string } | null;
   lines: { line_id: string; name: string | null } | null;
-  work_orders: { po_number: string; buyer: string; style: string; order_qty: number } | null;
+  work_orders: { po_number: string; buyer: string; style: string; order_qty: number; planned_ex_factory: string | null } | null;
 }
 
 interface FinishingTarget {
@@ -74,7 +74,7 @@ interface FinishingTarget {
   production_date: string;
   is_late: boolean | null;
   lines: { line_id: string; name: string | null } | null;
-  work_orders: { po_number: string; buyer: string; style: string; order_qty: number } | null;
+  work_orders: { po_number: string; buyer: string; style: string; order_qty: number; planned_ex_factory: string | null } | null;
 }
 
 // Types for actuals/end of day
@@ -103,7 +103,7 @@ interface SewingActual {
   estimated_cost_currency: string | null;
   stages: { name: string } | null;
   lines: { line_id: string; name: string | null } | null;
-  work_orders: { po_number: string; buyer: string; style: string; order_qty: number } | null;
+  work_orders: { po_number: string; buyer: string; style: string; order_qty: number; planned_ex_factory: string | null } | null;
 }
 
 interface FinishingActual {
@@ -132,7 +132,7 @@ interface FinishingActual {
   estimated_cost_value: number | null;
   estimated_cost_currency: string | null;
   lines: { line_id: string; name: string | null } | null;
-  work_orders: { po_number: string; buyer: string; style: string; order_qty: number } | null;
+  work_orders: { po_number: string; buyer: string; style: string; order_qty: number; planned_ex_factory: string | null } | null;
 }
 
 type CategoryType = 'targets' | 'actuals';
@@ -219,7 +219,7 @@ export default function AllSubmissions() {
       ] = await Promise.all([
         supabase
           .from('sewing_targets')
-          .select('*, stages:planned_stage_id(name), lines(line_id, name), work_orders(po_number, buyer, style, order_qty)')
+          .select('*, stages:planned_stage_id(name), lines(line_id, name), work_orders(po_number, buyer, style, order_qty, planned_ex_factory)')
           .eq('factory_id', profile.factory_id)
           .gte('production_date', startDateStr)
           .lte('production_date', endDateStr)
@@ -227,7 +227,7 @@ export default function AllSubmissions() {
           .order('submitted_at', { ascending: false }),
         supabase
           .from('finishing_targets')
-          .select('*, lines(line_id, name), work_orders(po_number, buyer, style, order_qty)')
+          .select('*, lines(line_id, name), work_orders(po_number, buyer, style, order_qty, planned_ex_factory)')
           .eq('factory_id', profile.factory_id)
           .gte('production_date', startDateStr)
           .lte('production_date', endDateStr)
@@ -235,7 +235,7 @@ export default function AllSubmissions() {
           .order('submitted_at', { ascending: false }),
         supabase
           .from('sewing_actuals')
-          .select('*, stages:actual_stage_id(name), lines(line_id, name), work_orders(po_number, buyer, style, order_qty)')
+          .select('*, stages:actual_stage_id(name), lines(line_id, name), work_orders(po_number, buyer, style, order_qty, planned_ex_factory)')
           .eq('factory_id', profile.factory_id)
           .gte('production_date', startDateStr)
           .lte('production_date', endDateStr)
@@ -243,7 +243,7 @@ export default function AllSubmissions() {
           .order('submitted_at', { ascending: false }),
         supabase
           .from('finishing_actuals')
-          .select('*, lines(line_id, name), work_orders(po_number, buyer, style, order_qty)')
+          .select('*, lines(line_id, name), work_orders(po_number, buyer, style, order_qty, planned_ex_factory)')
           .eq('factory_id', profile.factory_id)
           .gte('production_date', startDateStr)
           .lte('production_date', endDateStr)
@@ -251,7 +251,7 @@ export default function AllSubmissions() {
           .order('submitted_at', { ascending: false }),
         supabase
           .from('cutting_targets')
-          .select('*, lines(line_id, name), work_orders(po_number, buyer, style, order_qty)')
+          .select('*, lines(line_id, name), work_orders(po_number, buyer, style, order_qty, planned_ex_factory)')
           .eq('factory_id', profile.factory_id)
           .gte('production_date', startDateStr)
           .lte('production_date', endDateStr)
@@ -259,7 +259,7 @@ export default function AllSubmissions() {
           .order('submitted_at', { ascending: false }),
         supabase
           .from('cutting_actuals')
-          .select('*, lines!cutting_actuals_line_id_fkey(line_id, name), work_orders(po_number, buyer, style, order_qty)')
+          .select('*, lines!cutting_actuals_line_id_fkey(line_id, name), work_orders(po_number, buyer, style, order_qty, planned_ex_factory)')
           .eq('factory_id', profile.factory_id)
           .gte('production_date', startDateStr)
           .lte('production_date', endDateStr)
@@ -274,7 +274,7 @@ export default function AllSubmissions() {
           .order('created_at', { ascending: false }),
         supabase
           .from('finishing_daily_logs')
-          .select('*, lines(line_id, name), work_orders(po_number, buyer, style, order_qty)')
+          .select('*, lines(line_id, name), work_orders(po_number, buyer, style, order_qty, planned_ex_factory)')
           .eq('factory_id', profile.factory_id)
           .gte('production_date', startDateStr)
           .lte('production_date', endDateStr)
@@ -1027,6 +1027,7 @@ export default function AllSubmissions() {
           buyer: t.work_orders?.buyer || null,
           style: t.work_orders?.style || null,
           order_qty: t.work_orders?.order_qty ?? null,
+          planned_ex_factory: t.work_orders?.planned_ex_factory ?? null,
           submitted_at: t.submitted_at,
           per_hour_target: t.per_hour_target,
           manpower_planned: t.manpower_planned,
@@ -1048,6 +1049,7 @@ export default function AllSubmissions() {
           buyer: a.work_orders?.buyer || null,
           style: a.work_orders?.style || null,
           order_qty: a.work_orders?.order_qty ?? null,
+          planned_ex_factory: a.work_orders?.planned_ex_factory ?? null,
           submitted_at: a.submitted_at,
           good_today: a.good_today,
           reject_today: a.reject_today,
