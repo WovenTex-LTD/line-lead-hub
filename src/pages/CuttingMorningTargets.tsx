@@ -482,7 +482,7 @@ export default function CuttingMorningTargets() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2 text-sm">
               <div><span className="text-[11px] text-muted-foreground">{t('cutting.buyer')}</span><p className="font-medium">{selectedWorkOrder.buyer}</p></div>
               <div><span className="text-[11px] text-muted-foreground">{t('cutting.style')}</span><p className="font-medium">{selectedWorkOrder.style}</p></div>
-              <div><span className="text-[11px] text-muted-foreground">{t('cutting.orderQty')}</span><p className="font-medium font-mono">{selectedWorkOrder.order_qty.toLocaleString()}</p></div>
+              <div><span className="text-[11px] text-muted-foreground">{t('cutting.orderQtyLabel')}</span><p className="font-medium font-mono">{selectedWorkOrder.order_qty.toLocaleString()}</p></div>
             </div>
           </div>
         )}
