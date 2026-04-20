@@ -75,7 +75,7 @@ const workOrderSchema = z.object({
   order_qty: z.number().min(0, "Cannot be negative").max(100000000, "Too high"),
   smv: z.number().min(0, "Cannot be negative").max(1000, "Too high").optional().nullable(),
   cm_per_dozen: z.number().min(0, "Cannot be negative").max(100000, "Too high").optional().nullable(),
-  planned_ex_factory: z.string().optional().nullable(),
+  planned_ex_factory: z.string().min(1, "Ex-factory date is required"),
   target_per_hour: z.number().min(0, "Cannot be negative").max(100000, "Too high").optional().nullable(),
   target_per_day: z.number().min(0, "Cannot be negative").max(1000000, "Too high").optional().nullable(),
   status: z.enum(["not_started", "in_progress", "completed", "on_hold"]),
@@ -884,12 +884,13 @@ export default function WorkOrders() {
                 {formErrors.cm_per_dozen && <p className="text-sm text-destructive">{formErrors.cm_per_dozen}</p>}
               </div>
               <div className="space-y-2">
-                <Label>Planned Ex-Factory</Label>
+                <Label>Planned Ex-Factory <span className="text-destructive">*</span></Label>
                 <Input
                   type="date"
                   value={formData.planned_ex_factory}
                   onChange={(e) => setFormData({ ...formData, planned_ex_factory: e.target.value })}
                 />
+                {formErrors.planned_ex_factory && <p className="text-sm text-destructive">{formErrors.planned_ex_factory}</p>}
               </div>
             </div>
 

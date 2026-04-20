@@ -63,6 +63,11 @@ export interface UnscheduledPO extends WorkOrder {
   daysToExFactory: number | null;
 }
 
+export interface ExFactoryDeadline {
+  date: string;
+  workOrders: { id: string; po_number: string; buyer: string; style: string; order_qty: number; isScheduled: boolean }[];
+}
+
 export interface ScheduleFormData {
   id?: string;
   work_order_id: string;
@@ -263,6 +268,28 @@ export function useProductionSchedule({ visibleRange, filters }: UseProductionSc
     return Array.from(set).sort();
   }, [workOrdersQuery.data]);
 
+  // Ex-factory deadlines grouped by date (for deadline strip)
+  const deadlines: ExFactoryDeadline[] = useMemo(() => {
+    if (!workOrdersQuery.data) return [];
+    const byDate = new Map<string, ExFactoryDeadline["workOrders"]>();
+    for (const wo of workOrdersQuery.data) {
+      if (!wo.planned_ex_factory) continue;
+      const list = byDate.get(wo.planned_ex_factory) ?? [];
+      list.push({
+        id: wo.id,
+        po_number: wo.po_number,
+        buyer: wo.buyer,
+        style: wo.style,
+        order_qty: wo.order_qty,
+        isScheduled: scheduledWoIds.has(wo.id),
+      });
+      byDate.set(wo.planned_ex_factory, list);
+    }
+    return Array.from(byDate.entries())
+      .map(([date, workOrders]) => ({ date, workOrders }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [workOrdersQuery.data, scheduledWoIds]);
+
   // ── Mutations ────────────────────────────────────────────────────────
 
   const createSchedule = useMutation({
@@ -327,6 +354,7 @@ export function useProductionSchedule({ visibleRange, filters }: UseProductionSc
     visibleSchedules,
     unscheduledPOs,
     schedulesWithDetails,
+    deadlines,
     buyers,
     kpis,
     isLoading,

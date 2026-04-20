@@ -21,7 +21,7 @@ export default function Schedule() {
 
   const {
     lines, schedulesByLine, visibleSchedules, unscheduledPOs, schedulesWithDetails,
-    buyers, kpis, isLoading, createSchedule, updateSchedule, deleteSchedule,
+    deadlines, buyers, kpis, isLoading, createSchedule, updateSchedule, deleteSchedule,
   } = useProductionSchedule({
     visibleRange: timeline.visibleRange,
     filters: {
@@ -120,6 +120,7 @@ export default function Schedule() {
           <TimelinePlanner
             lines={lines}
             schedulesByLine={schedulesByLine}
+            deadlines={deadlines}
             visibleRange={timeline.visibleRange}
             viewMode={timeline.viewMode}
             onBarClick={handleBarClick}

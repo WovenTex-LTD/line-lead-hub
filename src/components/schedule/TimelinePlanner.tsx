@@ -1,18 +1,20 @@
 import { format } from "date-fns";
 import { TimelineHeader } from "./TimelineHeader";
 import { TimelineRow } from "./TimelineRow";
+import { DeadlineStrip } from "./DeadlineStrip";
 import type { ViewMode } from "@/hooks/useTimelineState";
-import type { FactoryLine, ScheduleWithDetails } from "@/hooks/useProductionSchedule";
+import type { FactoryLine, ScheduleWithDetails, ExFactoryDeadline } from "@/hooks/useProductionSchedule";
 
 interface Props {
   lines: FactoryLine[];
   schedulesByLine: Map<string, ScheduleWithDetails[]>;
+  deadlines: ExFactoryDeadline[];
   visibleRange: { start: Date; end: Date };
   viewMode: ViewMode;
   onBarClick: (schedule: ScheduleWithDetails) => void;
 }
 
-export function TimelinePlanner({ lines, schedulesByLine, visibleRange, viewMode, onBarClick }: Props) {
+export function TimelinePlanner({ lines, schedulesByLine, deadlines, visibleRange, viewMode, onBarClick }: Props) {
   const dayWidth = viewMode === "week" ? 120 : 40;
 
   return (
@@ -33,6 +35,14 @@ export function TimelinePlanner({ lines, schedulesByLine, visibleRange, viewMode
       <div className="overflow-x-auto">
         <div style={{ minWidth: viewMode === "week" ? "auto" : 1240 }}>
           <TimelineHeader visibleRange={visibleRange} viewMode={viewMode} dayWidth={dayWidth} />
+
+          {/* Deadline strip — shows all ex-factory dates as markers */}
+          <DeadlineStrip
+            deadlines={deadlines}
+            visibleRange={visibleRange}
+            viewMode={viewMode}
+            dayWidth={dayWidth}
+          />
 
           {lines.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-52 text-center">
