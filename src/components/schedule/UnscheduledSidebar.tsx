@@ -27,12 +27,12 @@ export function UnscheduledSidebar({ unscheduledPOs, onSchedule }: Props) {
   const atRiskCount = groups.find((g) => g.key === "at_risk")?.items.length ?? 0;
 
   return (
-    <div className="w-full lg:w-auto shrink-0">
+    <div className="w-full shrink-0">
       {/* Collapsed state — compact trigger bar */}
       {!expanded && (
         <button
           onClick={() => setExpanded(true)}
-          className="w-full lg:w-[280px] flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-slate-200 bg-white shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-150"
+          className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-slate-200 bg-white shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-150"
         >
           <div className="flex items-center gap-2.5">
             <ListTodo className="h-4 w-4 text-slate-400" />
@@ -52,7 +52,7 @@ export function UnscheduledSidebar({ unscheduledPOs, onSchedule }: Props) {
 
       {/* Expanded state — full sidebar */}
       {expanded && (
-        <div className="w-full lg:w-[320px] lg:sticky lg:top-0 lg:self-start lg:max-h-[calc(100vh-200px)] lg:overflow-y-auto">
+        <div className="w-full max-h-[calc(100vh-420px)] overflow-y-auto">
           <div className="border border-slate-200 rounded-xl bg-white shadow-sm ring-1 ring-slate-900/[0.03] overflow-hidden">
             {/* Header with collapse button */}
             <button

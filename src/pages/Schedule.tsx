@@ -120,20 +120,28 @@ export default function Schedule() {
         onRowSizeChange={setRowSize}
       />
 
-      {/* Main layout: Mini calendar + Timeline + Sidebar */}
+      {/* Main layout: Left panel (calendar + unscheduled) + Timeline */}
       <div className="flex flex-col lg:flex-row gap-4">
-        {/* Left: Mini calendar */}
-        <div className="hidden lg:block w-[200px] shrink-0">
-          <div className="sticky top-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-            <MiniCalendar
-              anchorDate={timeline.anchorDate}
-              visibleRange={timeline.visibleRange}
-              onDateClick={timeline.goToDate}
-            />
+        {/* Left: Mini calendar + Unscheduled orders */}
+        <div className="hidden lg:flex lg:flex-col lg:gap-3 w-[240px] shrink-0">
+          <div className="sticky top-0 space-y-3">
+            <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+              <MiniCalendar
+                anchorDate={timeline.anchorDate}
+                visibleRange={timeline.visibleRange}
+                onDateClick={timeline.goToDate}
+              />
+            </div>
+            <UnscheduledSidebar unscheduledPOs={unscheduledPOs} onSchedule={handleScheduleUnscheduled} />
           </div>
         </div>
 
-        {/* Center: Timeline planner */}
+        {/* Mobile: Unscheduled orders */}
+        <div className="lg:hidden">
+          <UnscheduledSidebar unscheduledPOs={unscheduledPOs} onSchedule={handleScheduleUnscheduled} />
+        </div>
+
+        {/* Main: Timeline planner */}
         <div className="flex-1 min-w-0">
           <TimelinePlanner
             lines={lines}
@@ -145,9 +153,6 @@ export default function Schedule() {
             onBarClick={handleBarClick}
           />
         </div>
-
-        {/* Right: Unscheduled sidebar (collapsed by default) */}
-        <UnscheduledSidebar unscheduledPOs={unscheduledPOs} onSchedule={handleScheduleUnscheduled} />
       </div>
 
       {/* Modal */}
