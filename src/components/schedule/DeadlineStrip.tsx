@@ -1,7 +1,6 @@
 import { useMemo } from "react";
-import { eachDayOfInterval, format, parseISO, differenceInDays, isWeekend, isSameDay } from "date-fns";
+import { eachDayOfInterval, format, parseISO, differenceInDays, isWeekend } from "date-fns";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Flag } from "lucide-react";
 import type { ViewMode } from "@/hooks/useTimelineState";
 import type { ExFactoryDeadline } from "@/hooks/useProductionSchedule";
 
@@ -30,7 +29,6 @@ export function DeadlineStrip({ deadlines, visibleRange, viewMode, dayWidth }: P
   const days = eachDayOfInterval(visibleRange);
   const isMonth = viewMode === "month";
 
-  // Flatten all POs into individual cards positioned at their ex-factory date
   const cards: DeadlineCard[] = useMemo(() => {
     const result: DeadlineCard[] = [];
     for (const d of deadlines) {
@@ -38,24 +36,13 @@ export function DeadlineStrip({ deadlines, visibleRange, viewMode, dayWidth }: P
       if (date < visibleRange.start || date > visibleRange.end) continue;
       const dayOffset = differenceInDays(date, visibleRange.start);
       const daysFromNow = differenceInDays(date, new Date());
-      const isPast = daysFromNow < 0;
-      const isUrgent = daysFromNow >= 0 && daysFromNow <= 14;
-
       for (const wo of d.workOrders) {
-        result.push({
-          ...wo,
-          date: d.date,
-          dayOffset,
-          daysFromNow,
-          isPast,
-          isUrgent,
-        });
+        result.push({ ...wo, date: d.date, dayOffset, daysFromNow, isPast: daysFromNow < 0, isUrgent: daysFromNow >= 0 && daysFromNow <= 14 });
       }
     }
     return result;
   }, [deadlines, visibleRange]);
 
-  // Group cards by day column for stacking
   const cardsByDay = useMemo(() => {
     const map = new Map<number, DeadlineCard[]>();
     for (const card of cards) {
@@ -66,105 +53,54 @@ export function DeadlineStrip({ deadlines, visibleRange, viewMode, dayWidth }: P
     return map;
   }, [cards]);
 
-  // Calculate row height based on max stack
   const maxStack = useMemo(() => {
     let max = 0;
-    for (const list of cardsByDay.values()) {
-      if (list.length > max) max = list.length;
-    }
+    for (const list of cardsByDay.values()) { if (list.length > max) max = list.length; }
     return max;
   }, [cardsByDay]);
 
-  const cardHeight = isMonth ? 18 : 24;
-  const cardGap = 2;
-  const stripPadding = 6;
-  const stripHeight = maxStack > 0
-    ? stripPadding * 2 + maxStack * cardHeight + (maxStack - 1) * cardGap
-    : 36;
+  if (cards.length === 0) return null;
+
+  const cardH = isMonth ? 16 : 22;
+  const gap = 2;
+  const pad = 5;
+  const stripH = pad * 2 + maxStack * cardH + Math.max(0, maxStack - 1) * gap;
 
   return (
-    <div className="flex border-b border-slate-200 bg-gradient-to-r from-red-50/30 via-rose-50/20 to-white">
-      {/* Label column */}
-      <div className="w-[176px] shrink-0 border-r-2 border-slate-200 px-5 flex items-center bg-red-50/40">
-        <div className="flex items-center gap-1.5">
-          <Flag className="h-3 w-3 text-red-400" />
-          <span className="text-[9px] font-semibold uppercase tracking-[0.08em] text-red-400">Deadlines</span>
-        </div>
+    <div className="flex border-b border-red-100 bg-red-50/20">
+      <div className="w-[176px] shrink-0 border-r border-slate-200 px-4 flex items-center bg-red-50/30">
+        <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-red-400">Ex-Factory</span>
       </div>
 
-      {/* Cards area */}
-      <div className="relative flex-1" style={{ height: stripHeight }}>
-        {/* Background grid columns */}
+      <div className="relative flex-1" style={{ height: stripH }}>
+        {/* Grid */}
         <div className="flex h-full absolute inset-0">
-          {days.map((day, i) => {
-            const isMonday = day.getDay() === 1;
-            const hasDeadline = cards.some((c) => c.dayOffset === i);
-            return (
-              <div
-                key={day.toISOString()}
-                className={`h-full
-                  ${isMonday && i > 0 ? "border-l border-slate-200/80" : "border-l border-slate-100/70"}
-                  ${isWeekend(day) ? "bg-slate-50/40" : ""}
-                  ${hasDeadline ? "bg-red-50/20" : ""}
-                `}
-                style={{ width: dayWidth, minWidth: dayWidth }}
-              />
-            );
-          })}
+          {days.map((day, i) => (
+            <div key={day.toISOString()} className={`h-full ${day.getDay() === 1 && i > 0 ? "border-l border-slate-200/60" : "border-l border-slate-100/50"} ${isWeekend(day) ? "bg-slate-50/30" : ""}`} style={{ width: dayWidth, minWidth: dayWidth }} />
+          ))}
         </div>
 
-        {/* Deadline cards — positioned absolutely within each day column */}
-        {cards.map((card, cardIndex) => {
-          // Find stack index within this day
+        {/* Cards */}
+        {cards.map((card) => {
           const dayCards = cardsByDay.get(card.dayOffset) ?? [];
-          const stackIndex = dayCards.indexOf(card);
-          const top = stripPadding + stackIndex * (cardHeight + cardGap);
-          const left = card.dayOffset * dayWidth;
-
+          const stackIdx = dayCards.indexOf(card);
+          const top = pad + stackIdx * (cardH + gap);
           return (
             <Tooltip key={card.id}>
               <TooltipTrigger asChild>
                 <div
-                  className={`absolute rounded cursor-default transition-all duration-100 hover:shadow-md hover:z-20
-                    border bg-red-50/80 border-red-200/80 hover:border-red-300
-                    flex items-center whitespace-nowrap px-2
-                  `}
-                  style={{
-                    top,
-                    left: left + 2,
-                    height: cardHeight,
-                  }}
+                  className="absolute rounded-[4px] border border-red-200/70 bg-red-50 hover:bg-red-100/80 hover:border-red-300 hover:z-20 flex items-center whitespace-nowrap px-1.5 cursor-default transition-colors duration-100"
+                  style={{ top, left: card.dayOffset * dayWidth + 2, height: cardH }}
                 >
-                  <span className={`${isMonth ? "text-[7px]" : "text-[9px]"} font-bold text-red-700/80 leading-none`}>
-                    {card.po_number}
-                  </span>
+                  <span className={`${isMonth ? "text-[7px]" : "text-[9px]"} font-bold text-red-600/70`}>{card.po_number}</span>
                 </div>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-[240px] p-3">
-                <div className="space-y-1.5">
-                  <p className="text-[12px] font-bold text-foreground">{card.po_number}</p>
-                  <p className="text-[11px] text-muted-foreground">{card.buyer} · {card.style}</p>
-                  <div className="h-px bg-border my-1" />
-                  <p className="text-[11px] text-foreground">
-                    Ex-Factory: {format(parseISO(card.date), "d MMM yyyy")}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground tabular-nums">
-                    {card.order_qty.toLocaleString()} pcs
-                  </p>
-                  {card.isPast ? (
-                    <p className="text-[10px] font-semibold text-red-600">{Math.abs(card.daysFromNow)}d overdue</p>
-                  ) : (
-                    <p className={`text-[10px] font-semibold ${card.isUrgent ? "text-amber-600" : "text-slate-500"}`}>
-                      {card.daysFromNow}d remaining
-                    </p>
-                  )}
-                  {!card.isScheduled && (
-                    <div className="flex items-center gap-1 mt-1">
-                      <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                      <span className="text-[9px] font-semibold text-amber-600">Not yet scheduled</span>
-                    </div>
-                  )}
-                </div>
+              <TooltipContent side="bottom" className="max-w-[220px] p-2.5">
+                <p className="text-[12px] font-bold">{card.po_number}</p>
+                <p className="text-[10px] text-muted-foreground">{card.buyer} · {card.style}</p>
+                <p className="text-[10px] text-muted-foreground mt-1">Ex: {format(parseISO(card.date), "d MMM yyyy")} · {card.order_qty.toLocaleString()} pcs</p>
+                {card.isPast && <p className="text-[10px] font-semibold text-red-600 mt-1">{Math.abs(card.daysFromNow)}d overdue</p>}
+                {!card.isScheduled && <p className="text-[9px] font-semibold text-amber-600 mt-1">Not yet scheduled</p>}
               </TooltipContent>
             </Tooltip>
           );

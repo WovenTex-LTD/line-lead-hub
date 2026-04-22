@@ -1,11 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, format, isSameMonth, isToday,
   isSameDay, addMonths, subMonths, isWithinInterval,
 } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useState } from "react";
 
 interface Props {
   anchorDate: Date;
@@ -16,7 +15,6 @@ interface Props {
 export function MiniCalendar({ anchorDate, visibleRange, onDateClick }: Props) {
   const [displayMonth, setDisplayMonth] = useState(() => startOfMonth(anchorDate));
 
-  // Recalculate grid when displayMonth changes
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(displayMonth);
     const monthEnd = endOfMonth(displayMonth);
@@ -27,50 +25,50 @@ export function MiniCalendar({ anchorDate, visibleRange, onDateClick }: Props) {
 
   return (
     <div className="select-none">
-      {/* Month navigation */}
-      <div className="flex items-center justify-between mb-2">
+      {/* Month nav */}
+      <div className="flex items-center justify-between mb-3">
         <button
-          className="h-6 w-6 flex items-center justify-center rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+          className="h-6 w-6 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
           onClick={() => setDisplayMonth((d) => subMonths(d, 1))}
         >
           <ChevronLeft className="h-3.5 w-3.5" />
         </button>
-        <span className="text-[11px] font-bold text-slate-700 tracking-tight">
+        <span className="text-[12px] font-bold text-slate-800">
           {format(displayMonth, "MMMM yyyy")}
         </span>
         <button
-          className="h-6 w-6 flex items-center justify-center rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+          className="h-6 w-6 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
           onClick={() => setDisplayMonth((d) => addMonths(d, 1))}
         >
           <ChevronRight className="h-3.5 w-3.5" />
         </button>
       </div>
 
-      {/* Day-of-week headers */}
-      <div className="grid grid-cols-7 mb-0.5">
-        {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
-          <div key={i} className="h-5 flex items-center justify-center">
-            <span className="text-[9px] font-semibold text-slate-400 uppercase">{d}</span>
+      {/* Weekday headers */}
+      <div className="grid grid-cols-7 mb-1">
+        {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d, i) => (
+          <div key={i} className="h-6 flex items-center justify-center">
+            <span className={`text-[10px] font-semibold ${i >= 5 ? "text-slate-300" : "text-slate-400"}`}>{d}</span>
           </div>
         ))}
       </div>
 
       {/* Day grid */}
-      <div className="grid grid-cols-7">
+      <div className="grid grid-cols-7 gap-y-0.5">
         {calendarDays.map((day) => {
           const inMonth = isSameMonth(day, displayMonth);
           const today = isToday(day);
-          const inVisibleRange = isWithinInterval(day, { start: visibleRange.start, end: visibleRange.end });
+          const inRange = isWithinInterval(day, { start: visibleRange.start, end: visibleRange.end });
           const isAnchor = isSameDay(day, anchorDate);
 
           return (
             <button
               key={day.toISOString()}
-              className={`h-7 w-full flex items-center justify-center rounded-md text-[11px] font-medium tabular-nums transition-all duration-100
-                ${!inMonth ? "text-slate-300" : "text-slate-600 hover:bg-slate-100"}
-                ${today ? "font-bold text-blue-600" : ""}
-                ${inVisibleRange && inMonth ? "bg-blue-50 text-blue-700" : ""}
-                ${isAnchor ? "bg-blue-600 text-white hover:bg-blue-700" : ""}
+              className={`h-8 w-full flex items-center justify-center rounded-full text-[11px] tabular-nums transition-all duration-75
+                ${!inMonth ? "text-slate-250 hover:text-slate-400" : "text-slate-600 hover:bg-slate-100"}
+                ${inRange && inMonth && !isAnchor && !today ? "bg-blue-50/80 text-blue-700 font-medium" : ""}
+                ${today && !isAnchor ? "font-bold text-blue-600 ring-1 ring-blue-200" : ""}
+                ${isAnchor ? "bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-sm" : ""}
               `}
               onClick={() => onDateClick(day)}
             >
