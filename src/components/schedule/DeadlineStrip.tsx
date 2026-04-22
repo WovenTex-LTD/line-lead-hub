@@ -121,33 +121,23 @@ export function DeadlineStrip({ deadlines, visibleRange, viewMode, dayWidth }: P
           const top = stripPadding + stackIndex * (cardHeight + cardGap);
           const left = card.dayOffset * dayWidth;
 
-          // Card width = dayWidth with small padding
-          const cardWidth = Math.max(dayWidth - 4, 32);
-
           return (
             <Tooltip key={card.id}>
               <TooltipTrigger asChild>
                 <div
                   className={`absolute rounded cursor-default transition-all duration-100 hover:shadow-md hover:z-20
                     border bg-red-50/80 border-red-200/80 hover:border-red-300
-                    flex items-center overflow-hidden
-                    ${isMonth ? "px-1" : "px-2"}
+                    flex items-center whitespace-nowrap px-2
                   `}
                   style={{
                     top,
                     left: left + 2,
-                    width: cardWidth,
                     height: cardHeight,
                   }}
                 >
-                  <span className={`${isMonth ? "text-[7px]" : "text-[9px]"} font-bold text-red-700/80 truncate leading-none`}>
+                  <span className={`${isMonth ? "text-[7px]" : "text-[9px]"} font-bold text-red-700/80 leading-none`}>
                     {card.po_number}
                   </span>
-                  {!isMonth && dayWidth >= 80 && (
-                    <span className="text-[8px] text-red-500/60 truncate ml-1 leading-none">
-                      {card.buyer}
-                    </span>
-                  )}
                 </div>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-[240px] p-3">
