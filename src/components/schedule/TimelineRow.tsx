@@ -6,19 +6,10 @@ import type { ViewMode } from "@/hooks/useTimelineState";
 import type { FactoryLine, ScheduleWithDetails } from "@/hooks/useProductionSchedule";
 import type { RowSize } from "@/pages/Schedule";
 
-const LANE_HEIGHTS: Record<RowSize, number> = {
-  compact: 28,
-  default: 38,
-  expanded: 48,
-};
-
-const LANE_GAP = 2;
-const ROW_PADDING = 5;
-const MIN_ROW_HEIGHT: Record<RowSize, number> = {
-  compact: 42,
-  default: 56,
-  expanded: 72,
-};
+const LANE_HEIGHTS: Record<RowSize, number> = { compact: 30, default: 40, expanded: 50 };
+const LANE_GAP = 3;
+const ROW_PADDING = 6;
+const MIN_ROW: Record<RowSize, number> = { compact: 44, default: 56, expanded: 68 };
 
 interface Props {
   line: FactoryLine;
@@ -28,13 +19,12 @@ interface Props {
   dayWidth: number;
   rowSize: RowSize;
   onBarClick: (schedule: ScheduleWithDetails) => void;
-  isEven: boolean;
+  isLast: boolean;
 }
 
-export function TimelineRow({ line, schedules, visibleRange, viewMode, dayWidth, rowSize, onBarClick, isEven }: Props) {
+export function TimelineRow({ line, schedules, visibleRange, viewMode, dayWidth, rowSize, onBarClick, isLast }: Props) {
   const days = eachDayOfInterval(visibleRange);
   const isEmpty = schedules.length === 0;
-  const activeSchedules = schedules.filter((s) => s.status !== "completed");
 
   const segments = useMemo(
     () => computeSegments(schedules, visibleRange.start, visibleRange.end),
@@ -42,97 +32,80 @@ export function TimelineRow({ line, schedules, visibleRange, viewMode, dayWidth,
   );
 
   const maxLanes = useMemo(() => {
-    let max = 0;
-    for (const seg of segments) {
-      if (seg.totalLanes > max) max = seg.totalLanes;
-    }
-    return Math.max(max, 1);
+    let m = 0;
+    for (const s of segments) if (s.totalLanes > m) m = s.totalLanes;
+    return Math.max(m, 1);
   }, [segments]);
 
-  const baseLaneHeight = LANE_HEIGHTS[rowSize];
-  const laneHeight = maxLanes === 1 ? baseLaneHeight : Math.max(Math.floor(baseLaneHeight * 0.7), 22);
-  const computedHeight = ROW_PADDING * 2 + maxLanes * laneHeight + Math.max(0, maxLanes - 1) * LANE_GAP;
-  const rowHeight = Math.max(computedHeight, MIN_ROW_HEIGHT[rowSize]);
+  const laneH = maxLanes === 1 ? LANE_HEIGHTS[rowSize] : Math.max(Math.floor(LANE_HEIGHTS[rowSize] * 0.72), 24);
+  const rowH = Math.max(ROW_PADDING * 2 + maxLanes * laneH + Math.max(0, maxLanes - 1) * LANE_GAP, MIN_ROW[rowSize]);
 
   const hasRisk = useMemo(() =>
-    activeSchedules.some((s) => {
-      if (!s.workOrder.planned_ex_factory) return false;
-      return parseISO(s.end_date) > parseISO(s.workOrder.planned_ex_factory);
-    }),
-  [activeSchedules]);
+    schedules.some(s => s.status !== "completed" && s.workOrder.planned_ex_factory && parseISO(s.end_date) > parseISO(s.workOrder.planned_ex_factory)),
+  [schedules]);
 
-  const todayIndex = useMemo(() => {
-    const offset = differenceInDays(new Date(), visibleRange.start);
-    return offset >= 0 && offset < days.length ? offset : -1;
+  const todayIdx = useMemo(() => {
+    const o = differenceInDays(new Date(), visibleRange.start);
+    return o >= 0 && o < days.length ? o : -1;
   }, [visibleRange.start, days.length]);
 
   return (
     <div
-      className={`flex group/row transition-colors duration-75
-        ${isEven ? "bg-white" : "bg-slate-50/30"}
-        hover:bg-blue-50/[0.06]
+      className={`flex transition-colors duration-75 group/row
+        ${isEmpty ? "bg-white" : "bg-white hover:bg-slate-50/40"}
+        ${!isLast ? "border-b border-slate-100/80" : ""}
       `}
-      style={{ height: rowHeight }}
+      style={{ height: rowH }}
     >
       {/* Line label */}
-      <div className={`w-[176px] shrink-0 border-r border-slate-200 px-4 flex items-center gap-2.5 bg-slate-50/50
-        ${!isEmpty ? "border-l-[3px] border-l-blue-400/60" : "border-l-[3px] border-l-transparent"}
-      `}>
+      <div className="w-[160px] shrink-0 border-r border-slate-200/60 px-4 flex items-center">
         <div className="flex flex-col min-w-0">
-          <span className={`text-[12px] font-bold tracking-tight ${isEmpty ? "text-slate-350" : "text-slate-700"}`}>
+          <span className={`text-[13px] font-semibold tracking-tight ${isEmpty ? "text-slate-300" : "text-slate-800"}`}>
             {line.line_id}
           </span>
           {line.name && rowSize !== "compact" && (
-            <span className="text-[10px] text-slate-400 truncate leading-tight mt-0.5">{line.name}</span>
+            <span className="text-[10px] text-slate-400 truncate mt-0.5">{line.name}</span>
           )}
         </div>
-        {hasRisk && (
-          <div className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" title="Ex-factory risk" />
-        )}
+        {hasRisk && <div className="w-1.5 h-1.5 rounded-full bg-red-500 ml-auto shrink-0" />}
       </div>
 
-      {/* Grid + bars */}
-      <div className="relative flex-1 border-b border-slate-100/80">
+      {/* Grid */}
+      <div className="relative flex-1">
         <div className="flex h-full">
-          {days.map((day, i) => {
-            const weekend = isWeekend(day);
-            const isMonday = day.getDay() === 1;
-            return (
-              <div
-                key={day.toISOString()}
-                className={`h-full
-                  ${isMonday && i > 0 ? "border-l border-slate-200/60" : "border-l border-slate-100/50"}
-                  ${weekend ? "bg-slate-50/50" : ""}
-                `}
-                style={{ width: dayWidth, minWidth: dayWidth }}
-              />
-            );
-          })}
+          {days.map((day, i) => (
+            <div
+              key={day.toISOString()}
+              className={`h-full
+                ${i > 0 ? "border-l border-slate-100/60" : ""}
+                ${isWeekend(day) ? "bg-slate-50/30" : ""}
+                ${isToday(day) ? "bg-blue-50/30" : ""}
+              `}
+              style={{ width: dayWidth, minWidth: dayWidth }}
+            />
+          ))}
         </div>
 
         {isEmpty && (
-          <div className="absolute inset-0 flex items-center pointer-events-none px-6">
-            <div className="w-full border-t border-dashed border-slate-150" />
+          <div className="absolute inset-0 flex items-center px-8 pointer-events-none">
+            <div className="w-full border-t border-dashed border-slate-100" />
           </div>
         )}
 
-        {todayIndex >= 0 && (
+        {todayIdx >= 0 && (
           <div
-            className="absolute top-0 bottom-0 pointer-events-none z-10"
-            style={{ left: todayIndex * dayWidth + dayWidth / 2 - 0.75 }}
-          >
-            <div className="w-[1.5px] h-full bg-blue-500/50" />
-            <div className="absolute -top-[3px] left-1/2 -translate-x-1/2 w-[7px] h-[7px] rounded-full bg-blue-500 border-2 border-white" />
-          </div>
+            className="absolute top-0 bottom-0 w-[1.5px] bg-slate-900/15 pointer-events-none z-10"
+            style={{ left: todayIdx * dayWidth + dayWidth / 2 }}
+          />
         )}
 
-        {segments.map((seg) => (
+        {segments.map(seg => (
           <ScheduleBarSegment
             key={`${seg.scheduleId}-${seg.startDay}`}
             segment={seg}
             dayWidth={dayWidth}
             rowPadding={ROW_PADDING}
-            laneHeight={laneHeight}
+            laneHeight={laneH}
             laneGap={LANE_GAP}
             onClick={() => onBarClick(seg.schedule)}
           />

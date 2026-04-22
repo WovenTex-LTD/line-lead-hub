@@ -1,22 +1,18 @@
 import { useState, useCallback } from "react";
-import { CalendarRange } from "lucide-react";
-import { Loader2 } from "lucide-react";
+import { Loader2, CalendarRange, Package } from "lucide-react";
 import { useProductionSchedule, type ScheduleWithDetails, type ScheduleFormData, type UnscheduledPO, type WorkOrder } from "@/hooks/useProductionSchedule";
 import { useTimelineState } from "@/hooks/useTimelineState";
-import { ScheduleKPIStrip } from "@/components/schedule/ScheduleKPIStrip";
 import { ScheduleControls } from "@/components/schedule/ScheduleControls";
 import { TimelinePlanner } from "@/components/schedule/TimelinePlanner";
 import { UnscheduledSidebar } from "@/components/schedule/UnscheduledSidebar";
 import { ScheduleModal } from "@/components/schedule/ScheduleModal";
 import { ScheduleDetailDrawer } from "@/components/schedule/ScheduleDetailDrawer";
-import { MiniCalendar } from "@/components/schedule/MiniCalendar";
 
 export type RowSize = "compact" | "default" | "expanded";
 
 export default function Schedule() {
   const timeline = useTimelineState();
 
-  // Filters
   const [selectedLine, setSelectedLine] = useState("all");
   const [selectedBuyer, setSelectedBuyer] = useState("all");
   const [riskOnly, setRiskOnly] = useState(false);
@@ -36,19 +32,18 @@ export default function Schedule() {
     },
   });
 
-  // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [modalWorkOrder, setModalWorkOrder] = useState<WorkOrder | null>(null);
   const [editingSchedule, setEditingSchedule] = useState<ScheduleWithDetails | null>(null);
-
-  // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<ScheduleWithDetails | null>(null);
+  const [unscheduledOpen, setUnscheduledOpen] = useState(false);
 
   const handleScheduleUnscheduled = useCallback((po: UnscheduledPO) => {
     setModalWorkOrder(po as WorkOrder);
     setEditingSchedule(null);
     setModalOpen(true);
+    setUnscheduledOpen(false);
   }, []);
 
   const handleBarClick = useCallback((schedule: ScheduleWithDetails) => {
@@ -77,28 +72,38 @@ export default function Schedule() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+        <Loader2 className="h-5 w-5 animate-spin text-slate-300" />
       </div>
     );
   }
 
   return (
-    <div className="py-3 md:py-4 lg:py-6 space-y-4 md:space-y-6 overflow-x-hidden">
-      {/* Header */}
-      <div className="flex items-start gap-3">
-        <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
-          <CalendarRange className="h-5 w-5 text-blue-600" />
+    <div className="py-4 lg:py-6 space-y-5">
+      {/* ── Header: title + inline metrics ── */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-slate-900 flex items-center justify-center">
+            <CalendarRange className="h-4 w-4 text-white" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-slate-900 tracking-tight leading-none">Production Schedule</h1>
+            <p className="text-[12px] text-slate-400 mt-0.5">Line allocation & deadline tracking</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Production Schedule</h1>
-          <p className="text-sm text-slate-500">Plan and track production line allocation across orders</p>
+
+        {/* Inline metrics — not cards, just numbers */}
+        <div className="hidden md:flex items-center gap-6">
+          <Metric label="Scheduled" value={kpis.scheduledCount} />
+          <div className="w-px h-8 bg-slate-100" />
+          <Metric label="Unscheduled" value={kpis.unscheduledCount} warn={kpis.unscheduledCount > 0} />
+          <div className="w-px h-8 bg-slate-100" />
+          <Metric label="Lines active" value={kpis.linesInUse} />
+          <div className="w-px h-8 bg-slate-100" />
+          <Metric label="At risk" value={kpis.exFactoryRisks} danger={kpis.exFactoryRisks > 0} />
         </div>
       </div>
 
-      {/* KPI Strip */}
-      <ScheduleKPIStrip kpis={kpis} />
-
-      {/* Controls */}
+      {/* ── Command bar ── */}
       <ScheduleControls
         viewMode={timeline.viewMode}
         onViewModeChange={timeline.setViewMode}
@@ -120,42 +125,40 @@ export default function Schedule() {
         onRowSizeChange={setRowSize}
       />
 
-      {/* Main layout: Left panel (calendar + unscheduled) + Timeline */}
-      <div className="flex flex-col lg:flex-row gap-4">
-        {/* Left: Mini calendar + Unscheduled orders */}
-        <div className="hidden lg:flex lg:flex-col lg:gap-3 w-[240px] shrink-0">
-          <div className="sticky top-0 space-y-3">
-            <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-              <MiniCalendar
-                anchorDate={timeline.anchorDate}
-                visibleRange={timeline.visibleRange}
-                onDateClick={timeline.goToDate}
-              />
-            </div>
-            <UnscheduledSidebar unscheduledPOs={unscheduledPOs} onSchedule={handleScheduleUnscheduled} />
-          </div>
-        </div>
+      {/* ── Planner — the hero ── */}
+      <TimelinePlanner
+        lines={lines}
+        schedulesByLine={schedulesByLine}
+        deadlines={deadlines}
+        visibleRange={timeline.visibleRange}
+        viewMode={timeline.viewMode}
+        rowSize={rowSize}
+        onBarClick={handleBarClick}
+      />
 
-        {/* Mobile: Unscheduled orders */}
-        <div className="lg:hidden">
-          <UnscheduledSidebar unscheduledPOs={unscheduledPOs} onSchedule={handleScheduleUnscheduled} />
-        </div>
+      {/* ── Floating unscheduled trigger ── */}
+      {unscheduledPOs.length > 0 && (
+        <button
+          onClick={() => setUnscheduledOpen(true)}
+          className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 pl-4 pr-5 h-11 rounded-full bg-slate-900 text-white shadow-lg shadow-slate-900/20 hover:bg-slate-800 hover:shadow-xl transition-all duration-200"
+        >
+          <Package className="h-4 w-4" />
+          <span className="text-[13px] font-semibold">{kpis.unscheduledCount} unscheduled</span>
+          {kpis.exFactoryRisks > 0 && (
+            <span className="ml-0.5 h-5 px-1.5 rounded-full bg-red-500 text-[10px] font-bold flex items-center">{kpis.exFactoryRisks}</span>
+          )}
+        </button>
+      )}
 
-        {/* Main: Timeline planner */}
-        <div className="flex-1 min-w-0">
-          <TimelinePlanner
-            lines={lines}
-            schedulesByLine={schedulesByLine}
-            deadlines={deadlines}
-            visibleRange={timeline.visibleRange}
-            viewMode={timeline.viewMode}
-            rowSize={rowSize}
-            onBarClick={handleBarClick}
-          />
-        </div>
-      </div>
+      {/* ── Unscheduled orders drawer ── */}
+      <UnscheduledSidebar
+        unscheduledPOs={unscheduledPOs}
+        onSchedule={handleScheduleUnscheduled}
+        open={unscheduledOpen}
+        onOpenChange={setUnscheduledOpen}
+      />
 
-      {/* Modal */}
+      {/* ── Schedule modal ── */}
       <ScheduleModal
         open={modalOpen}
         onOpenChange={setModalOpen}
@@ -167,7 +170,7 @@ export default function Schedule() {
         isPending={createSchedule.isPending || updateSchedule.isPending}
       />
 
-      {/* Drawer */}
+      {/* ── Detail drawer ── */}
       <ScheduleDetailDrawer
         schedule={selectedSchedule}
         open={drawerOpen}
@@ -175,6 +178,20 @@ export default function Schedule() {
         onEdit={handleEdit}
         onDelete={handleDelete}
       />
+    </div>
+  );
+}
+
+/** Inline metric — just a label + number, no card wrapper */
+function Metric({ label, value, warn, danger }: { label: string; value: number; warn?: boolean; danger?: boolean }) {
+  return (
+    <div className="text-right">
+      <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400">{label}</p>
+      <p className={`text-[22px] font-extrabold tabular-nums leading-none mt-0.5 tracking-tight
+        ${danger ? "text-red-600" : warn ? "text-amber-600" : "text-slate-900"}
+      `}>
+        {value}
+      </p>
     </div>
   );
 }

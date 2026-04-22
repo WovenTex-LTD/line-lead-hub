@@ -1,6 +1,5 @@
 import { TimelineHeader } from "./TimelineHeader";
 import { TimelineRow } from "./TimelineRow";
-import { DeadlineStrip } from "./DeadlineStrip";
 import type { ViewMode } from "@/hooks/useTimelineState";
 import type { FactoryLine, ScheduleWithDetails, ExFactoryDeadline } from "@/hooks/useProductionSchedule";
 import type { RowSize } from "@/pages/Schedule";
@@ -16,25 +15,23 @@ interface Props {
 }
 
 export function TimelinePlanner({ lines, schedulesByLine, deadlines, visibleRange, viewMode, rowSize, onBarClick }: Props) {
-  const dayWidth = viewMode === "week" ? 120 : 40;
+  const dayWidth = viewMode === "week" ? 128 : 42;
 
   return (
-    <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+    <div className="rounded-2xl bg-white border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
       <div className="overflow-x-auto">
-        <div style={{ minWidth: viewMode === "week" ? "auto" : 1240 }}>
-          <TimelineHeader visibleRange={visibleRange} viewMode={viewMode} dayWidth={dayWidth} />
-
-          <DeadlineStrip
-            deadlines={deadlines}
+        <div style={{ minWidth: viewMode === "week" ? "auto" : 1300 }}>
+          <TimelineHeader
             visibleRange={visibleRange}
             viewMode={viewMode}
             dayWidth={dayWidth}
+            deadlines={deadlines}
           />
 
           {lines.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-56 text-center">
-              <p className="text-sm font-medium text-slate-400">No active production lines</p>
-              <p className="text-[11px] text-slate-400 mt-1">Add lines in Factory Setup to start scheduling</p>
+            <div className="flex flex-col items-center justify-center h-64">
+              <p className="text-[13px] font-medium text-slate-400">No production lines configured</p>
+              <p className="text-[12px] text-slate-300 mt-1">Set up lines in Factory Setup to begin scheduling</p>
             </div>
           ) : (
             lines.map((line, i) => (
@@ -47,7 +44,7 @@ export function TimelinePlanner({ lines, schedulesByLine, deadlines, visibleRang
                 dayWidth={dayWidth}
                 rowSize={rowSize}
                 onBarClick={onBarClick}
-                isEven={i % 2 === 0}
+                isLast={i === lines.length - 1}
               />
             ))
           )}
