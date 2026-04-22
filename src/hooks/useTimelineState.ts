@@ -32,6 +32,10 @@ export function useTimelineState() {
     setAnchorDate(startOfDay(new Date()));
   }, []);
 
+  const goToDate = useCallback((date: Date) => {
+    setAnchorDate(startOfDay(date));
+  }, []);
+
   return {
     viewMode,
     setViewMode,
@@ -40,5 +44,6 @@ export function useTimelineState() {
     navigateForward,
     navigateBack,
     jumpToToday,
+    goToDate,
   };
 }

@@ -3,6 +3,19 @@ import { eachDayOfInterval, isToday, isWeekend, differenceInDays, parseISO } fro
 import { ScheduleBar } from "./ScheduleBar";
 import type { ViewMode } from "@/hooks/useTimelineState";
 import type { FactoryLine, ScheduleWithDetails } from "@/hooks/useProductionSchedule";
+import type { RowSize } from "@/pages/Schedule";
+
+const ROW_HEIGHTS: Record<RowSize, number> = {
+  compact: 48,
+  default: 68,
+  expanded: 96,
+};
+
+const BAR_CONFIG: Record<RowSize, { top: number; height: number }> = {
+  compact: { top: 6, height: 36 },
+  default: { top: 12, height: 44 },
+  expanded: { top: 14, height: 52 },
+};
 
 interface Props {
   line: FactoryLine;
@@ -10,14 +23,17 @@ interface Props {
   visibleRange: { start: Date; end: Date };
   viewMode: ViewMode;
   dayWidth: number;
+  rowSize: RowSize;
   onBarClick: (schedule: ScheduleWithDetails) => void;
   isEven: boolean;
 }
 
-export function TimelineRow({ line, schedules, visibleRange, viewMode, dayWidth, onBarClick, isEven }: Props) {
+export function TimelineRow({ line, schedules, visibleRange, viewMode, dayWidth, rowSize, onBarClick, isEven }: Props) {
   const days = eachDayOfInterval(visibleRange);
   const isEmpty = schedules.length === 0;
   const activeSchedules = schedules.filter((s) => s.status !== "completed");
+  const rowHeight = ROW_HEIGHTS[rowSize];
+  const barConfig = BAR_CONFIG[rowSize];
 
   // Detect risk state for the row
   const hasRisk = useMemo(() =>
@@ -40,7 +56,7 @@ export function TimelineRow({ line, schedules, visibleRange, viewMode, dayWidth,
         ${hasRisk ? "bg-red-50/20" : ""}
         ${isEmpty ? "" : "hover:bg-blue-50/20"}
       `}
-      style={{ height: 68 }}
+      style={{ height: rowHeight }}
     >
       {/* Fixed line label column */}
       <div className={`w-[176px] shrink-0 border-r-2 border-slate-200 px-5 flex items-center gap-3
@@ -50,11 +66,10 @@ export function TimelineRow({ line, schedules, visibleRange, viewMode, dayWidth,
           <span className={`text-[13px] font-bold tracking-tight ${isEmpty ? "text-slate-400" : "text-slate-800"}`}>
             {line.line_id}
           </span>
-          {line.name && (
+          {line.name && rowSize !== "compact" && (
             <span className="text-[10px] text-slate-400 truncate leading-tight">{line.name}</span>
           )}
         </div>
-        {/* Row-level risk dot */}
         {hasRisk && (
           <div className="w-2 h-2 rounded-full bg-red-400 shrink-0 animate-pulse" title="Ex-factory risk" />
         )}
@@ -82,7 +97,7 @@ export function TimelineRow({ line, schedules, visibleRange, viewMode, dayWidth,
           })}
         </div>
 
-        {/* Idle line indicator — subtle dashed lane */}
+        {/* Idle line indicator */}
         {isEmpty && (
           <div className="absolute inset-0 flex items-center pointer-events-none px-4">
             <div className="w-full border-t border-dashed border-slate-200/50" />
@@ -95,7 +110,6 @@ export function TimelineRow({ line, schedules, visibleRange, viewMode, dayWidth,
             className="absolute top-0 bottom-0 w-[2px] bg-blue-500/60 pointer-events-none z-10"
             style={{ left: todayIndex * dayWidth + dayWidth / 2 }}
           >
-            {/* Glow effect */}
             <div className="absolute inset-0 w-[6px] -ml-[2px] bg-blue-400/10 blur-[2px]" />
           </div>
         )}
@@ -108,6 +122,8 @@ export function TimelineRow({ line, schedules, visibleRange, viewMode, dayWidth,
             visibleStart={visibleRange.start}
             visibleEnd={visibleRange.end}
             dayWidth={dayWidth}
+            barTop={barConfig.top}
+            barHeight={barConfig.height}
             onClick={() => onBarClick(s)}
           />
         ))}

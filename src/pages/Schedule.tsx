@@ -9,6 +9,9 @@ import { TimelinePlanner } from "@/components/schedule/TimelinePlanner";
 import { UnscheduledSidebar } from "@/components/schedule/UnscheduledSidebar";
 import { ScheduleModal } from "@/components/schedule/ScheduleModal";
 import { ScheduleDetailDrawer } from "@/components/schedule/ScheduleDetailDrawer";
+import { MiniCalendar } from "@/components/schedule/MiniCalendar";
+
+export type RowSize = "compact" | "default" | "expanded";
 
 export default function Schedule() {
   const timeline = useTimelineState();
@@ -18,6 +21,7 @@ export default function Schedule() {
   const [selectedBuyer, setSelectedBuyer] = useState("all");
   const [riskOnly, setRiskOnly] = useState(false);
   const [search, setSearch] = useState("");
+  const [rowSize, setRowSize] = useState<RowSize>("default");
 
   const {
     lines, schedulesByLine, visibleSchedules, unscheduledPOs, schedulesWithDetails,
@@ -112,10 +116,24 @@ export default function Schedule() {
         onRiskOnlyChange={setRiskOnly}
         search={search}
         onSearchChange={setSearch}
+        rowSize={rowSize}
+        onRowSizeChange={setRowSize}
       />
 
-      {/* Main layout: Timeline + Sidebar */}
+      {/* Main layout: Mini calendar + Timeline + Sidebar */}
       <div className="flex flex-col lg:flex-row gap-4">
+        {/* Left: Mini calendar */}
+        <div className="hidden lg:block w-[200px] shrink-0">
+          <div className="sticky top-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <MiniCalendar
+              anchorDate={timeline.anchorDate}
+              visibleRange={timeline.visibleRange}
+              onDateClick={timeline.goToDate}
+            />
+          </div>
+        </div>
+
+        {/* Center: Timeline planner */}
         <div className="flex-1 min-w-0">
           <TimelinePlanner
             lines={lines}
@@ -123,9 +141,12 @@ export default function Schedule() {
             deadlines={deadlines}
             visibleRange={timeline.visibleRange}
             viewMode={timeline.viewMode}
+            rowSize={rowSize}
             onBarClick={handleBarClick}
           />
         </div>
+
+        {/* Right: Unscheduled sidebar (collapsed by default) */}
         <UnscheduledSidebar unscheduledPOs={unscheduledPOs} onSchedule={handleScheduleUnscheduled} />
       </div>
 

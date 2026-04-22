@@ -4,6 +4,7 @@ import { TimelineRow } from "./TimelineRow";
 import { DeadlineStrip } from "./DeadlineStrip";
 import type { ViewMode } from "@/hooks/useTimelineState";
 import type { FactoryLine, ScheduleWithDetails, ExFactoryDeadline } from "@/hooks/useProductionSchedule";
+import type { RowSize } from "@/pages/Schedule";
 
 interface Props {
   lines: FactoryLine[];
@@ -11,10 +12,11 @@ interface Props {
   deadlines: ExFactoryDeadline[];
   visibleRange: { start: Date; end: Date };
   viewMode: ViewMode;
+  rowSize: RowSize;
   onBarClick: (schedule: ScheduleWithDetails) => void;
 }
 
-export function TimelinePlanner({ lines, schedulesByLine, deadlines, visibleRange, viewMode, onBarClick }: Props) {
+export function TimelinePlanner({ lines, schedulesByLine, deadlines, visibleRange, viewMode, rowSize, onBarClick }: Props) {
   const dayWidth = viewMode === "week" ? 120 : 40;
 
   return (
@@ -36,7 +38,7 @@ export function TimelinePlanner({ lines, schedulesByLine, deadlines, visibleRang
         <div style={{ minWidth: viewMode === "week" ? "auto" : 1240 }}>
           <TimelineHeader visibleRange={visibleRange} viewMode={viewMode} dayWidth={dayWidth} />
 
-          {/* Deadline strip — shows all ex-factory dates as markers */}
+          {/* Deadline strip */}
           <DeadlineStrip
             deadlines={deadlines}
             visibleRange={visibleRange}
@@ -59,6 +61,7 @@ export function TimelinePlanner({ lines, schedulesByLine, deadlines, visibleRang
                   visibleRange={visibleRange}
                   viewMode={viewMode}
                   dayWidth={dayWidth}
+                  rowSize={rowSize}
                   onBarClick={onBarClick}
                   isEven={i % 2 === 0}
                 />

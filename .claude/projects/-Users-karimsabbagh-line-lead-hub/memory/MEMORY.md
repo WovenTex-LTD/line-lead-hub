@@ -1,3 +1,5 @@
+- [project_overview.md](project_overview.md) - Line Lead Hub: garment factory production tracking SaaS by WovenTex, multi-platform
+- [project_tech_stack.md](project_tech_stack.md) - Tech stack details, key file paths, dev commands, architecture patterns
 - [feedback_department_colors.md](feedback_department_colors.md) - Fixed color assignments: blue=sewing, purple=finishing, green=cutting, orange=storage
 - [feedback_financial_terminology.md](feedback_financial_terminology.md) - Use "Output Value", "Operating Cost", "Operating Margin" not Revenue/Cost/Profit
 - [feedback_sewing_only_financials.md](feedback_sewing_only_financials.md) - Only sewing counts for financial calculations, no cutting/finishing
@@ -5,3 +7,5 @@
 - [feedback_exclude_target_only_submissions.md](feedback_exclude_target_only_submissions.md) - Submissions with only a target and no EOD must be excluded from all statistics, charts, and data
 - [feedback_exclude_zero_submission_days.md](feedback_exclude_zero_submission_days.md) - Days with 0 submissions = factory closed; exclude from charts/insights/averages per section
 - [feedback_line_sort_order.md](feedback_line_sort_order.md) - Lines sorted numerically then alphabetically (Line 1, 2, 3 or 1A, 1B, 2A...) everywhere except Dashboard/Today Updates
+- [feedback_global_skills.md](feedback_global_skills.md) - Always install skills globally (~/.claude/skills/) so they work across all projects
+- [reference_skills_registry.md](reference_skills_registry.md) - 45 global skills installed; reinstall script at ~/.claude/SKILLS-REGISTRY.md

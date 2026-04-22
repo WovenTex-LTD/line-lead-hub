@@ -8,6 +8,8 @@ interface Props {
   visibleStart: Date;
   visibleEnd: Date;
   dayWidth: number;
+  barTop?: number;
+  barHeight?: number;
   onClick: () => void;
 }
 
@@ -33,7 +35,7 @@ function getBarStyles(schedule: ScheduleWithDetails): { bg: string; text: string
   return { bg: "bg-gradient-to-r from-blue-500 to-blue-600", text: "text-white", border: "border-blue-700/10" };
 }
 
-export function ScheduleBar({ schedule, visibleStart, visibleEnd, dayWidth, onClick }: Props) {
+export function ScheduleBar({ schedule, visibleStart, visibleEnd, dayWidth, barTop = 12, barHeight = 44, onClick }: Props) {
   const start = parseISO(schedule.start_date);
   const end = parseISO(schedule.end_date);
 
@@ -70,7 +72,7 @@ export function ScheduleBar({ schedule, visibleStart, visibleEnd, dayWidth, onCl
       <Tooltip>
         <TooltipTrigger asChild>
           <button
-            className={`absolute top-[12px] h-[44px] shadow-sm cursor-pointer
+            className={`absolute shadow-sm cursor-pointer
               transition-all duration-200 ease-out
               hover:shadow-lg hover:scale-[1.01] hover:brightness-105
               flex items-center overflow-hidden
@@ -81,6 +83,8 @@ export function ScheduleBar({ schedule, visibleStart, visibleEnd, dayWidth, onCl
               ${endsAfterView ? "rounded-r-none" : "rounded-r-lg"}
             `}
             style={{
+              top: barTop,
+              height: barHeight,
               left: `${left + 3}px`,
               width: `${width}px`,
               ...(schedule.colour && !isCompleted ? { backgroundColor: schedule.colour } : {}),
@@ -122,8 +126,8 @@ export function ScheduleBar({ schedule, visibleStart, visibleEnd, dayWidth, onCl
       {/* Ex-factory deadline marker — minimal tick */}
       {exMarkerLeft !== null && !isCompleted && (
         <div
-          className="absolute top-[8px] pointer-events-none z-[5] flex flex-col items-center"
-          style={{ left: `${exMarkerLeft - 1}px` }}
+          className="absolute pointer-events-none z-[5] flex flex-col items-center"
+          style={{ top: Math.max(barTop - 4, 2), left: `${exMarkerLeft - 1}px` }}
         >
           <div className="w-0 h-0 border-l-[3px] border-r-[3px] border-t-[4px] border-l-transparent border-r-transparent border-t-red-400/70" />
           <div className="w-[1.5px] h-[6px] bg-red-400/50" />
