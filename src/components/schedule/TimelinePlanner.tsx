@@ -19,7 +19,7 @@ export function TimelinePlanner({ lines, schedulesByLine, deadlines, visibleRang
   const dayWidth = viewMode === "week" ? 120 : 40;
 
   return (
-    <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+    <div className="rounded-xl bg-white border border-slate-200/80 shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
         <div style={{ minWidth: viewMode === "week" ? "auto" : 1240 }}>
           <TimelineHeader visibleRange={visibleRange} viewMode={viewMode} dayWidth={dayWidth} />
@@ -33,8 +33,8 @@ export function TimelinePlanner({ lines, schedulesByLine, deadlines, visibleRang
 
           {lines.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-56 text-center">
-              <p className="text-sm font-medium text-slate-400">No active production lines</p>
-              <p className="text-[11px] text-slate-400 mt-1">Add lines in Factory Setup to start scheduling</p>
+              <p className="text-[13px] font-medium text-slate-400">No active production lines</p>
+              <p className="text-[11px] text-slate-300 mt-1">Add lines in Factory Setup to start scheduling</p>
             </div>
           ) : (
             lines.map((line, i) => (
