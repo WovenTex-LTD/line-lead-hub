@@ -89,26 +89,25 @@ export function DeadlineStrip({ deadlines, visibleRange, viewMode, dayWidth }: P
           ))}
         </div>
 
-        {/* Deadline tags — small, pill-shaped, muted */}
+        {/* Deadline tags */}
         {cards.map((card) => {
           const dayCards = cardsByDay.get(card.dayOffset) ?? [];
           const stackIdx = dayCards.indexOf(card);
           const top = pad + stackIdx * (tagH + gap);
+          const tagWidth = dayWidth - 6;
 
           return (
             <Tooltip key={card.id}>
               <TooltipTrigger asChild>
                 <div
-                  className={`absolute flex items-center whitespace-nowrap px-1.5 cursor-default transition-all duration-100 rounded-full
+                  className={`absolute flex items-center justify-center cursor-default transition-all duration-100 rounded
                     ${card.isPast
                       ? "bg-red-500 text-white hover:bg-red-600"
-                      : card.isUrgent
-                        ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
-                        : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                     }
                     hover:z-20
                   `}
-                  style={{ top, left: card.dayOffset * dayWidth + 3, height: tagH }}
+                  style={{ top, left: card.dayOffset * dayWidth + 3, width: tagWidth, height: tagH }}
                 >
                   <span className={`${isMonth ? "text-[6px]" : "text-[9px]"} font-semibold leading-none`}>
                     {card.po_number}
