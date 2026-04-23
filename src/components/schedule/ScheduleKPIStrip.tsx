@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { CalendarCheck, AlertTriangle, Clock, CalendarPlus, ShieldAlert } from "lucide-react";
+import { CalendarCheck, AlertTriangle, Clock, ShieldAlert } from "lucide-react";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import type { ScheduleKPIs } from "@/hooks/useProductionSchedule";
 
@@ -9,7 +9,7 @@ interface Props {
 
 export function ScheduleKPIStrip({ kpis }: Props) {
   return (
-    <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
+    <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
 
       {/* Scheduled POs */}
       <Card className="relative overflow-hidden animate-fade-in group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-br from-blue-50 via-white to-blue-50/50 border-blue-200/60">
@@ -85,30 +85,8 @@ export function ScheduleKPIStrip({ kpis }: Props) {
         </CardContent>
       </Card>
 
-      {/* Starting This Week */}
-      <Card className="relative overflow-hidden animate-fade-in group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-br from-emerald-50 via-white to-green-50/50 border-emerald-200/60" style={{ animationDelay: '150ms' }}>
-        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-emerald-500/10 to-transparent rounded-bl-full" />
-        <div className="absolute bottom-0 left-0 w-20 h-20 bg-gradient-to-tr from-emerald-500/5 to-transparent rounded-tr-full" />
-        <CardContent className="relative pt-5 pb-4">
-          <div className="flex items-start justify-between">
-            <div className="space-y-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-600/70 flex items-center gap-1.5">
-                <CalendarPlus className="h-3.5 w-3.5" />
-                Starting This Week
-              </p>
-              <p className="text-2xl md:text-3xl font-bold font-mono tracking-tight text-emerald-900">
-                <AnimatedNumber value={kpis.startingThisWeek} />
-              </p>
-            </div>
-            <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25 group-hover:shadow-emerald-500/40 transition-shadow">
-              <CalendarPlus className="h-5 w-5 text-white" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Ex-Factory Risks */}
-      <Card className="relative overflow-hidden animate-fade-in group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-br from-red-50 via-white to-rose-50/50 border-red-200/60" style={{ animationDelay: '200ms' }}>
+      <Card className="relative overflow-hidden animate-fade-in group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-gradient-to-br from-red-50 via-white to-rose-50/50 border-red-200/60" style={{ animationDelay: '150ms' }}>
         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-red-500/10 to-transparent rounded-bl-full" />
         <div className="absolute bottom-0 left-0 w-20 h-20 bg-gradient-to-tr from-red-500/5 to-transparent rounded-tr-full" />
         <CardContent className="relative pt-5 pb-4">
