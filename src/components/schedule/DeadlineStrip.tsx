@@ -69,8 +69,11 @@ export function DeadlineStrip({ deadlines, visibleRange, viewMode, dayWidth }: P
   return (
     <div className="flex border-b border-slate-100">
       {/* Label */}
-      <div className="w-[168px] shrink-0 border-r border-slate-200 px-4 flex items-center">
-        <span className="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-400">Ex-Factory</span>
+      <div className="w-[168px] shrink-0 border-r border-slate-200 px-4 flex items-center gap-2 bg-slate-50/40">
+        <div className="h-5 w-5 rounded-md bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center shadow-sm shadow-red-500/20">
+          <svg className="h-2.5 w-2.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="m13 7-4 8 8-4"/></svg>
+        </div>
+        <span className="text-[10px] font-bold text-slate-600 tracking-tight">Deadlines</span>
       </div>
 
       {/* Tags area */}
