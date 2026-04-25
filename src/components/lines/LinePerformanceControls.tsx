@@ -1,5 +1,5 @@
 import { subDays, format } from "date-fns";
-import { Calendar as CalendarIcon, Search } from "lucide-react";
+import { Calendar as CalendarIcon, Search, CalendarRange } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
@@ -23,6 +23,7 @@ interface LinePerformanceControlsProps {
   onFiltersChange: (filters: LineFilters) => void;
   units: { id: string; name: string }[];
   floors: { id: string; name: string }[];
+  onScheduleClick?: () => void;
 }
 
 const RANGE_LABELS: Record<TimeRange, string> = {
@@ -42,6 +43,7 @@ export function LinePerformanceControls({
   onFiltersChange,
   units,
   floors,
+  onScheduleClick,
 }: LinePerformanceControlsProps) {
   const today = new Date();
   const thirtyDaysAgo = subDays(today, 30);
@@ -88,6 +90,14 @@ export function LinePerformanceControls({
             <SelectItem value="30">Last 30 days</SelectItem>
           </SelectContent>
         </Select>
+
+        {/* Schedule button */}
+        {onScheduleClick && (
+          <Button size="sm" onClick={onScheduleClick} className="gap-1.5 bg-blue-600 hover:bg-blue-700">
+            <CalendarRange className="h-3.5 w-3.5" />
+            Schedule
+          </Button>
+        )}
 
         {/* Unit filter */}
         {units.length > 1 && (

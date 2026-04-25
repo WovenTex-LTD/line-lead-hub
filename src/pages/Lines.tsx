@@ -66,13 +66,7 @@ export default function Lines() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigate("/schedule")} className="gap-1.5">
-            <CalendarRange className="h-3.5 w-3.5" />
-            Schedule
-          </Button>
-          <LineExportButton lines={filteredLines} timeRange={timeRange} dateLabel={dateLabel} />
-        </div>
+        <LineExportButton lines={filteredLines} timeRange={timeRange} dateLabel={dateLabel} />
       </div>
 
       {/* Controls bar */}
@@ -85,7 +79,7 @@ export default function Lines() {
         onFiltersChange={setFilters}
         units={units}
         floors={floors}
-
+        onScheduleClick={() => navigate("/schedule")}
       />
 
       {/* Summary KPIs */}
