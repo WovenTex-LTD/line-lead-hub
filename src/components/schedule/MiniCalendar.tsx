@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, format, isSameMonth, isToday,
@@ -14,6 +14,14 @@ interface Props {
 
 export function MiniCalendar({ anchorDate, visibleRange, onDateClick }: Props) {
   const [displayMonth, setDisplayMonth] = useState(() => startOfMonth(anchorDate));
+
+  // Sync mini calendar when planner navigates to a different month
+  useEffect(() => {
+    const anchorMonth = startOfMonth(anchorDate);
+    if (anchorMonth.getTime() !== displayMonth.getTime()) {
+      setDisplayMonth(anchorMonth);
+    }
+  }, [anchorDate]);
 
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(displayMonth);
