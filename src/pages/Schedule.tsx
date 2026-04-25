@@ -214,9 +214,9 @@ export default function Schedule() {
         {/* Main layout */}
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Left: Mini calendar + Unscheduled orders */}
-          <div className="hidden lg:flex lg:flex-col lg:gap-3 w-[240px] shrink-0">
-            <div className="sticky top-0 space-y-3">
-              <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+          <div className="hidden lg:flex lg:flex-col lg:gap-2 w-[196px] shrink-0">
+            <div className="sticky top-0 space-y-2">
+              <div className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
                 <MiniCalendar
                   anchorDate={timeline.anchorDate}
                   visibleRange={timeline.visibleRange}

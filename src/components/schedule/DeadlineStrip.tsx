@@ -65,7 +65,7 @@ export function DeadlineStrip({ deadlines, visibleRange, viewMode, dayWidth }: P
   return (
     <div className="flex border-b border-slate-100">
       {/* Label — matches line row treatment */}
-      <div className="w-[168px] shrink-0 border-r border-slate-200 border-l-[3px] border-l-red-400/60 px-4 flex items-center bg-slate-50 sticky left-0 z-20">
+      <div className="w-[148px] shrink-0 border-r border-slate-200 border-l-[3px] border-l-red-400/60 px-4 flex items-center bg-slate-50 sticky left-0 z-20">
         <span className="text-[12px] font-semibold text-slate-700 tracking-tight">Ex-Factory</span>
       </div>
 

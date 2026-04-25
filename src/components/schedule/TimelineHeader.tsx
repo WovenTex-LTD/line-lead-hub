@@ -14,7 +14,7 @@ export function TimelineHeader({ visibleRange, viewMode, dayWidth }: Props) {
   return (
     <div className="flex border-b border-slate-200 sticky top-0 z-20 bg-white">
       {/* Line column */}
-      <div className="w-[168px] shrink-0 border-r border-slate-200 px-4 py-3 flex items-end bg-slate-50 sticky left-0 z-30">
+      <div className="w-[148px] shrink-0 border-r border-slate-200 px-4 py-3 flex items-end bg-slate-50 sticky left-0 z-30">
         <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Production Line</span>
       </div>
 

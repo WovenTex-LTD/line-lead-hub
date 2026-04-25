@@ -72,7 +72,7 @@ export function TimelineRow({ line, schedules, visibleRange, viewMode, dayWidth,
       style={{ height: rowH }}
     >
       {/* Line label */}
-      <div className={`w-[168px] shrink-0 border-r border-slate-200 px-4 flex items-center gap-2 bg-slate-50 sticky left-0 z-20
+      <div className={`w-[148px] shrink-0 border-r border-slate-200 px-4 flex items-center gap-2 bg-slate-50 sticky left-0 z-20
         ${!isEmpty ? "border-l-[3px] border-l-blue-500/50" : "border-l-[3px] border-l-transparent"}
         ${isOver ? "border-l-blue-500 bg-blue-50/40" : ""}
       `}>

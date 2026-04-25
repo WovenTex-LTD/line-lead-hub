@@ -15,7 +15,6 @@ interface Props {
 export function MiniCalendar({ anchorDate, visibleRange, onDateClick }: Props) {
   const [displayMonth, setDisplayMonth] = useState(() => startOfMonth(anchorDate));
 
-  // Sync mini calendar when planner navigates to a different month
   useEffect(() => {
     const anchorMonth = startOfMonth(anchorDate);
     if (anchorMonth.getTime() !== displayMonth.getTime()) {
@@ -34,35 +33,35 @@ export function MiniCalendar({ anchorDate, visibleRange, onDateClick }: Props) {
   return (
     <div className="select-none">
       {/* Month nav */}
-      <div className="flex items-center justify-between mb-2.5">
+      <div className="flex items-center justify-between mb-1.5">
         <button
-          className="h-7 w-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+          className="h-6 w-6 flex items-center justify-center rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
           onClick={() => setDisplayMonth((d) => subMonths(d, 1))}
         >
-          <ChevronLeft className="h-3.5 w-3.5" />
+          <ChevronLeft className="h-3 w-3" />
         </button>
-        <span className="text-[12px] font-bold text-slate-800 tracking-tight">
-          {format(displayMonth, "MMMM yyyy")}
+        <span className="text-[11px] font-bold text-slate-800 tracking-tight">
+          {format(displayMonth, "MMM yyyy")}
         </span>
         <button
-          className="h-7 w-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+          className="h-6 w-6 flex items-center justify-center rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
           onClick={() => setDisplayMonth((d) => addMonths(d, 1))}
         >
-          <ChevronRight className="h-3.5 w-3.5" />
+          <ChevronRight className="h-3 w-3" />
         </button>
       </div>
 
       {/* Weekday headers */}
-      <div className="grid grid-cols-7 mb-0.5">
-        {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d, i) => (
-          <div key={i} className="h-7 flex items-center justify-center">
-            <span className={`text-[10px] font-semibold uppercase tracking-wide ${i >= 5 ? "text-slate-300" : "text-slate-400"}`}>{d}</span>
+      <div className="grid grid-cols-7">
+        {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
+          <div key={i} className="h-5 flex items-center justify-center">
+            <span className={`text-[9px] font-semibold ${i >= 5 ? "text-slate-300" : "text-slate-400"}`}>{d}</span>
           </div>
         ))}
       </div>
 
       {/* Day grid */}
-      <div className="grid grid-cols-7 gap-y-px">
+      <div className="grid grid-cols-7">
         {calendarDays.map((day) => {
           const inMonth = isSameMonth(day, displayMonth);
           const today = isToday(day);
@@ -73,12 +72,12 @@ export function MiniCalendar({ anchorDate, visibleRange, onDateClick }: Props) {
           return (
             <button
               key={day.toISOString()}
-              className={`h-7 w-full flex items-center justify-center text-[11px] tabular-nums transition-all duration-100
+              className={`h-6 w-full flex items-center justify-center text-[10px] tabular-nums transition-all duration-75
                 ${!inMonth ? "text-slate-200" : weekend ? "text-slate-400" : "text-slate-600"}
-                ${inMonth && !inRange && !isAnchor && !today ? "hover:bg-slate-50 rounded-md" : ""}
-                ${inRange && !isAnchor && !today ? "bg-blue-50 text-blue-700 font-medium first:rounded-l-md last:rounded-r-md" : ""}
-                ${today && !isAnchor ? "font-bold text-blue-600 bg-blue-100/60 rounded-md" : ""}
-                ${isAnchor ? "bg-blue-600 text-white font-bold rounded-md shadow-sm" : ""}
+                ${inMonth && !inRange && !isAnchor && !today ? "hover:bg-slate-50 rounded" : ""}
+                ${inRange && !isAnchor && !today ? "bg-blue-50 text-blue-700 font-medium" : ""}
+                ${today && !isAnchor ? "font-bold text-blue-600 bg-blue-100/60 rounded" : ""}
+                ${isAnchor ? "bg-blue-600 text-white font-bold rounded shadow-sm" : ""}
               `}
               onClick={() => onDateClick(day)}
             >
