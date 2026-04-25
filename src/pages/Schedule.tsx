@@ -197,6 +197,7 @@ export default function Schedule() {
           onNavigateForward={timeline.navigateForward}
           onJumpToToday={timeline.jumpToToday}
           visibleRange={timeline.visibleRange}
+          anchorDate={timeline.anchorDate}
           lines={lines}
           buyers={buyers}
           selectedLine={selectedLine}
@@ -241,6 +242,7 @@ export default function Schedule() {
               visibleRange={timeline.visibleRange}
               viewMode={timeline.viewMode}
               rowSize={rowSize}
+              todayOffset={timeline.todayOffset}
               onBarClick={handleBarClick}
             />
           </div>

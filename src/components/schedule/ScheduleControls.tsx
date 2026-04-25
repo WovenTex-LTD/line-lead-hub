@@ -14,6 +14,7 @@ interface Props {
   onNavigateForward: () => void;
   onJumpToToday: () => void;
   visibleRange: { start: Date; end: Date };
+  anchorDate: Date;
   lines: FactoryLine[];
   buyers: string[];
   selectedLine: string;
@@ -36,12 +37,10 @@ const rowSizeConfig: { value: RowSize; icon: typeof Minimize2; label: string }[]
 
 export function ScheduleControls({
   viewMode, onViewModeChange, onNavigateBack, onNavigateForward, onJumpToToday,
-  visibleRange, lines, buyers, selectedLine, onLineChange, selectedBuyer, onBuyerChange,
+  visibleRange, anchorDate, lines, buyers, selectedLine, onLineChange, selectedBuyer, onBuyerChange,
   riskOnly, onRiskOnlyChange, search, onSearchChange, rowSize, onRowSizeChange,
 }: Props) {
-  const rangeLabel = viewMode === "week"
-    ? `${format(visibleRange.start, "d MMM")} – ${format(visibleRange.end, "d MMM yyyy")}`
-    : `${format(visibleRange.start, "d MMM")} – ${format(visibleRange.end, "d MMM yyyy")}`;
+  const rangeLabel = format(anchorDate, "MMMM yyyy");
 
   const cycleRowSize = () => {
     const order: RowSize[] = ["compact", "default", "expanded"];
