@@ -21,8 +21,9 @@ export default function Schedule() {
   const { setOpen } = useSidebar();
   useEffect(() => {
     setOpen(false);
-    return () => setOpen(true);
-  }, [setOpen]);
+    return () => { setOpen(true); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const timeline = useTimelineState();
 
   const [selectedLine, setSelectedLine] = useState("all");
