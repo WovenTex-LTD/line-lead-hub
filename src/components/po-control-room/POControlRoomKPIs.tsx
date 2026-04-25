@@ -72,27 +72,27 @@ const cards = [
 
 export function POControlRoomKPIs({ kpis, onViewLeftovers }: Props) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 md:gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
       {cards.map((card) => {
         const Icon = card.icon;
         const value = kpis[card.key as keyof POKPIs] as number;
         return (
           <div
             key={card.key}
-            className={`relative overflow-hidden rounded-xl border ${card.border} bg-gradient-to-br ${card.bg} p-4 md:p-5 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 group`}
+            className={`relative overflow-hidden rounded-xl border ${card.border} bg-gradient-to-br ${card.bg} p-3 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 group`}
           >
-            <div className={`absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl ${card.gradient} opacity-[0.06] rounded-bl-full pointer-events-none`} />
-            <div className="relative flex items-start justify-between">
-              <div className="space-y-1">
-                <p className={`text-[10px] md:text-xs font-semibold uppercase tracking-wider ${card.label_text}`}>
+            <div className={`absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl ${card.gradient} opacity-[0.06] rounded-bl-full pointer-events-none`} />
+            <div className="relative flex items-start justify-between gap-2">
+              <div className="space-y-1 min-w-0">
+                <p className={`text-[10px] font-semibold uppercase tracking-wider ${card.label_text} truncate`}>
                   {card.label}
                 </p>
-                <p className={`font-mono text-2xl md:text-3xl font-bold tracking-tight ${card.text}`}>
+                <p className={`font-mono text-xl xl:text-2xl font-bold tracking-tight ${card.text}`}>
                   {card.format(value)}
                 </p>
               </div>
-              <div className={`rounded-xl bg-gradient-to-br ${card.gradient} p-2.5 shadow-lg ${card.shadow} group-hover:shadow-xl transition-shadow`}>
-                <Icon className="h-5 w-5 text-white" />
+              <div className={`rounded-lg bg-gradient-to-br ${card.gradient} p-2 shadow-lg ${card.shadow} group-hover:shadow-xl transition-shadow shrink-0`}>
+                <Icon className="h-4 w-4 text-white" />
               </div>
             </div>
           </div>
@@ -103,20 +103,20 @@ export function POControlRoomKPIs({ kpis, onViewLeftovers }: Props) {
       {onViewLeftovers && (
         <button
           onClick={onViewLeftovers}
-          className="relative overflow-hidden rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50 via-white to-green-50/50 dark:from-emerald-950/40 dark:via-card dark:to-green-950/20 p-4 md:p-5 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 group text-left cursor-pointer"
+          className="relative overflow-hidden rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50 via-white to-green-50/50 dark:from-emerald-950/40 dark:via-card dark:to-green-950/20 p-3 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 group text-left cursor-pointer"
         >
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-emerald-500 to-green-600 opacity-[0.06] rounded-bl-full pointer-events-none" />
-          <div className="relative flex items-start justify-between">
-            <div className="space-y-1">
-              <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-emerald-600/70 dark:text-emerald-400/70">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-emerald-500 to-green-600 opacity-[0.06] rounded-bl-full pointer-events-none" />
+          <div className="relative flex items-start justify-between gap-2">
+            <div className="space-y-1 min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600/70 dark:text-emerald-400/70">
                 Leftovers
               </p>
-              <p className="font-mono text-sm md:text-base font-bold tracking-tight text-emerald-900 dark:text-emerald-100">
+              <p className="font-mono text-sm font-bold tracking-tight text-emerald-900 dark:text-emerald-100">
                 View All
               </p>
             </div>
-            <div className="rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 p-2.5 shadow-lg shadow-emerald-500/20 group-hover:shadow-xl transition-shadow">
-              <Archive className="h-5 w-5 text-white" />
+            <div className="rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 p-2 shadow-lg shadow-emerald-500/20 group-hover:shadow-xl transition-shadow shrink-0">
+              <Archive className="h-4 w-4 text-white" />
             </div>
           </div>
         </button>
