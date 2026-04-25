@@ -1,4 +1,5 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useCallback } from "react";
+import { addDays, format } from "date-fns";
 import { TimelineHeader } from "./TimelineHeader";
 import { TimelineRow } from "./TimelineRow";
 import { DeadlineStrip } from "./DeadlineStrip";
@@ -15,23 +16,41 @@ interface Props {
   rowSize: RowSize;
   todayOffset: number;
   onBarClick: (schedule: ScheduleWithDetails) => void;
+  onVisibleMonthChange?: (label: string) => void;
 }
 
-export function TimelinePlanner({ lines, schedulesByLine, deadlines, visibleRange, viewMode, rowSize, todayOffset, onBarClick }: Props) {
+export function TimelinePlanner({ lines, schedulesByLine, deadlines, visibleRange, viewMode, rowSize, todayOffset, onBarClick, onVisibleMonthChange }: Props) {
   const dayWidth = viewMode === "week" ? 120 : 52;
   const scrollRef = useRef<HTMLDivElement>(null);
-  const hasScrolled = useRef(false);
   const lineColumnWidth = 148;
 
   // Auto-scroll to today (second column) on mount and when anchor changes
   useEffect(() => {
     if (scrollRef.current) {
-      // Position: yesterday is first visible column, today is second
       const scrollTo = (todayOffset - 1) * dayWidth;
       scrollRef.current.scrollLeft = Math.max(0, scrollTo);
-      hasScrolled.current = true;
     }
   }, [todayOffset, dayWidth]);
+
+  // Track scroll position to update visible month label
+  const handleScroll = useCallback(() => {
+    if (!scrollRef.current || !onVisibleMonthChange) return;
+    const scrollLeft = scrollRef.current.scrollLeft;
+    // The center of the viewport determines the visible month
+    const viewportCenter = scrollLeft + scrollRef.current.clientWidth / 2 - lineColumnWidth;
+    const dayIndex = Math.floor(Math.max(0, viewportCenter) / dayWidth);
+    const centerDate = addDays(visibleRange.start, dayIndex);
+    onVisibleMonthChange(format(centerDate, "MMMM yyyy"));
+  }, [dayWidth, visibleRange.start, lineColumnWidth, onVisibleMonthChange]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    // Fire once on mount to set initial label
+    handleScroll();
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, [handleScroll]);
 
   return (
     <div className="rounded-xl bg-white border border-slate-200/80 shadow-sm overflow-hidden">

@@ -31,6 +31,7 @@ export default function Schedule() {
   const [riskOnly, setRiskOnly] = useState(false);
   const [search, setSearch] = useState("");
   const [rowSize, setRowSize] = useState<RowSize>("default");
+  const [visibleMonthLabel, setVisibleMonthLabel] = useState("");
 
   const {
     lines, schedulesByLine, visibleSchedules, unscheduledPOs, schedulesWithDetails,
@@ -198,6 +199,7 @@ export default function Schedule() {
           onJumpToToday={timeline.jumpToToday}
           visibleRange={timeline.visibleRange}
           anchorDate={timeline.anchorDate}
+          visibleMonthLabel={visibleMonthLabel}
           lines={lines}
           buyers={buyers}
           selectedLine={selectedLine}
@@ -244,6 +246,7 @@ export default function Schedule() {
               rowSize={rowSize}
               todayOffset={timeline.todayOffset}
               onBarClick={handleBarClick}
+              onVisibleMonthChange={setVisibleMonthLabel}
             />
           </div>
         </div>
