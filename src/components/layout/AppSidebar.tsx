@@ -403,13 +403,13 @@ export function AppSidebar() {
       } as React.CSSProperties}
       collapsible="icon"
     >
-      <SidebarHeader className="border-b border-white/[0.08] p-4">
+      <SidebarHeader className={cn("border-b border-white/[0.08]", collapsed ? "p-2.5 flex justify-center" : "p-4")}>
         <div className="flex items-center gap-3">
           <div className="relative shrink-0">
             <img
               src={logoSvg}
               alt="ProductionPortal"
-              className="h-10 w-10 rounded-xl shadow-lg shadow-sidebar-primary/20"
+              className={cn("rounded-xl shadow-lg shadow-sidebar-primary/20", collapsed ? "h-8 w-8" : "h-10 w-10")}
             />
             <div className="absolute inset-0 rounded-xl ring-1 ring-white/10" />
           </div>
