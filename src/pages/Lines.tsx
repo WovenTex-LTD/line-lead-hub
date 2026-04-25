@@ -1,6 +1,8 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { Rows3 } from "lucide-react";
+import { Rows3, CalendarRange } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { SewingMachine } from "@/components/icons/SewingMachine";
 import { useLinePerformance } from "@/components/lines/useLinePerformance";
 import { LinePerformanceControls } from "@/components/lines/LinePerformanceControls";
@@ -10,6 +12,7 @@ import { LineDrilldownDrawer } from "@/components/lines/LineDrilldownDrawer";
 import { LineExportButton } from "@/components/lines/LineExportButton";
 
 export default function Lines() {
+  const navigate = useNavigate();
   const {
     loading,
     selectedDate,
@@ -63,7 +66,13 @@ export default function Lines() {
             </p>
           </div>
         </div>
-        <LineExportButton lines={filteredLines} timeRange={timeRange} dateLabel={dateLabel} />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => navigate("/schedule")} className="gap-1.5">
+            <CalendarRange className="h-3.5 w-3.5" />
+            Schedule
+          </Button>
+          <LineExportButton lines={filteredLines} timeRange={timeRange} dateLabel={dateLabel} />
+        </div>
       </div>
 
       {/* Controls bar */}
