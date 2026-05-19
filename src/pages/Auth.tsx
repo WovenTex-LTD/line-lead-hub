@@ -145,6 +145,10 @@ export default function Auth() {
         navigate("/storage", { replace: true });
         return;
       }
+      if (hasRole("qc")) {
+        navigate("/quality/daily-sheet", { replace: true });
+        return;
+      }
       if (isAdminOrHigher()) {
         navigate("/dashboard", { replace: true });
         return;
