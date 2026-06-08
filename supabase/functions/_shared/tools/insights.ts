@@ -16,6 +16,19 @@ import {
 const DENY = (what: string) =>
   `You don't have access to ${what}. This data is restricted for your role — please contact your administrator if you need it.`;
 
+function canSeeProductionFloor(role: string): boolean {
+  const depts = allowedDepartmentsForRole(role);
+  return depts.includes("sewing") || depts.includes("finishing");
+}
+
+function canSeeAnyProduction(role: string): boolean {
+  return allowedDepartmentsForRole(role).length > 0;
+}
+
+function canSeeFinancials(role: string): boolean {
+  return role === "admin" || role === "owner";
+}
+
 /** get_production_data(department, [date]) — sewing/cutting/finishing actuals. */
 export async function getProductionData(
   ctx: ToolContext,
@@ -40,14 +53,14 @@ export async function getProductionData(
 
 /** get_blockers() — open/in-progress blockers across sewing + finishing. */
 export async function getBlockers(ctx: ToolContext, _input: Record<string, unknown>): Promise<string> {
-  if (allowedDepartmentsForRole(ctx.role).length === 0) return DENY("blocker data");
+  if (!canSeeProductionFloor(ctx.role)) return DENY("blocker data");
   const result = await fetchBlockers(ctx.supabase, ctx.factoryId);
   return result.error ? `(${result.error})` : result.summary;
 }
 
 /** get_work_orders([po], [buyer]) — PO status, quantities, progress, ex-factory. */
 export async function getWorkOrders(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
-  if (allowedDepartmentsForRole(ctx.role).length === 0) return DENY("work order data");
+  if (!canSeeAnyProduction(ctx.role)) return DENY("work order data");
   const po = typeof input.po === "string" ? input.po : null;
   const buyer = typeof input.buyer === "string" ? input.buyer : null;
   const result = await fetchWorkOrders(ctx.supabase, ctx.factoryId, po, buyer, ctx.today);
@@ -63,7 +76,7 @@ export async function getLines(ctx: ToolContext, _input: Record<string, unknown>
 
 /** get_financials() — admin/owner only. Revenue/cost/profit/margin. */
 export async function getFinancials(ctx: ToolContext, _input: Record<string, unknown>): Promise<string> {
-  if (ctx.role !== "admin" && ctx.role !== "owner") return DENY("financial data");
+  if (!canSeeFinancials(ctx.role)) return DENY("financial data");
   const result = await fetchFinancials(ctx.supabase, ctx.factoryId, ctx.today);
   return result.error ? `(${result.error})` : result.summary;
 }

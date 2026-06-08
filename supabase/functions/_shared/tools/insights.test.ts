@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getProductionData, getFinancials, getBlockers } from "./insights";
+import { getProductionData, getFinancials, getBlockers, getLines, getWorkOrders } from "./insights";
 import type { ToolContext } from "./types";
 
 // Minimal fake Supabase query builder that returns canned rows.
@@ -69,5 +69,34 @@ describe("getBlockers", () => {
     const sb = fakeSupabase({ production_updates_sewing: [], production_updates_finishing: [] });
     const out = await getBlockers(ctx("worker", sb), {});
     expect(typeof out).toBe("string");
+  });
+});
+
+describe("getBlockers gating", () => {
+  it("denies the cutting role (blockers are sewing/finishing data)", async () => {
+    const sb = fakeSupabase({});
+    const out = await getBlockers(ctx("cutting", sb), {});
+    expect(out.toLowerCase()).toContain("don't have access");
+  });
+});
+
+describe("getLines", () => {
+  it("denies a cutting role (lines tool is sewing-only)", async () => {
+    const sb = fakeSupabase({});
+    const out = await getLines(ctx("cutting", sb), {});
+    expect(out.toLowerCase()).toContain("don't have access");
+  });
+  it("answers for an admin", async () => {
+    const sb = fakeSupabase({ lines: [], sewing_actuals: [], sewing_targets: [] });
+    const out = await getLines(ctx("admin", sb), {});
+    expect(typeof out).toBe("string");
+  });
+});
+
+describe("getWorkOrders", () => {
+  it("denies a storage role", async () => {
+    const sb = fakeSupabase({});
+    const out = await getWorkOrders(ctx("storage", sb), {});
+    expect(out.toLowerCase()).toContain("don't have access");
   });
 });
