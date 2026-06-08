@@ -80,3 +80,89 @@ export async function getFinancials(ctx: ToolContext, _input: Record<string, unk
   const result = await fetchFinancials(ctx.supabase, ctx.factoryId, ctx.today);
   return result.error ? `(${result.error})` : result.summary;
 }
+
+/** compare_periods(metric, period_a_*, period_b_*) — currently supports the
+ *  "sewing_good" metric (sum of good_today). Returns a delta summary. */
+export async function comparePeriods(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  if (!allowedDepartmentsForRole(ctx.role).includes("sewing")) return DENY("production comparison data");
+
+  const metric = String(input.metric ?? "sewing_good");
+  if (metric !== "sewing_good") {
+    return `Comparison for metric "${metric}" isn't available yet. Supported: sewing_good.`;
+  }
+  const aStart = String(input.period_a_start);
+  const aEnd = String(input.period_a_end);
+  const bStart = String(input.period_b_start);
+  const bEnd = String(input.period_b_end);
+
+  const sumGood = async (start: string, end: string): Promise<number> => {
+    const { data, error } = await ctx.supabase
+      .from("sewing_actuals")
+      .select("good_today")
+      .eq("factory_id", ctx.factoryId)
+      .gte("production_date", start)
+      .lte("production_date", end);
+    if (error) return 0;
+    return (data ?? []).reduce((s: number, r: any) => s + (r.good_today || 0), 0);
+  };
+
+  const a = await sumGood(aStart, aEnd);
+  const b = await sumGood(bStart, bEnd);
+  const delta = a - b;
+  const pct = b > 0 ? Math.round((delta / b) * 1000) / 10 : null;
+  const dir = delta > 0 ? "up" : delta < 0 ? "down" : "unchanged";
+
+  return [
+    `Sewing good output comparison:`,
+    `- Period A (${aStart}…${aEnd}): ${a} pcs`,
+    `- Period B (${bStart}…${bEnd}): ${b} pcs`,
+    `- Change: ${dir} ${Math.abs(delta)} pcs${pct !== null ? ` (${pct}%)` : ""}`,
+  ].join("\n");
+}
+
+/** find_anomalies() — flags sewing lines below 80% of daily target and reject
+ *  rates over 5% for today. */
+export async function findAnomalies(ctx: ToolContext, _input: Record<string, unknown>): Promise<string> {
+  if (!allowedDepartmentsForRole(ctx.role).includes("sewing")) return DENY("anomaly data");
+
+  const [linesR, actR, tgtR] = await Promise.all([
+    ctx.supabase.from("lines").select("id, line_id, name, is_active").eq("factory_id", ctx.factoryId).eq("is_active", true),
+    ctx.supabase.from("sewing_actuals").select("line_id, good_today, reject_today").eq("factory_id", ctx.factoryId).eq("production_date", ctx.today),
+    ctx.supabase.from("sewing_targets").select("line_id, per_hour_target").eq("factory_id", ctx.factoryId).eq("production_date", ctx.today),
+  ]);
+
+  const lines = (linesR.data ?? []) as any[];
+  const actuals = (actR.data ?? []) as any[];
+  const targets = (tgtR.data ?? []) as any[];
+
+  const goodByLine = new Map<string, number>();
+  const rejectByLine = new Map<string, number>();
+  for (const a of actuals) {
+    goodByLine.set(a.line_id, (goodByLine.get(a.line_id) || 0) + (a.good_today || 0));
+    rejectByLine.set(a.line_id, (rejectByLine.get(a.line_id) || 0) + (a.reject_today || 0));
+  }
+  const dailyTargetByLine = new Map<string, number>();
+  for (const t of targets) {
+    dailyTargetByLine.set(t.line_id, (dailyTargetByLine.get(t.line_id) || 0) + (t.per_hour_target || 0) * 8);
+  }
+
+  const flags: string[] = [];
+  for (const line of lines) {
+    const name = line.name || line.line_id;
+    const good = goodByLine.get(line.id) || 0;
+    const reject = rejectByLine.get(line.id) || 0;
+    const target = dailyTargetByLine.get(line.id) || 0;
+    if (target > 0) {
+      const eff = Math.round((good / target) * 100);
+      if (eff < 80) flags.push(`- ${name}: behind target at ${eff}% (${good}/${target} pcs)`);
+    }
+    const produced = good + reject;
+    if (produced > 0) {
+      const rejRate = Math.round((reject / produced) * 1000) / 10;
+      if (rejRate > 5) flags.push(`- ${name}: high reject rate ${rejRate}% (${reject} rejects)`);
+    }
+  }
+
+  if (flags.length === 0) return "No anomalies detected today — all reporting lines are at or near target with normal reject rates.";
+  return `Anomalies detected today (${ctx.today}):\n${flags.join("\n")}`;
+}

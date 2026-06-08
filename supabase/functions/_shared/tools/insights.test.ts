@@ -100,3 +100,51 @@ describe("getWorkOrders", () => {
     expect(out.toLowerCase()).toContain("don't have access");
   });
 });
+
+import { comparePeriods, findAnomalies } from "./insights";
+
+describe("comparePeriods", () => {
+  it("reports the delta between two windows for an admin", async () => {
+    // Builder returns different rows per call via a queue.
+    let call = 0;
+    const sb: any = {
+      from() {
+        const b: any = {
+          select() { return b; }, eq() { return b; }, gte() { return b; }, lte() { return b; },
+          then(resolve: any) {
+            call += 1;
+            const data = call === 1
+              ? [{ good_today: 100 }, { good_today: 50 }]   // period A = 150
+              : [{ good_today: 80 }, { good_today: 40 }];   // period B = 120
+            return resolve({ data, error: null });
+          },
+        };
+        return b;
+      },
+    };
+    const out = await comparePeriods(ctx("admin", sb), {
+      metric: "sewing_good",
+      period_a_start: "2026-06-01", period_a_end: "2026-06-01",
+      period_b_start: "2026-05-25", period_b_end: "2026-05-25",
+    });
+    expect(out).toContain("150");
+    expect(out).toContain("120");
+  });
+
+  it("denies storage role", async () => {
+    const out = await comparePeriods(ctx("storage", fakeSupabase({})), { metric: "sewing_good", period_a_start: "2026-06-01", period_a_end: "2026-06-01", period_b_start: "2026-05-25", period_b_end: "2026-05-25" });
+    expect(out.toLowerCase()).toContain("don't have access");
+  });
+});
+
+describe("findAnomalies", () => {
+  it("flags a line behind target", async () => {
+    const sb = fakeSupabase({
+      lines: [{ id: "l1", line_id: "A", name: "Line A", is_active: true }],
+      sewing_actuals: [{ line_id: "l1", good_today: 200 }],
+      sewing_targets: [{ line_id: "l1", per_hour_target: 100 }], // daily target 800 → 25%
+    });
+    const out = await findAnomalies(ctx("admin", sb), {});
+    expect(out.toLowerCase()).toContain("line a");
+  });
+});
