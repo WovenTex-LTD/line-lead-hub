@@ -95,6 +95,11 @@ export async function comparePeriods(ctx: ToolContext, input: Record<string, unk
   const bStart = String(input.period_b_start);
   const bEnd = String(input.period_b_end);
 
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+  if (![aStart, aEnd, bStart, bEnd].every((d) => DATE_RE.test(d))) {
+    return "I need both date ranges as valid YYYY-MM-DD dates to compare periods.";
+  }
+
   const sumGood = async (start: string, end: string): Promise<number> => {
     const { data, error } = await ctx.supabase
       .from("sewing_actuals")

@@ -137,10 +137,12 @@ serve(async (req) => {
       .from("chat_messages")
       .select("role, content")
       .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: true })
+      .order("created_at", { ascending: false })
       .limit(10);
 
-    const conversationHistory = (historyData || []).map((m) => ({
+    const conversationHistory = (historyData || [])
+      .reverse()
+      .map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content as string,
     }));
