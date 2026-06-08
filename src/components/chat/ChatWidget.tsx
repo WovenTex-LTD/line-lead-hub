@@ -55,7 +55,7 @@ export function ChatWidget() {
               </div>
               <div>
                 <span className="font-semibold text-sm leading-none">
-                  ProductionPortal Assistant
+                  Lina
                 </span>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -102,6 +102,7 @@ export function ChatWidget() {
           )}
           <Button
             onClick={() => setIsOpen(true)}
+            aria-label="Open Lina, the production assistant"
             className="relative h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95"
             size="icon"
           >

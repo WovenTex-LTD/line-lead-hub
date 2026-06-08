@@ -1,4 +1,4 @@
-import { HelpCircle, AlertTriangle, Headphones } from "lucide-react";
+import { TrendingUp, AlertTriangle, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface QuickActionsProps {
@@ -9,62 +9,62 @@ interface QuickActionsProps {
 const QUICK_ACTIONS = {
   en: [
     {
-      icon: HelpCircle,
-      label: "How do I...",
-      hint: "End-of-day reporting",
-      prompt: "How do I submit my end-of-day production report?",
+      icon: TrendingUp,
+      label: "Today's production",
+      hint: "Output & efficiency",
+      prompt: "How is production doing today?",
+    },
+    {
+      icon: Activity,
+      label: "Line performance",
+      hint: "Who's behind target",
+      prompt: "Which lines are behind target right now?",
     },
     {
       icon: AlertTriangle,
-      label: "Troubleshoot",
-      hint: "Form issues & data",
-      prompt: "I'm having trouble with the morning targets form. It's not saving my data.",
-    },
-    {
-      icon: Headphones,
-      label: "Contact support",
-      hint: "Technical help",
-      prompt: "How can I contact support for help with a technical issue?",
+      label: "Open blockers",
+      hint: "Issues to resolve",
+      prompt: "Are there any open blockers I should know about?",
     },
   ],
   bn: [
     {
-      icon: HelpCircle,
-      label: "কিভাবে করব...",
-      hint: "রিপোর্ট জমা",
-      prompt: "আমি কিভাবে দিনের শেষে প্রোডাকশন রিপোর্ট জমা দেব?",
+      icon: TrendingUp,
+      label: "আজকের প্রোডাকশন",
+      hint: "আউটপুট ও দক্ষতা",
+      prompt: "আজ প্রোডাকশন কেমন চলছে?",
+    },
+    {
+      icon: Activity,
+      label: "লাইন পারফরম্যান্স",
+      hint: "কারা টার্গেটের পিছনে",
+      prompt: "এখন কোন লাইনগুলো টার্গেটের পিছনে আছে?",
     },
     {
       icon: AlertTriangle,
-      label: "সমস্যা সমাধান",
-      hint: "ফর্ম ও ডাটা",
-      prompt: "সকালের টার্গেট ফর্মে সমস্যা হচ্ছে। ডাটা সেভ হচ্ছে না।",
-    },
-    {
-      icon: Headphones,
-      label: "সাপোর্ট",
-      hint: "টেকনিক্যাল সাহায্য",
-      prompt: "টেকনিক্যাল সমস্যার জন্য সাপোর্টের সাথে কিভাবে যোগাযোগ করব?",
+      label: "ওপেন ব্লকার",
+      hint: "সমাধানের সমস্যা",
+      prompt: "আমার জানা উচিত এমন কোনো ওপেন ব্লকার আছে কি?",
     },
   ],
   zh: [
     {
-      icon: HelpCircle,
-      label: "如何操作...",
-      hint: "日终报告",
-      prompt: "我如何提交日终生产报告？",
+      icon: TrendingUp,
+      label: "今日生产",
+      hint: "产量与效率",
+      prompt: "今天生产情况如何？",
+    },
+    {
+      icon: Activity,
+      label: "生产线表现",
+      hint: "哪些落后于目标",
+      prompt: "现在哪些生产线落后于目标？",
     },
     {
       icon: AlertTriangle,
-      label: "故障排除",
-      hint: "表单与数据问题",
-      prompt: "早间目标表单出了问题，数据无法保存。",
-    },
-    {
-      icon: Headphones,
-      label: "联系支持",
-      hint: "技术帮助",
-      prompt: "如何联系技术支持解决技术问题？",
+      label: "未解决的阻碍",
+      hint: "需要解决的问题",
+      prompt: "有什么我应该知道的未解决的阻碍吗？",
     },
   ],
 };

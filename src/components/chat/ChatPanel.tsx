@@ -91,13 +91,13 @@ export function ChatPanel() {
 
             <h3 className="text-lg font-semibold text-foreground mb-1">
               {language === "bn"
-                ? "আমি কীভাবে সাহায্য করতে পারি?"
-                : "How can I help you today?"}
+                ? "আমি লিনা — কীভাবে সাহায্য করতে পারি?"
+                : "I'm Lina — how can I help?"}
             </h3>
             <p className="text-sm text-muted-foreground mb-6 max-w-[280px]">
               {language === "bn"
-                ? "প্রোডাকশন পোর্টাল সম্পর্কে প্রশ্ন করুন"
-                : "Ask me about ProductionPortal features, compliance, or troubleshooting"}
+                ? "প্রোডাকশন, লাইন পারফরম্যান্স, ব্লকার বা অর্ডার সম্পর্কে জিজ্ঞাসা করুন"
+                : "Ask me about production, line performance, blockers, orders, or how things work"}
             </p>
 
             <QuickActions onSelect={handleQuickAction} language={language} />
@@ -185,8 +185,8 @@ export function ChatPanel() {
 
         <p className="text-[10px] text-muted-foreground/70 text-center leading-tight">
           {language === "bn"
-            ? "এই সহকারী ভুল করতে পারে। গুরুত্বপূর্ণ তথ্যের জন্য অফিসিয়াল ডকুমেন্টেশন দেখুন।"
-            : "AI-powered assistant. Verify important information with official documentation."}
+            ? "লিনা ভুল করতে পারে। গুরুত্বপূর্ণ সিদ্ধান্তের আগে যাচাই করুন।"
+            : "Lina is AI-powered and can make mistakes. Verify important figures."}
         </p>
       </div>
     </div>
