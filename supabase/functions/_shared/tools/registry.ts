@@ -1,12 +1,12 @@
 // Lina tool registry: assembles executors into role-filtered ToolDefinitions,
 // exposes Anthropic schema export + dispatch with access control.
 
-import type { ToolContext, ToolDefinition, UserRole } from "./types";
-import { isToolAllowed } from "./types";
+import type { ToolContext, ToolDefinition, UserRole } from "./types.ts";
+import { isToolAllowed } from "./types.ts";
 import {
   getProductionData, getBlockers, getWorkOrders, getLines,
   getFinancials, comparePeriods, findAnomalies, searchKnowledge,
-} from "./insights";
+} from "./insights.ts";
 
 export const ALL_TOOLS: ToolDefinition[] = [
   {

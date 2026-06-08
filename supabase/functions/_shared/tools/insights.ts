@@ -1,8 +1,8 @@
 // Lina insight tool executors. Each wraps an exported live-data fetcher and
 // enforces role/department access. Pure: Supabase client comes from ToolContext.
 
-import type { ToolContext, Department } from "./types";
-import { allowedDepartmentsForRole } from "./types";
+import type { ToolContext, Department } from "./types.ts";
+import { allowedDepartmentsForRole } from "./types.ts";
 import {
   fetchSewingOutput,
   fetchCutting,
