@@ -148,3 +148,35 @@ describe("findAnomalies", () => {
     expect(out.toLowerCase()).toContain("line a");
   });
 });
+
+import { searchKnowledge } from "./insights";
+
+describe("searchKnowledge", () => {
+  it("embeds the query and returns formatted chunks", async () => {
+    let embedded = "";
+    const rpcCalls: any[] = [];
+    const sb: any = {
+      rpc(name: string, args: any) {
+        rpcCalls.push({ name, args });
+        return Promise.resolve({
+          data: [{ document_title: "Safety Manual", section_heading: "Fire", content: "Use exit B.", similarity: 0.42 }],
+          error: null,
+        });
+      },
+    };
+    const c = ctx("worker", sb);
+    c.embed = async (t: string) => { embedded = t; return new Array(1536).fill(0.1); };
+    const out = await searchKnowledge(c, { query: "fire exit" });
+    expect(embedded).toBe("fire exit");
+    expect(rpcCalls[0].name).toBe("search_knowledge");
+    expect(out).toContain("Safety Manual");
+  });
+
+  it("reports when nothing relevant is found", async () => {
+    const sb: any = { rpc: () => Promise.resolve({ data: [], error: null }) };
+    const c = ctx("worker", sb);
+    c.embed = async () => new Array(1536).fill(0);
+    const out = await searchKnowledge(c, { query: "xyz" });
+    expect(out.toLowerCase()).toContain("no");
+  });
+});

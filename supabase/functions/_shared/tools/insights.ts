@@ -120,6 +120,49 @@ export async function comparePeriods(ctx: ToolContext, input: Record<string, unk
   ].join("\n");
 }
 
+function formatChunks(rows: any[]): string {
+  return rows
+    .map((r, i) => {
+      const loc = r.page_number ? `Page ${r.page_number}` : r.section_heading || "General";
+      return `[${i + 1}] ${r.document_title} (${loc}, ${(r.similarity * 100).toFixed(0)}% match):\n${r.content}`;
+    })
+    .join("\n\n");
+}
+
+/** search_knowledge(query) — vector RAG over knowledge_chunks. Embeds on demand. */
+export async function searchKnowledge(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  const query = String(input.query ?? "").trim();
+  if (!query) return "No search query was provided.";
+
+  const embedding = await ctx.embed(query);
+  const embeddingStr = `[${embedding.join(",")}]`;
+
+  const primary = await ctx.supabase.rpc("search_knowledge", {
+    query_embedding: embeddingStr,
+    match_threshold: 0.3,
+    match_count: 8,
+    p_factory_id: ctx.factoryId,
+    p_language: null,
+  });
+  let rows = (primary.data ?? []) as any[];
+
+  if (rows.length === 0) {
+    const fallback = await ctx.supabase.rpc("search_knowledge", {
+      query_embedding: embeddingStr,
+      match_threshold: 0.15,
+      match_count: 5,
+      p_factory_id: ctx.factoryId,
+      p_language: null,
+    });
+    rows = (fallback.data ?? []) as any[];
+  }
+
+  if (rows.length === 0) {
+    return "No relevant documentation was found in the knowledge base for that query.";
+  }
+  return formatChunks(rows);
+}
+
 /** find_anomalies() — flags sewing lines below 80% of daily target and reject
  *  rates over 5% for today. */
 export async function findAnomalies(ctx: ToolContext, _input: Record<string, unknown>): Promise<string> {
