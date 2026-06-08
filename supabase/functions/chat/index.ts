@@ -148,6 +148,11 @@ serve(async (req) => {
     // Resolve "today" in the factory's timezone for date-scoped tools.
     const today = getTodayForFactory(factoryTimezone);
 
+    // Lina requires a factory to scope every tool query — fail safely if absent.
+    if (!profile?.factory_id) {
+      throw new Error("Your account isn't linked to a factory yet, so I can't pull production data. Please contact your administrator.");
+    }
+
     // Build the role-filtered tool set and Lina's persona prompt.
     const tools = getToolsForRole(primaryRole);
     const systemPrompt = buildLinaSystemPrompt(primaryRole, language);
