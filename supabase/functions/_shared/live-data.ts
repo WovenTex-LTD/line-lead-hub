@@ -301,7 +301,7 @@ interface WorkOrderAggregates {
 // Query functions
 // ---------------------------------------------------------------------------
 
-async function fetchSewingOutput(
+export async function fetchSewingOutput(
   sb: SupabaseClient, factoryId: string, today: string,
 ): Promise<LiveDataResult> {
   try {
@@ -338,7 +338,7 @@ function computeSewingAggregates(data: any[]): SewingAggregates {
   return { linesReporting, totalGood, totalReject, totalRework, totalManpower, totalCumulativeGood, linesWithBlockers, avgGoodPerLine, topPerformingLine, lowestPerformingLine };
 }
 
-async function fetchSewingTargets(
+export async function fetchSewingTargets(
   sb: SupabaseClient, factoryId: string, today: string,
 ): Promise<LiveDataResult> {
   try {
@@ -369,7 +369,7 @@ function computeSewingTargetAggregates(data: any[]): SewingTargetAggregates {
   return { linesWithTargets, totalPlannedManpower, totalPlannedOT, avgPerHourTarget, totalDailyTarget };
 }
 
-async function fetchBlockers(
+export async function fetchBlockers(
   sb: SupabaseClient, factoryId: string,
 ): Promise<LiveDataResult> {
   try {
@@ -439,7 +439,7 @@ function computeBlockerAggregates(data: any[]): BlockerAggregates {
   };
 }
 
-async function fetchWorkOrders(
+export async function fetchWorkOrders(
   sb: SupabaseClient, factoryId: string, poHint: string | null, buyerHint: string | null, today: string,
 ): Promise<LiveDataResult> {
   try {
@@ -639,7 +639,7 @@ function computeWorkOrderAggregates(
   };
 }
 
-async function fetchCutting(
+export async function fetchCutting(
   sb: SupabaseClient, factoryId: string, today: string,
 ): Promise<LiveDataResult> {
   try {
@@ -676,7 +676,7 @@ function computeCuttingAggregates(actuals: any[]): CuttingAggregates {
   return { linesReporting, totalDayCutting, totalDayInput, totalBalance, totalManpower, avgCuttingPerLine };
 }
 
-async function fetchFinishing(
+export async function fetchFinishing(
   sb: SupabaseClient, factoryId: string, today: string,
 ): Promise<LiveDataResult> {
   try {
@@ -726,7 +726,7 @@ async function fetchStorage(
   } catch (err) { return errorResult("storage", "Storage Bin Cards", err); }
 }
 
-async function fetchLines(
+export async function fetchLines(
   sb: SupabaseClient, factoryId: string, today: string,
 ): Promise<LiveDataResult> {
   try {
@@ -793,7 +793,7 @@ function computeLineAggregates(lines: any[], actuals: any[], targets: any[]): Li
   };
 }
 
-async function fetchFactorySummary(
+export async function fetchFactorySummary(
   sb: SupabaseClient, factoryId: string, today: string,
 ): Promise<LiveDataResult> {
   try {
@@ -899,7 +899,7 @@ async function fetchFactorySummary(
 // Financials — Revenue, Cost, Profit, Margin (mirrors TodayUpdates logic)
 // ---------------------------------------------------------------------------
 
-async function fetchFinancials(
+export async function fetchFinancials(
   sb: SupabaseClient, factoryId: string, today: string,
 ): Promise<LiveDataResult> {
   try {
