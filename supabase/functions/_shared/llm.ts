@@ -2,9 +2,10 @@
 // Uses Claude 3.5 Sonnet for high-quality, citation-aware responses
 
 import type { LiveDataContext } from "./live-data.ts";
+import type { ModelTurn } from "./agent-loop.ts";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
-const MODEL = "claude-sonnet-4-20250514";
+const MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 2048;
 
 export interface ChatMessage {
@@ -265,7 +266,7 @@ export async function generateChatResponse(
     method: "POST",
     headers: {
       "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
+      "anthropic-version": ANTHROPIC_VERSION,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -346,6 +347,8 @@ export async function generateChatResponse(
   };
 }
 
+const ANTHROPIC_VERSION = "2023-06-01";
+
 /**
  * Detect language from text (simple heuristic)
  */
@@ -368,4 +371,73 @@ export function detectLanguage(text: string): "en" | "bn" | "zh" {
   }
 
   return "en";
+}
+
+interface AnthropicTool {
+  name: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+}
+
+/** Build a ModelCaller bound to this request's system prompt + tools.
+ *  The returned function takes the running messages array and returns one
+ *  parsed assistant turn. System + tools are stable across the loop, so they
+ *  are cached (cache_control on the last system block). */
+export function createAnthropicCaller(
+  systemPrompt: string,
+  tools: AnthropicTool[],
+): (messages: unknown[]) => Promise<ModelTurn> {
+  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured");
+
+  return async (messages: unknown[]): Promise<ModelTurn> => {
+    const body = {
+      model: MODEL,
+      max_tokens: 2048,
+      thinking: { type: "adaptive" as const },
+      system: [
+        { type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } },
+      ],
+      tools,
+      messages,
+    };
+
+    const response = await fetch(ANTHROPIC_API_URL, {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": ANTHROPIC_VERSION,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Anthropic API error: ${response.status} - ${errText}`);
+    }
+
+    const data = await response.json();
+    const content: any[] = data.content ?? [];
+
+    const textParts: string[] = [];
+    const toolUses: { id: string; name: string; input: Record<string, unknown> }[] = [];
+    for (const block of content) {
+      if (block.type === "text") textParts.push(block.text);
+      else if (block.type === "tool_use") {
+        toolUses.push({ id: block.id, name: block.name, input: block.input ?? {} });
+      }
+    }
+
+    return {
+      stopReason: data.stop_reason ?? "end_turn",
+      text: textParts.join("\n").trim(),
+      toolUses,
+      assistantContent: content,
+      usage: {
+        inputTokens: data.usage?.input_tokens ?? 0,
+        outputTokens: data.usage?.output_tokens ?? 0,
+      },
+    };
+  };
 }
