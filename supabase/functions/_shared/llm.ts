@@ -373,6 +373,21 @@ export function detectLanguage(text: string): "en" | "bn" | "zh" {
   return "en";
 }
 
+/** Split Lina's reply into the visible answer and the suggested-questions list. */
+export function parseSuggestedQuestions(raw: string): { content: string; suggestedQuestions: string[] } {
+  const separator = "---SUGGESTED_QUESTIONS---";
+  const idx = raw.indexOf(separator);
+  if (idx === -1) return { content: raw, suggestedQuestions: [] };
+  const content = raw.substring(0, idx).trimEnd();
+  const suggestedQuestions = raw
+    .substring(idx + separator.length)
+    .trim()
+    .split("\n")
+    .map((q) => q.trim())
+    .filter((q) => q.length > 0 && q.length < 120);
+  return { content, suggestedQuestions };
+}
+
 interface AnthropicTool {
   name: string;
   description: string;

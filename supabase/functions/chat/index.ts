@@ -1,15 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { getCorsHeaders } from "../_shared/security.ts";
-import { generateEmbedding, formatEmbeddingForPgVector } from "../_shared/embeddings.ts";
-import {
-  generateChatResponse,
-  buildSystemPrompt,
-  detectLanguage,
-  type ChatMessage,
-  type SourceChunk,
-} from "../_shared/llm.ts";
-import { fetchLiveData, type LiveDataContext } from "../_shared/live-data.ts";
+import { generateEmbedding } from "../_shared/embeddings.ts";
+import { detectLanguage, createAnthropicCaller, parseSuggestedQuestions } from "../_shared/llm.ts";
+import { buildLinaSystemPrompt } from "../_shared/persona.ts";
+import { getToolsForRole, toAnthropicTools, dispatchTool } from "../_shared/tools/registry.ts";
+import { getTodayForFactory } from "../_shared/live-data.ts";
+import { runAgentLoop } from "../_shared/agent-loop.ts";
+import type { ToolContext } from "../_shared/tools/types.ts";
 
 interface ChatRequest {
   message: string;
@@ -142,159 +140,82 @@ serve(async (req) => {
       .order("created_at", { ascending: true })
       .limit(10);
 
-    const conversationHistory: ChatMessage[] = (historyData || []).map((m) => ({
+    const conversationHistory = (historyData || []).map((m) => ({
       role: m.role as "user" | "assistant",
-      content: m.content,
+      content: m.content as string,
     }));
 
-    // Generate embedding for the query
-    logStep("Generating query embedding");
-    const { embedding } = await generateEmbedding(message);
-    const embeddingStr = formatEmbeddingForPgVector(embedding);
+    // Resolve "today" in the factory's timezone for date-scoped tools.
+    const today = getTodayForFactory(factoryTimezone);
 
-    // Search knowledge base — primary search with threshold 0.3
-    logStep("Searching knowledge base");
-    const { data: searchResults, error: searchError } = await supabaseAdmin.rpc(
-      "search_knowledge",
-      {
-        query_embedding: embeddingStr,
-        match_threshold: 0.3,
-        match_count: 10,
-        p_factory_id: profile?.factory_id,
-        p_language: null, // Search all languages, let context decide
-      }
-    );
+    // Build the role-filtered tool set and Lina's persona prompt.
+    const tools = getToolsForRole(primaryRole);
+    const systemPrompt = buildLinaSystemPrompt(primaryRole, language);
 
-    if (searchError) {
-      logStep("Search error", { error: searchError.message });
-    }
+    // Per-request tool context (factoryId/role are server-derived — never from model input).
+    const toolContext: ToolContext = {
+      supabase: supabaseAdmin as unknown as ToolContext["supabase"],
+      factoryId: profile?.factory_id,
+      role: primaryRole,
+      timezone: factoryTimezone,
+      today,
+      language,
+      embed: async (text: string) => (await generateEmbedding(text)).embedding,
+    };
 
-    let sources: SourceChunk[] = searchResults || [];
-
-    // Log detailed search results for debugging
-    if (sources.length > 0) {
-      logStep("Found sources", {
-        count: sources.length,
-        results: sources.map((s) => ({
-          title: s.document_title,
-          similarity: (s.similarity * 100).toFixed(1) + "%",
-          section: s.section_heading || "General",
-        })),
-      });
-    } else {
-      logStep("No sources found at threshold 0.3, trying fallback at 0.15");
-      // Fallback: broader search with very low threshold to surface anything remotely relevant
-      const { data: fallbackResults, error: fallbackError } = await supabaseAdmin.rpc(
-        "search_knowledge",
-        {
-          query_embedding: embeddingStr,
-          match_threshold: 0.15,
-          match_count: 5,
-          p_factory_id: profile?.factory_id,
-          p_language: null,
-        }
-      );
-      if (fallbackError) {
-        logStep("Fallback search error", { error: fallbackError.message });
-      }
-      sources = fallbackResults || [];
-      logStep("Fallback sources", {
-        count: sources.length,
-        results: sources.map((s) => ({
-          title: s.document_title,
-          similarity: (s.similarity * 100).toFixed(1) + "%",
-        })),
-      });
-    }
-
-    // Fetch live factory data if the question relates to production data
-    logStep("Checking for live data queries");
-    let liveDataContext: LiveDataContext | null = null;
-    try {
-    liveDataContext = await fetchLiveData(
-        supabaseAdmin as any,
-        profile?.factory_id,
-        message,
-        factoryTimezone,
-        primaryRole,
-      );
-      if (liveDataContext) {
-        logStep("Live data fetched", {
-          categories: liveDataContext.results.map((r) => r.category),
-          rowCounts: liveDataContext.results.map((r) => ({
-            [r.category]: r.data.length,
-          })),
-        });
-      } else {
-        logStep("No live data categories matched");
-      }
-    } catch (liveDataError) {
-      // Live data errors should never block the chat response
-      logStep("Live data error (non-fatal)", {
-        error: liveDataError instanceof Error ? liveDataError.message : String(liveDataError),
-      });
-    }
-
-    // Get user's accessible features
-    const { data: features } = await supabaseAdmin.rpc("get_user_accessible_features", {
-      p_user_id: user.id,
+    // Run the agentic loop.
+    logStep("Running agent loop", { toolCount: tools.length });
+    const callModel = createAnthropicCaller(systemPrompt, toAnthropicTools(tools));
+    const agentResult = await runAgentLoop({
+      initialMessages: conversationHistory,
+      callModel,
+      executeTool: (name, input) => dispatchTool(name, input, toolContext),
     });
 
-    // Build system prompt
-    const hasLiveData = liveDataContext !== null && liveDataContext.results.length > 0;
-    const systemPrompt = buildSystemPrompt(primaryRole, features || [], language, hasLiveData);
+    const { content, suggestedQuestions } = parseSuggestedQuestions(agentResult.finalText);
+    logStep("Agent loop done", {
+      turns: agentResult.turns,
+      tools: agentResult.toolsUsed.map((t) => t.name),
+      tokens: agentResult.totalUsage,
+    });
 
-    // Generate response
-    logStep("Generating response");
-    const response = await generateChatResponse(conversationHistory, sources, systemPrompt, liveDataContext);
-
-    // Save assistant message
+    // Save assistant message.
     const { data: assistantMessage } = await supabaseAdmin
       .from("chat_messages")
       .insert({
         conversation_id: conversationId,
         role: "assistant",
-        content: response.content,
-        citations: response.citations,
-        tokens_used: response.tokensUsed,
-        model: response.model,
-        no_evidence: response.noEvidence,
+        content,
+        tokens_used: agentResult.totalUsage.inputTokens + agentResult.totalUsage.outputTokens,
+        model: "claude-sonnet-4-6",
+        tools_used: agentResult.toolsUsed,
       })
       .select("id")
       .single();
 
-    // Log analytics
+    // Log analytics.
     await supabaseAdmin.from("chat_analytics").insert({
       message_id: assistantMessage?.id,
       conversation_id: conversationId,
       factory_id: profile?.factory_id,
       user_role: primaryRole,
       question_text: message,
-      answer_length: response.content.length,
-      citations_count: response.citations.length,
-      no_evidence: response.noEvidence,
+      answer_length: content.length,
+      citations_count: 0,
+      no_evidence: false,
       language,
-    });
-
-    logStep("Response generated", {
-      tokensUsed: response.tokensUsed,
-      citationsCount: response.citations.length,
-      noEvidence: response.noEvidence,
     });
 
     return new Response(
       JSON.stringify({
-        message: response.content,
-        citations: response.citations,
+        message: content,
+        citations: [],
         conversation_id: conversationId,
-        no_evidence: response.noEvidence,
-        suggested_questions: response.suggestedQuestions,
+        no_evidence: false,
+        suggested_questions: suggestedQuestions,
         language,
       }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
     );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
