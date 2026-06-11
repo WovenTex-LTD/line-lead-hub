@@ -521,13 +521,13 @@ export async function fetchCutting(
   try {
     const [actR, tgtR] = await Promise.all([
       sb.from("cutting_actuals")
-        .select("production_date, day_cutting, day_input, total_cutting, total_input, balance, man_power, lines(line_id, name), work_orders(po_number, buyer, style)")
+        .select("production_date, day_cutting, day_input, total_cutting, total_input, balance, man_power, lines!line_id(line_id, name), work_orders(po_number, buyer, style)")
         .eq("factory_id", factoryId)
         .eq("production_date", today)
         .order("day_cutting", { ascending: false })
         .limit(MAX_ROWS),
       sb.from("cutting_targets")
-        .select("production_date, man_power, marker_capacity, lay_capacity, cutting_capacity, lines(line_id, name), work_orders(po_number, buyer, style)")
+        .select("production_date, man_power, marker_capacity, lay_capacity, cutting_capacity, lines!line_id(line_id, name), work_orders(po_number, buyer, style)")
         .eq("factory_id", factoryId)
         .eq("production_date", today)
         .limit(MAX_ROWS),
