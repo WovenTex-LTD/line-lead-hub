@@ -8,8 +8,7 @@ import { buildLinaSystemPrompt } from "../_shared/persona.ts";
 import { getToolsForRole, toAnthropicTools, dispatchTool } from "../_shared/tools/registry.ts";
 import { getTodayForFactory } from "../_shared/live-data.ts";
 import { runAgentLoop } from "../_shared/agent-loop.ts";
-import { generateReport as generateReportFile } from "../_shared/reports.ts";
-import type { ToolContext, GenerateReportInput } from "../_shared/tools/types.ts";
+import type { ToolContext, ExportRequest } from "../_shared/tools/types.ts";
 
 interface ChatRequest {
   message: string;
@@ -214,6 +213,9 @@ serve(async (req) => {
       }
     };
 
+    // Report exports Lina queued this turn; the client runs the real in-app export.
+    const exportRequests: ExportRequest[] = [];
+
     // Per-request tool context (factoryId/role are server-derived — never from model input).
     const toolContext: ToolContext = {
       supabase: supabaseAdmin as unknown as ToolContext["supabase"],
@@ -224,15 +226,7 @@ serve(async (req) => {
       language,
       embed: async (text: string) => (await generateEmbedding(text)).embedding,
       escalate,
-      generateReport: (input: GenerateReportInput) =>
-        generateReportFile(supabaseAdmin as never, {
-          factoryId: profile.factory_id,
-          factoryName,
-          reportType: input.reportType,
-          start: input.start,
-          end: input.end,
-          format: input.format,
-        }),
+      requestExport: (input: ExportRequest) => { exportRequests.push(input); },
     };
 
     // Run the agentic loop.
@@ -290,6 +284,11 @@ serve(async (req) => {
         no_evidence: false,
         suggested_questions: suggestedQuestions,
         tools_used: agentResult.toolsUsed,
+        export_actions: exportRequests.map((r) => ({
+          ...r,
+          factoryId: profile.factory_id,
+          factoryName,
+        })),
         language,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },

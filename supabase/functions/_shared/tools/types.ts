@@ -11,17 +11,11 @@ export interface SupportTicket {
   category?: string;
 }
 
-export interface GenerateReportInput {
+export interface ExportRequest {
   reportType: "production" | "insights" | "finance";
   start: string; // YYYY-MM-DD
   end: string; // YYYY-MM-DD
   format: "pdf" | "csv";
-}
-export interface GenerateReportResult {
-  ok: boolean;
-  url?: string;
-  filename?: string;
-  error?: string;
 }
 
 /** Per-request, server-derived context handed to every tool executor.
@@ -36,8 +30,8 @@ export interface ToolContext {
   embed: (text: string) => Promise<number[]>;
   /** Escalate an unresolved problem to the Woventex team (sends an email). */
   escalate: (ticket: SupportTicket) => Promise<{ ok: boolean; error?: string }>;
-  /** Generate a downloadable report file and return a signed download URL. */
-  generateReport: (input: GenerateReportInput) => Promise<GenerateReportResult>;
+  /** Queue a report export for the client to run (produces the real in-app file). */
+  requestExport: (input: ExportRequest) => void;
 }
 
 export interface ToolDefinition {

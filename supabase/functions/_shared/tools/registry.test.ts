@@ -12,7 +12,7 @@ function ctx(role: string): ToolContext {
     language: "en",
     embed: async () => [],
     escalate: async () => ({ ok: true }),
-    generateReport: async () => ({ ok: true, url: "https://example.com/r.pdf", filename: "r.pdf" }),
+    requestExport: () => {},
   };
 }
 

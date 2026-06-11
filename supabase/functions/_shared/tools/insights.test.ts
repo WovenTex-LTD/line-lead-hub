@@ -33,7 +33,7 @@ function ctx(role: string, supabase: any): ToolContext {
     language: "en",
     embed: async () => new Array(1536).fill(0),
     escalate: async () => ({ ok: true }),
-    generateReport: async () => ({ ok: true, url: "https://example.com/r.pdf", filename: "r.pdf" }),
+    requestExport: () => {},
   };
 }
 
@@ -212,27 +212,24 @@ describe("searchKnowledge", () => {
 import { generateReport } from "./insights";
 
 describe("generateReport", () => {
-  it("returns a download link on success", async () => {
-    let got: any = null;
+  it("queues a production export and confirms it's downloading", async () => {
+    let queued: any = null;
     const c = ctx("admin", fakeSupabase({}));
-    c.generateReport = async (i) => { got = i; return { ok: true, url: "https://x/r.pdf", filename: "production.pdf" }; };
-    const out = await generateReport(c, { report_type: "production", start_date: "2026-05-01", end_date: "2026-05-31" });
-    expect(got.reportType).toBe("production");
-    expect(got.format).toBe("pdf");
-    expect(out).toContain("https://x/r.pdf");
-    expect(out).toContain("production.pdf");
+    c.requestExport = (r) => { queued = r; };
+    const out = await generateReport(c, { report_type: "production", start_date: "2026-05-01", end_date: "2026-05-31", format: "csv" });
+    expect(queued.reportType).toBe("production");
+    expect(queued.format).toBe("csv");
+    expect(queued.start).toBe("2026-05-01");
+    expect(out.toLowerCase()).toContain("download");
   });
 
-  it("denies a worker a finance report", async () => {
-    const out = await generateReport(ctx("worker", fakeSupabase({})), { report_type: "finance", start_date: "2026-05-01", end_date: "2026-05-31" });
-    expect(out.toLowerCase()).toContain("don't have access");
-  });
-
-  it("reports a generation failure gracefully", async () => {
+  it("does not queue an export for insights yet, but offers an alternative", async () => {
+    let queuedCount = 0;
     const c = ctx("admin", fakeSupabase({}));
-    c.generateReport = async () => ({ ok: false, error: "storage down" });
+    c.requestExport = () => { queuedCount += 1; };
     const out = await generateReport(c, { report_type: "insights", start_date: "2026-05-01", end_date: "2026-05-31" });
-    expect(out.toLowerCase()).toContain("couldn't generate");
+    expect(queuedCount).toBe(0);
+    expect(out.toLowerCase()).toContain("coming");
   });
 });
 

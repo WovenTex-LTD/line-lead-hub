@@ -281,27 +281,30 @@ function formatChunks(rows: any[]): string {
     .join("\n\n");
 }
 
-/** generate_report(report_type, start_date, end_date, [format]) — produces a
- *  downloadable production/insights/finance report and returns a download link. */
+/** generate_report(report_type, start_date, end_date, [format]) — produces the
+ *  same export file the app's manual Export button makes, downloaded for the user
+ *  via the client. */
 export async function generateReport(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
   const reportType = String(input.report_type ?? "") as "production" | "insights" | "finance";
   if (!["production", "insights", "finance"].includes(reportType)) {
     return "Tell me which report you'd like: production, insights, or finance.";
   }
-  if (reportType === "finance" && !canSeeFinancials(ctx.role)) return DENY("financial reports");
-  if (reportType !== "finance" && !canSeeAnyProduction(ctx.role)) return DENY("production reports");
+  if (reportType !== "production" && !canSeeAnyProduction(ctx.role)) return DENY(`${reportType} reports`);
+
+  // Only the production report is wired to download the real in-app file so far.
+  if (reportType !== "production") {
+    return `Downloadable ${reportType} report files are coming shortly — for now I can produce the production report as a download, or show you the ${reportType} numbers right here in chat. Which would you prefer?`;
+  }
+  if (!canSeeAnyProduction(ctx.role)) return DENY("production reports");
 
   const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
   const start = typeof input.start_date === "string" && DATE_RE.test(input.start_date) ? input.start_date : ctx.today;
   const end = typeof input.end_date === "string" && DATE_RE.test(input.end_date) ? input.end_date : ctx.today;
   const format = input.format === "csv" ? "csv" : "pdf";
 
-  const result = await ctx.generateReport({ reportType, start, end, format });
-  if (!result.ok || !result.url) {
-    return `I couldn't generate the report${result.error ? ` (${result.error})` : ""}. Please try again, or I can raise a ticket with the team.`;
-  }
+  ctx.requestExport({ reportType: "production", start, end, format });
   const range = start === end ? start : `${start} to ${end}`;
-  return `Your ${reportType} report (${range}) is ready: [Download ${result.filename ?? "report"}](${result.url})\n\nThe link is valid for 24 hours.`;
+  return `Generating your production report (${range}) as ${format.toUpperCase()} — it will download in a moment.`;
 }
 
 /** raise_support_ticket(problem, [category]) — emails a ticket to the Woventex

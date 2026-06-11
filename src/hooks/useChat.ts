@@ -1,5 +1,32 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { exportProductionReport } from "@/lib/exports/production-export";
+
+interface ExportAction {
+  reportType: "production" | "insights" | "finance";
+  start: string;
+  end: string;
+  format: "pdf" | "csv";
+  factoryId: string;
+  factoryName?: string;
+}
+
+/** Run a report export Lina queued — produces the real in-app export file. */
+async function runExportAction(action: ExportAction): Promise<void> {
+  if (action.reportType !== "production") return; // only production wired so far
+  const days = Math.round(
+    (new Date(action.end).getTime() - new Date(action.start).getTime()) / 86_400_000
+  );
+  const reportType = days >= 24 ? "monthly" : "weekly";
+  await exportProductionReport({
+    factoryId: action.factoryId,
+    factoryName: action.factoryName || "Factory",
+    startDate: action.start,
+    endDate: action.end,
+    reportType,
+    format: action.format === "csv" ? "csv" : "pdf",
+  });
+}
 
 export interface ChatCitation {
   chunkId: string;
@@ -148,6 +175,13 @@ export function useChat(): UseChatReturn {
       setMessages((prev) =>
         prev.map((msg) => (msg.isLoading ? assistantMessage : msg))
       );
+
+      // Run any report exports Lina queued (downloads the real in-app file).
+      if (Array.isArray(data.export_actions)) {
+        for (const action of data.export_actions as ExportAction[]) {
+          runExportAction(action).catch((e) => console.error("Report export failed:", e));
+        }
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An error occurred";
       setError(errorMessage);
