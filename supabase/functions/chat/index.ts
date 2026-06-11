@@ -150,6 +150,23 @@ serve(async (req) => {
     // Resolve "today" in the factory's timezone for date-scoped tools.
     const today = getTodayForFactory(factoryTimezone);
 
+    // Current factory-local date & time, so Lina can judge whether missing
+    // end-of-day output is normal (early in the day) vs. a real concern.
+    let localTime = today;
+    try {
+      localTime = new Date().toLocaleString("en-GB", {
+        timeZone: factoryTimezone || "Asia/Dhaka",
+        weekday: "short",
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+    } catch (_e) {
+      // fall back to the date string
+    }
+
     // Lina requires a factory to scope every tool query — fail safely if absent.
     if (!profile?.factory_id) {
       throw new Error("Your account isn't linked to a factory yet, so I can't pull production data. Please contact your administrator.");
@@ -157,7 +174,7 @@ serve(async (req) => {
 
     // Build the role-filtered tool set and Lina's persona prompt.
     const tools = getToolsForRole(primaryRole);
-    const systemPrompt = buildLinaSystemPrompt(primaryRole, language);
+    const systemPrompt = buildLinaSystemPrompt(primaryRole, language, localTime);
 
     // Per-request tool context (factoryId/role are server-derived — never from model input).
     const toolContext: ToolContext = {

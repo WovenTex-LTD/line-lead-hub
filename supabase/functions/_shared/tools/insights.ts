@@ -10,7 +10,6 @@ import {
   fetchBlockers,
   fetchWorkOrders,
   fetchLines,
-  fetchFinancials,
 } from "../live-data.ts";
 
 const DENY = (what: string) =>
@@ -74,11 +73,97 @@ export async function getLines(ctx: ToolContext, _input: Record<string, unknown>
   return result.error ? `(${result.error})` : result.summary;
 }
 
-/** get_financials() — admin/owner only. Revenue/cost/profit/margin. */
+/** get_financials() — admin/owner only. Mirrors the app's Finances page:
+ *  Output Value (revenue) = sewing good_today × (cm_per_dozen / 12) using 100%
+ *  of entered CM; Operating Cost = rate × (manpower×hours + ot_manpower×ot_hours),
+ *  sewing only; rows without a CM/dozen are skipped entirely (missing-CM rule). */
 export async function getFinancials(ctx: ToolContext, _input: Record<string, unknown>): Promise<string> {
   if (!canSeeFinancials(ctx.role)) return DENY("financial data");
-  const result = await fetchFinancials(ctx.supabase, ctx.factoryId, ctx.today);
-  return result.error ? `(${result.error})` : result.summary;
+
+  // Headcount cost rate + currency from the factory account.
+  const { data: factory } = await ctx.supabase
+    .from("factory_accounts")
+    .select("headcount_cost_value, headcount_cost_currency")
+    .eq("id", ctx.factoryId)
+    .single();
+  const rate = (factory?.headcount_cost_value as number) ?? 0;
+  const currency: string = (factory?.headcount_cost_currency as string) ?? "BDT";
+
+  // BDT→USD conversion (live rate, fallback 1/121 — matches the Finances page).
+  let fx = 1;
+  if (currency === "BDT") {
+    fx = 1 / 121;
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 3000);
+      const res = await fetch("https://open.er-api.com/v6/latest/USD", { signal: ctrl.signal });
+      clearTimeout(t);
+      const json = await res.json();
+      if (json?.rates?.BDT) fx = 1 / json.rates.BDT;
+    } catch (_e) {
+      // keep fallback
+    }
+  }
+  const toUsd = (v: number) => (currency === "BDT" ? v * fx : v);
+
+  const { data, error } = await ctx.supabase
+    .from("sewing_actuals")
+    .select("good_today, manpower_actual, hours_actual, ot_manpower_actual, ot_hours_actual, work_orders(po_number, buyer, cm_per_dozen)")
+    .eq("factory_id", ctx.factoryId)
+    .eq("production_date", ctx.today);
+  if (error) return `(${error.message})`;
+
+  const rows = (data ?? []) as any[];
+  if (rows.length === 0) {
+    return `No sewing output has been submitted yet for ${ctx.today}, so there's no Output Value to report today.`;
+  }
+
+  let totalValue = 0;
+  let totalCost = 0;
+  const byPo: Record<string, { po: string; buyer: string; value: number; cost: number }> = {};
+  for (const r of rows) {
+    const cmDz = (r.work_orders?.cm_per_dozen as number) || 0;
+    if (cmDz <= 0) continue; // missing-CM rule: skip row from both value and cost
+    const output = r.good_today || 0;
+    const value = output > 0 ? (cmDz / 12) * output : 0;
+    const costNative = rate > 0
+      ? rate * ((r.manpower_actual || 0) * (r.hours_actual || 0) + (r.ot_manpower_actual || 0) * (r.ot_hours_actual || 0))
+      : 0;
+    const cost = toUsd(costNative);
+    totalValue += value;
+    totalCost += cost;
+    const po = r.work_orders?.po_number || "N/A";
+    if (!byPo[po]) byPo[po] = { po, buyer: r.work_orders?.buyer || "", value: 0, cost: 0 };
+    byPo[po].value += value;
+    byPo[po].cost += cost;
+  }
+
+  const usd = (v: number) => `$${Math.round(v).toLocaleString()}`;
+  if (totalValue === 0) {
+    return `No sewing output with a CM/dozen price is recorded for ${ctx.today}, so today's Output Value is $0 so far.`;
+  }
+  if (rate === 0) {
+    return `Output Value (today, ${ctx.today}): ${usd(totalValue)} from sewing output. Operating cost/profit can't be calculated — the headcount cost rate isn't set in Factory Setup.`;
+  }
+
+  const profit = totalValue - totalCost;
+  const margin = Math.round((profit / totalValue) * 100);
+  const lines = [
+    `Today's financials (${ctx.today}), USD — same Output-Value basis as the Finances page:`,
+    `- Output Value (revenue): ${usd(totalValue)}`,
+    `- Operating Cost: ${usd(totalCost)}`,
+    `- Operating Profit: ${profit >= 0 ? "+" : "-"}${usd(Math.abs(profit))}`,
+    `- Operating Margin: ${margin}%`,
+  ];
+  const poList = Object.values(byPo).sort((a, b) => b.value - a.value).slice(0, 8);
+  if (poList.length > 1) {
+    lines.push(`By PO:`);
+    for (const p of poList) {
+      const m = p.value > 0 ? Math.round(((p.value - p.cost) / p.value) * 100) : 0;
+      lines.push(`- ${p.po}${p.buyer ? ` (${p.buyer})` : ""}: value ${usd(p.value)}, cost ${usd(p.cost)}, margin ${m}%`);
+    }
+  }
+  return lines.join("\n");
 }
 
 /** compare_periods(metric, period_a_*, period_b_*) — currently supports the

@@ -138,6 +138,44 @@ function formatContent(content: string): React.ReactNode[] {
       continue;
     }
 
+    // Markdown table: header row + separator row + body rows
+    const isTableRow = (s: string) => /^\s*\|.*\|\s*$/.test(s);
+    const isTableSep = (s: string) => /^\s*\|?[\s:|-]+\|?\s*$/.test(s) && s.includes("-");
+    if (isTableRow(line) && i + 1 < lines.length && isTableSep(lines[i + 1])) {
+      const splitRow = (s: string) =>
+        s.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
+      const headers = splitRow(line);
+      i += 2; // skip header + separator
+      const rows: string[][] = [];
+      while (i < lines.length && isTableRow(lines[i])) {
+        rows.push(splitRow(lines[i]));
+        i++;
+      }
+      elements.push(
+        <div key={`tbl-${key++}`} className="my-2 max-w-full overflow-x-auto">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr>
+                {headers.map((h, hi) => (
+                  <th key={hi} className="border-b border-border px-2 py-1 text-left font-semibold whitespace-nowrap">{formatInline(h, `th-${key}-${hi}`)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, ri) => (
+                <tr key={ri}>
+                  {r.map((c, ci) => (
+                    <td key={ci} className="border-b border-border/40 px-2 py-1 whitespace-nowrap">{formatInline(c, `td-${key}-${ri}-${ci}`)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+      continue;
+    }
+
     // Unordered list — gather consecutive bullets into one tight <ul>,
     // collapsing blank lines between items (loose → tight list)
     const ulRe = /^\s*[-*]\s+/;
@@ -241,7 +279,7 @@ export function ChatMessage({
       <div className={cn("flex flex-col max-w-[80%] min-w-0", isUser ? "items-end" : "items-start")}>
         <div
           className={cn(
-            "rounded-2xl px-4 py-2.5 text-sm",
+            "rounded-2xl px-4 py-2.5 text-sm min-w-0 max-w-full overflow-hidden",
             isUser
               ? "bg-primary text-primary-foreground shadow-sm"
               : "bg-card border shadow-sm",
@@ -255,7 +293,7 @@ export function ChatMessage({
               <div className="h-2 w-2 rounded-full bg-primary/60 animate-bounce [animation-delay:300ms]" />
             </div>
           ) : (
-            <div className="prose prose-sm dark:prose-invert max-w-none break-words [word-break:break-word]">
+            <div className="prose prose-sm dark:prose-invert max-w-none min-w-0 [overflow-wrap:anywhere]">
               {formatContent(message.content)}
             </div>
           )}
