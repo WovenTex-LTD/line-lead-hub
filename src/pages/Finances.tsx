@@ -8,11 +8,11 @@ import {
   ChevronRight as ChevronRightIcon, ArrowUp, ArrowDown, ArrowUpDown,
   Trophy, AlertCircle, Info, Sparkles, FileDown, Search, X, SlidersHorizontal
 } from "lucide-react";
-import { jsPDF } from "jspdf";
 import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useHeadcountCost } from "@/hooks/useHeadcountCost";
 import { PRODUCTION_CM_SHARE } from "@/lib/sewing-financials";
+import { buildFinancePdf, buildFinanceCsv } from "@/lib/exports/finance-export";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip,
   ResponsiveContainer
@@ -353,440 +353,35 @@ export default function Finances() {
   // ── PDF Report ────────────────────────────────────────────────────────────
 
   function handleExportPdf() {
-    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-    const pw = doc.internal.pageSize.getWidth();
-    const ph = doc.internal.pageSize.getHeight();
-    const m = 12;
-    const cw = pw - m * 2;
-    const factoryName = factory?.name || "—";
-
-    const fmtUsd = (v: number) => `$${Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    const sign = (v: number) => v >= 0 ? "+" : "-";
-
-    let y = m;
-
-    // ── Header ──
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
-    doc.text("Financial Operations Report", m, y + 6);
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(100);
-    doc.text(`${factoryName}  |  ${label}  |  CM/dozen as entered`, m, y + 13);
-    doc.text(`Generated: ${format(new Date(), "PPpp")}`, pw - m, y + 13, { align: "right" });
-    doc.setTextColor(0);
-    y += 20;
-
-    // ── Divider ──
-    doc.setDrawColor(220);
-    doc.line(m, y, pw - m, y);
-    y += 6;
-
-    // ── Summary boxes ──
-    const boxes = [
-      { label: "Output Value", value: fmtUsd(summary.totalValue) },
-      { label: "Operating Cost", value: fmtUsd(summary.totalCost) },
-      { label: "Operating Margin", value: `${sign(summary.totalMargin)}${fmtUsd(summary.totalMargin)}` },
-      { label: "Margin %", value: `${summary.totalMarginPct}%` },
-      { label: "Total Output", value: `${summary.totalOutput.toLocaleString()} pcs` },
-    ];
-    const bw = cw / boxes.length;
-    boxes.forEach((b, i) => {
-      const bx = m + i * bw;
-      doc.setFillColor(247, 247, 252);
-      doc.roundedRect(bx, y, bw - 2, 18, 2, 2, "F");
-      doc.setFontSize(7);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(120);
-      doc.text(b.label.toUpperCase(), bx + (bw - 2) / 2, y + 6, { align: "center" });
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(0);
-      doc.text(b.value, bx + (bw - 2) / 2, y + 14, { align: "center" });
+    buildFinancePdf({
+      factoryName: factory?.name || "—",
+      label,
+      rangeMode,
+      summary,
+      sortedLineRows,
+      sortedPoRows,
+      sewingData,
+      hcRate: headcountCost.value ?? 0,
+      hcCurrency: headcountCost.currency ?? "BDT",
+      bdtToUsd,
     });
-    y += 24;
-
-    // ── Helper: draw a table ──
-    const drawTable = (
-      title: string,
-      headers: string[],
-      rowData: (string | number)[][],
-      colWidths: number[],
-      aligns: ("left" | "right" | "center")[],
-    ) => {
-      if (y + 30 > ph - m) { doc.addPage(); y = m; }
-
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(0);
-      doc.text(title, m, y + 4);
-      y += 8;
-
-      // Header row
-      const headerH = 7;
-      doc.setFillColor(237, 233, 254); // violet-100
-      doc.rect(m, y, cw, headerH, "F");
-      doc.setFontSize(7);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(80);
-      let cx = m + 1;
-      headers.forEach((h, i) => {
-        const tw = colWidths[i];
-        if (aligns[i] === "right") doc.text(h, cx + tw - 2, y + 5, { align: "right" });
-        else doc.text(h, cx + 1, y + 5);
-        cx += tw;
-      });
-      y += headerH;
-
-      // Data rows
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(30);
-      rowData.forEach((row, ri) => {
-        if (y + 6 > ph - m) { doc.addPage(); y = m; }
-        const rowH = 6;
-        if (ri % 2 === 1) { doc.setFillColor(250, 249, 255); doc.rect(m, y, cw, rowH, "F"); }
-        doc.setFontSize(7.5);
-        cx = m + 1;
-        row.forEach((cell, i) => {
-          const tw = colWidths[i];
-          const txt = String(cell);
-          if (aligns[i] === "right") doc.text(txt, cx + tw - 2, y + 4.5, { align: "right" });
-          else doc.text(txt, cx + 1, y + 4.5);
-          cx += tw;
-        });
-        y += rowH;
-      });
-
-      // Total row
-      if (y + 7 > ph - m) { doc.addPage(); y = m; }
-      doc.setFillColor(235, 230, 255);
-      doc.rect(m, y, cw, 7, "F");
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7.5);
-      doc.setTextColor(40);
-      cx = m + 1;
-      const totals = rowData.reduce<(number | null)[]>((acc, row) => {
-        row.forEach((cell, i) => {
-          if (typeof cell === "number") acc[i] = (acc[i] as number || 0) + cell;
-          else if (acc[i] === undefined) acc[i] = null;
-        });
-        return acc;
-      }, []);
-      headers.forEach((_, i) => {
-        const tw = colWidths[i];
-        if (i === 0) { doc.text("TOTAL", cx + 1, y + 5); }
-        else if (typeof totals[i] === "number") {
-          const v = totals[i] as number;
-          const isPlainNumber = i <= 1 || headers[i].toLowerCase().includes("output (pcs)");
-          const txt = isPlainNumber ? v.toLocaleString() : (aligns[i] === "right" ? `${sign(v)}${fmtUsd(v)}` : `${v.toFixed(0)}`);
-          if (aligns[i] === "right") doc.text(txt, cx + tw - 2, y + 5, { align: "right" });
-          else doc.text(txt, cx + 1, y + 5);
-        }
-        cx += tw;
-      });
-      y += 7 + 5;
-    };
-
-    // ── By Line table ──
-    drawTable(
-      "BY SEWING LINE",
-      ["Line", "Output (pcs)", "Output Value", "Operating Cost", "Margin", "Margin %", "Share"],
-      sortedLineRows.map(r => [r.name, r.output, `${sign(r.value)}${fmtUsd(r.value)}`, fmtUsd(r.cost), `${sign(r.margin)}${fmtUsd(r.margin)}`, `${r.marginPct}%`, `${r.outputShare}%`]),
-      [50, 28, 40, 40, 40, 24, 20],
-      ["left", "right", "right", "right", "right", "right", "right"],
-    );
-
-    // ── By Work Order table ──
-    drawTable(
-      "BY WORK ORDER (PO)",
-      ["PO Number", "Buyer", "Style", "Output (pcs)", "CM/Dozen", "Prod CM/pc", "Output Value", "Oper. Cost", "Margin", "Margin %"],
-      sortedPoRows.map(r => [r.po, r.buyer, r.style, r.output, `$${r.cmDz.toFixed(2)}`, `$${r.prodCmPc.toFixed(4)}`, `${sign(r.value)}${fmtUsd(r.value)}`, fmtUsd(r.cost), `${sign(r.margin)}${fmtUsd(r.margin)}`, `${r.marginPct}%`]),
-      [30, 30, 28, 24, 22, 24, 32, 30, 32, 20],
-      ["left", "left", "left", "right", "right", "right", "right", "right", "right", "right"],
-    );
-
-    // ── Daily detail by line ──
-    if (rangeMode !== "day") {
-      const rate = headcountCost.value ?? 0;
-      const isBdt = headcountCost.currency === "BDT";
-      const fx = bdtToUsd ?? (1 / 121);
-      const toUsd = (r: number) => isBdt ? r * fx : r;
-
-      // Build map: date → lineId → { name, output, value, rawCost }
-      const dayMap = new Map<string, Map<string, { name: string; output: number; value: number; rawCost: number }>>();
-      (sewingData as any[]).forEach(s => {
-        const cmDz: number = s.work_orders?.cm_per_dozen || 0;
-        // Missing-CM rule: skip rows whose PO has no CM. Counting their cost
-        // without value would paint a false negative-margin narrative.
-        if (cmDz <= 0) return;
-        const date: string = s.production_date;
-        const lineId: string = s.lines?.line_id || s.lines?.name || "__u";
-        const lineName: string = s.lines?.name || "Unassigned";
-        const output: number = s.good_today || 0;
-        const rawCost: number = rate > 0 ? rate * ((s.manpower_actual || 0) * (s.hours_actual || 0) + (s.ot_manpower_actual || 0) * (s.ot_hours_actual || 0)) : 0;
-        const val: number = output > 0 ? (cmDz * PRODUCTION_CM_SHARE / 12) * output : 0;
-        if (!dayMap.has(date)) dayMap.set(date, new Map());
-        const lm = dayMap.get(date)!;
-        if (!lm.has(lineId)) lm.set(lineId, { name: lineName, output: 0, value: 0, rawCost: 0 });
-        const lr = lm.get(lineId)!;
-        lr.output += output; lr.value += val; lr.rawCost += rawCost;
-      });
-
-      const sortedDates = Array.from(dayMap.keys()).sort();
-
-      if (sortedDates.length > 0) {
-        // Section header
-        if (y + 20 > ph - m) { doc.addPage(); y = m; }
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(0);
-        doc.text("DAILY DETAIL — BY LINE", m, y + 4);
-        y += 10;
-
-        const dCols = [50, 26, 38, 38, 38, 22];
-        const dAligns: ("left" | "right")[] = ["left", "right", "right", "right", "right", "right"];
-        const dHeaders = ["Line", "Output (pcs)", "Output Value", "Oper. Cost", "Margin", "Margin %"];
-
-        sortedDates.forEach(date => {
-          const lm = dayMap.get(date)!;
-          const lines = Array.from(lm.values()).sort((a, b) => b.output - a.output);
-          const dayOut = lines.reduce((s, l) => s + l.output, 0);
-          const dayVal = lines.reduce((s, l) => s + l.value, 0);
-          const dayCost = toUsd(lines.reduce((s, l) => s + l.rawCost, 0));
-          const dayMargin = dayVal - dayCost;
-          const dayMpct = dayVal > 0 ? Math.round((dayMargin / dayVal) * 100) : 0;
-
-          // Date sub-header
-          if (y + 14 > ph - m) { doc.addPage(); y = m; }
-          const displayDate = new Date(date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-          doc.setFillColor(237, 233, 254);
-          doc.rect(m, y, cw, 6, "F");
-          doc.setFontSize(7.5);
-          doc.setFont("helvetica", "bold");
-          doc.setTextColor(60, 40, 120);
-          doc.text(displayDate, m + 2, y + 4.5);
-          doc.setTextColor(60, 40, 120);
-          doc.text(`Total: ${dayOut.toLocaleString()} pcs  |  ${sign(dayVal)}${fmtUsd(dayVal)}  |  Cost: ${fmtUsd(dayCost)}  |  Margin: ${sign(dayMargin)}${fmtUsd(dayMargin)} (${dayMpct}%)`, pw - m - 2, y + 4.5, { align: "right" });
-          y += 6;
-
-          // Column header
-          if (y + 6 > ph - m) { doc.addPage(); y = m; }
-          doc.setFillColor(248, 246, 255);
-          doc.rect(m, y, cw, 5, "F");
-          doc.setFontSize(6);
-          doc.setFont("helvetica", "bold");
-          doc.setTextColor(120);
-          let cx = m + 1;
-          dHeaders.forEach((h, i) => {
-            if (dAligns[i] === "right") doc.text(h, cx + dCols[i] - 2, y + 3.5, { align: "right" });
-            else doc.text(h, cx + 1, y + 3.5);
-            cx += dCols[i];
-          });
-          y += 5;
-
-          // Line rows
-          doc.setFont("helvetica", "normal");
-          doc.setTextColor(30);
-          lines.forEach((l, ri) => {
-            if (y + 5 > ph - m) { doc.addPage(); y = m; }
-            const cost = toUsd(l.rawCost);
-            const margin = l.value - cost;
-            const mpct = l.value > 0 ? Math.round((margin / l.value) * 100) : 0;
-            if (ri % 2 === 1) { doc.setFillColor(252, 251, 255); doc.rect(m, y, cw, 5, "F"); }
-            doc.setFontSize(7);
-            cx = m + 1;
-            const cells = [l.name, l.output.toLocaleString(), `${sign(l.value)}${fmtUsd(l.value)}`, fmtUsd(cost), `${sign(margin)}${fmtUsd(margin)}`, `${mpct}%`];
-            cells.forEach((cell, i) => {
-              if (dAligns[i] === "right") doc.text(cell, cx + dCols[i] - 2, y + 3.5, { align: "right" });
-              else doc.text(cell, cx + 1, y + 3.5);
-              cx += dCols[i];
-            });
-            y += 5;
-          });
-          y += 3;
-        });
-      }
-    }
-
-    // ── Footer ──
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(160);
-    doc.text("Production Portal  •  Sewing dept only  •  Figures in USD", pw / 2, ph - 5, { align: "center" });
-
-    doc.save(`financials-${label.replace(/[^a-z0-9]/gi, "-").toLowerCase()}.pdf`);
   }
 
   // ── CSV Export ────────────────────────────────────────────────────────────
 
   function handleExportCsv() {
-    const factoryName = factory?.name || "—";
-    const fmtN = (v: number, dp = 2) => v.toFixed(dp);
-    const sign = (v: number) => v >= 0 ? "+" : "-";
-    const q = (s: string | number) => {
-      const str = String(s);
-      return str.includes(",") || str.includes('"') || str.includes("\n")
-        ? `"${str.replace(/"/g, '""')}"` : str;
-    };
-    const row = (...cells: (string | number)[]) => cells.map(q).join(",");
-    const blank = () => "";
-    const lines: string[] = [];
-
-    // ── Header block ──
-    lines.push(row("FINANCIAL OPERATIONS REPORT"));
-    lines.push(row("Factory", factoryName));
-    lines.push(row("Period", label));
-    lines.push(row("Generated", format(new Date(), "PPpp")));
-    lines.push(row("Note", "CM/dozen as entered (sewing dept only). All figures in USD."));
-    lines.push(blank());
-
-    // ── Summary ──
-    lines.push(row("SUMMARY"));
-    lines.push(row("Output Value ($)", "Operating Cost ($)", "Operating Margin ($)", "Margin %", "Total Output (pcs)"));
-    lines.push(row(
-      fmtN(summary.totalValue),
-      fmtN(summary.totalCost),
-      `${sign(summary.totalMargin)}${fmtN(Math.abs(summary.totalMargin))}`,
-      `${summary.totalMarginPct}%`,
-      summary.totalOutput,
-    ));
-    lines.push(blank());
-
-    // ── By Sewing Line ──
-    lines.push(row("BY SEWING LINE"));
-    lines.push(row("Line", "Output (pcs)", "Output Value ($)", "Operating Cost ($)", "Margin ($)", "Margin %", "Output Share %"));
-    sortedLineRows.forEach(r => {
-      lines.push(row(
-        r.name,
-        r.output,
-        fmtN(r.value),
-        fmtN(r.cost),
-        `${sign(r.margin)}${fmtN(Math.abs(r.margin))}`,
-        `${r.marginPct}%`,
-        `${r.outputShare}%`,
-      ));
+    buildFinanceCsv({
+      factoryName: factory?.name || "—",
+      label,
+      rangeMode,
+      summary,
+      sortedLineRows,
+      sortedPoRows,
+      sewingData,
+      hcRate: headcountCost.value ?? 0,
+      hcCurrency: headcountCost.currency ?? "BDT",
+      bdtToUsd,
     });
-    lines.push(row(
-      "TOTAL",
-      summary.totalOutput,
-      fmtN(summary.totalValue),
-      fmtN(summary.totalCost),
-      `${sign(summary.totalMargin)}${fmtN(Math.abs(summary.totalMargin))}`,
-      `${summary.totalMarginPct}%`,
-      "100%",
-    ));
-    lines.push(blank());
-
-    // ── By Work Order ──
-    lines.push(row("BY WORK ORDER (PO)"));
-    lines.push(row("PO Number", "Buyer", "Style", "Output (pcs)", "CM/Dozen ($)", "Prod CM/Dozen ($)", "Prod CM/pc ($)", "Output Value ($)", "Oper. Cost ($)", "Margin ($)", "Margin %"));
-    sortedPoRows.forEach(r => {
-      lines.push(row(
-        r.po,
-        r.buyer,
-        r.style,
-        r.output,
-        fmtN(r.cmDz),
-        fmtN(r.prodCmDz),
-        fmtN(r.prodCmPc, 4),
-        fmtN(r.value),
-        fmtN(r.cost),
-        `${sign(r.margin)}${fmtN(Math.abs(r.margin))}`,
-        `${r.marginPct}%`,
-      ));
-    });
-    lines.push(row(
-      "TOTAL", "", "",
-      summary.totalOutput,
-      "", "", "",
-      fmtN(summary.totalValue),
-      fmtN(summary.totalCost),
-      `${sign(summary.totalMargin)}${fmtN(Math.abs(summary.totalMargin))}`,
-      `${summary.totalMarginPct}%`,
-    ));
-    lines.push(blank());
-
-    // ── Daily Detail (week / month only) ──
-    if (rangeMode !== "day") {
-      const rate = headcountCost.value ?? 0;
-      const isBdt = headcountCost.currency === "BDT";
-      const fx = bdtToUsd ?? (1 / 121);
-      const toUsd = (r: number) => isBdt ? r * fx : r;
-
-      const dayMap = new Map<string, Map<string, { name: string; output: number; value: number; rawCost: number }>>();
-      (sewingData as any[]).forEach(s => {
-        const cmDz: number = s.work_orders?.cm_per_dozen || 0;
-        // Missing-CM rule: skip rows whose PO has no CM. Counting their cost
-        // without value would paint a false negative-margin narrative.
-        if (cmDz <= 0) return;
-        const date: string = s.production_date;
-        const lineId: string = s.lines?.line_id || s.lines?.name || "__u";
-        const lineName: string = s.lines?.name || "Unassigned";
-        const output: number = s.good_today || 0;
-        const rawCost: number = rate > 0 ? rate * ((s.manpower_actual || 0) * (s.hours_actual || 0) + (s.ot_manpower_actual || 0) * (s.ot_hours_actual || 0)) : 0;
-        const val: number = output > 0 ? (cmDz * PRODUCTION_CM_SHARE / 12) * output : 0;
-        if (!dayMap.has(date)) dayMap.set(date, new Map());
-        const lm = dayMap.get(date)!;
-        if (!lm.has(lineId)) lm.set(lineId, { name: lineName, output: 0, value: 0, rawCost: 0 });
-        const lr = lm.get(lineId)!;
-        lr.output += output; lr.value += val; lr.rawCost += rawCost;
-      });
-
-      const sortedDates = Array.from(dayMap.keys()).sort();
-      if (sortedDates.length > 0) {
-        lines.push(row("DAILY DETAIL — BY LINE"));
-        lines.push(row("Date", "Line", "Output (pcs)", "Output Value ($)", "Oper. Cost ($)", "Margin ($)", "Margin %"));
-
-        sortedDates.forEach(date => {
-          const lm = dayMap.get(date)!;
-          const dayLines = Array.from(lm.values()).sort((a, b) => b.output - a.output);
-          const displayDate = new Date(date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
-          const dayOut = dayLines.reduce((s, l) => s + l.output, 0);
-          const dayVal = dayLines.reduce((s, l) => s + l.value, 0);
-          const dayCost = toUsd(dayLines.reduce((s, l) => s + l.rawCost, 0));
-          const dayMargin = dayVal - dayCost;
-          const dayMpct = dayVal > 0 ? Math.round((dayMargin / dayVal) * 100) : 0;
-
-          dayLines.forEach(l => {
-            const cost = toUsd(l.rawCost);
-            const margin = l.value - cost;
-            const mpct = l.value > 0 ? Math.round((margin / l.value) * 100) : 0;
-            lines.push(row(
-              displayDate,
-              l.name,
-              l.output,
-              fmtN(l.value),
-              fmtN(cost),
-              `${sign(margin)}${fmtN(Math.abs(margin))}`,
-              `${mpct}%`,
-            ));
-          });
-
-          // Day subtotal
-          lines.push(row(
-            `${displayDate} — DAY TOTAL`,
-            "",
-            dayOut,
-            fmtN(dayVal),
-            fmtN(dayCost),
-            `${sign(dayMargin)}${fmtN(Math.abs(dayMargin))}`,
-            `${dayMpct}%`,
-          ));
-          lines.push(blank());
-        });
-      }
-    }
-
-    // ── Footer ──
-    lines.push(row("Production Portal  •  Sewing dept only  •  Figures in USD"));
-
-    const csv = lines.join("\r\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `financials-${label.replace(/[^a-z0-9]/gi, "-").toLowerCase()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
   }
 
   // ── Render ────────────────────────────────────────────────────────────────

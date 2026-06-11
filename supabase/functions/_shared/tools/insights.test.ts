@@ -223,13 +223,25 @@ describe("generateReport", () => {
     expect(out.toLowerCase()).toContain("download");
   });
 
-  it("does not queue an export for insights yet, but offers an alternative", async () => {
-    let queuedCount = 0;
+  it("queues an insights export", async () => {
+    let queued: any = null;
     const c = ctx("admin", fakeSupabase({}));
-    c.requestExport = () => { queuedCount += 1; };
+    c.requestExport = (r) => { queued = r; };
     const out = await generateReport(c, { report_type: "insights", start_date: "2026-05-01", end_date: "2026-05-31" });
-    expect(queuedCount).toBe(0);
-    expect(out.toLowerCase()).toContain("coming");
+    expect(queued.reportType).toBe("insights");
+    expect(out.toLowerCase()).toContain("download");
+  });
+
+  it("denies a worker a finance report but lets an owner queue one", async () => {
+    const denied = await generateReport(ctx("worker", fakeSupabase({})), { report_type: "finance", start_date: "2026-05-01", end_date: "2026-05-31" });
+    expect(denied.toLowerCase()).toContain("don't have access");
+
+    let queued: any = null;
+    const c = ctx("owner", fakeSupabase({}));
+    c.requestExport = (r) => { queued = r; };
+    await generateReport(c, { report_type: "finance", start_date: "2026-05-01", end_date: "2026-05-31", format: "csv" });
+    expect(queued.reportType).toBe("finance");
+    expect(queued.format).toBe("csv");
   });
 });
 

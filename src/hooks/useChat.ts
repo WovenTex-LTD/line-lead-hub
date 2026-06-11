@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { exportProductionReport } from "@/lib/exports/production-export";
+import { exportInsightsReport } from "@/lib/exports/insights-export";
+import { exportFinanceReport } from "@/lib/exports/finance-export";
 
 interface ExportAction {
   reportType: "production" | "insights" | "finance";
@@ -13,19 +15,26 @@ interface ExportAction {
 
 /** Run a report export Lina queued — produces the real in-app export file. */
 async function runExportAction(action: ExportAction): Promise<void> {
-  if (action.reportType !== "production") return; // only production wired so far
-  const days = Math.round(
-    (new Date(action.end).getTime() - new Date(action.start).getTime()) / 86_400_000
-  );
-  const reportType = days >= 24 ? "monthly" : "weekly";
-  await exportProductionReport({
-    factoryId: action.factoryId,
-    factoryName: action.factoryName || "Factory",
-    startDate: action.start,
-    endDate: action.end,
-    reportType,
-    format: action.format === "csv" ? "csv" : "pdf",
-  });
+  const factoryId = action.factoryId;
+  const factoryName = action.factoryName || "Factory";
+  const startDate = action.start;
+  const endDate = action.end;
+  const format = action.format === "csv" ? "csv" : "pdf";
+  const days = Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86_400_000);
+
+  if (action.reportType === "production") {
+    await exportProductionReport({
+      factoryId, factoryName, startDate, endDate, format,
+      reportType: days >= 24 ? "monthly" : "weekly",
+    });
+  } else if (action.reportType === "insights") {
+    await exportInsightsReport({ factoryId, factoryName, startDate, endDate, format });
+  } else if (action.reportType === "finance") {
+    await exportFinanceReport({
+      factoryId, factoryName, startDate, endDate, format,
+      rangeMode: days <= 1 ? "day" : days >= 24 ? "month" : "week",
+    });
+  }
 }
 
 export interface ChatCitation {
