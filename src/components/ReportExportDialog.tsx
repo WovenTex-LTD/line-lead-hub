@@ -10,8 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { getTodayInTimezone } from "@/lib/date-utils";
 import { effectivePoly } from "@/lib/finishing-utils";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
-import { generateProductionReportPdf } from "@/lib/report-pdf";
 import { downloadDailyProductionReport, DailyReportData } from "@/components/DailyProductionReport";
+import { exportProductionReport } from "@/lib/exports/production-export";
 import { toast } from "sonner";
 
 type ReportType = "daily" | "weekly" | "monthly";
@@ -42,7 +42,6 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
     storage: true,
   });
   const [generating, setGenerating] = useState(false);
-  const [bdtToUsd, setBdtToUsd] = useState<number | null>(null);
   const tz = factory?.timezone || "Asia/Dhaka";
   const todayStr = date || getTodayInTimezone(tz);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date(todayStr + "T00:00:00"));
@@ -427,293 +426,6 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
     await downloadCsvFile(R, `daily_report_${data.reportDate}.csv`);
   }
 
-  async function generatePeriodCsv(
-    sewingData: any[], cuttingData: any[], finishingData: any[], storageData: any[],
-    label: string, xRate: number | null, dates: string[], sewingTargets: any[] = [],
-  ) {
-    const factoryName = factory?.name || "Factory";
-    const typeLabel = reportType === "weekly" ? "WEEKLY" : "MONTHLY";
-    const isBDT = headcountCost.currency === "BDT";
-    const costCur = isBDT ? "BDT" : "USD";
-    const bdtRate = xRate;
-    const hcRate = costConfigured && headcountCost.value ? headcountCost.value : 0;
-    const toUsd = (native: number): number => {
-      if (!isBDT || !bdtRate) return native;
-      return Math.round(native * bdtRate * 100) / 100;
-    };
-    const lc = (mp: number | null, hrs: number | null, otMp: number | null, otHrs: number | null): number => {
-      if (!hcRate) return 0; let c = 0;
-      if (mp && hrs) c += hcRate * mp * hrs;
-      if (otMp && otHrs) c += hcRate * otMp * otHrs;
-      return Math.round(c * 100) / 100;
-    };
-    const { compareLineNames: cmpLines2 } = await import("@/lib/sort-lines");
-    const fmtDate = (d: string) => { const p = d.split("-"); return `${p[2]}.${p[1]}`; };
-
-    const R: (string | number | null)[][] = [];
-
-    // ── Header ──
-    R.push([`${factoryName} — ${typeLabel} PRODUCTION REPORT`]);
-    R.push([`Period: ${label}`]);
-    R.push([`Generated: ${format(new Date(), "PPpp")}`]);
-    R.push([]);
-
-    // ── Production Summary per Day ──
-    if (dates.length > 0) {
-      R.push(["PRODUCTION SUMMARY"]);
-      const sumHeaders = ["Day",
-        ...(departments.sewing ? ["Sewing Out"] : []),
-        ...(departments.cutting ? ["Cutting"] : []),
-        ...(departments.finishing ? ["Finish Out"] : []),
-        ...(departments.storage ? ["Storage Txns"] : []),
-      ];
-      R.push(sumHeaders);
-      let totSew = 0, totCut = 0, totFin = 0, totSto = 0;
-      dates.forEach(d => {
-        const daySew = departments.sewing ? sewingData.filter((s: any) => s.production_date === d).reduce((s: number, r: any) => s + (r.good_today || 0), 0) : 0;
-        const dayCut = departments.cutting ? cuttingData.filter((c: any) => c.production_date === d).reduce((s: number, r: any) => s + (r.day_cutting || 0), 0) : 0;
-        const dayFin = departments.finishing ? finishingData.filter((f: any) => f.production_date === d).reduce((s: number, r: any) => s + (r.poly || 0), 0) : 0;
-        const daySto = departments.storage ? storageData.filter((t: any) => t.transaction_date === d).length : 0;
-        totSew += daySew; totCut += dayCut; totFin += dayFin; totSto += daySto;
-        const dayDate = new Date(d + "T00:00:00");
-        R.push([
-          `${format(dayDate, "EEE")} ${fmtDate(d)}`,
-          ...(departments.sewing ? [daySew] : []),
-          ...(departments.cutting ? [dayCut] : []),
-          ...(departments.finishing ? [dayFin] : []),
-          ...(departments.storage ? [daySto] : []),
-        ]);
-      });
-      R.push([
-        "TOTAL",
-        ...(departments.sewing ? [totSew] : []),
-        ...(departments.cutting ? [totCut] : []),
-        ...(departments.finishing ? [totFin] : []),
-        ...(departments.storage ? [totSto] : []),
-      ]);
-      R.push([]);
-    }
-
-    // ── Financial Summary ──
-    if (hcRate > 0) {
-      let totalRevenue = 0, totalSewCost = 0, totalCutCost = 0, totalFinCost = 0;
-      if (departments.sewing) sewingData.forEach((s: any) => { if (s.work_orders?.cm_per_dozen) totalSewCost += lc(s.manpower_actual, s.hours_actual, s.ot_manpower_actual, s.ot_hours_actual); });
-      if (departments.cutting) cuttingData.forEach((c: any) => { if (c.work_orders?.cm_per_dozen) totalCutCost += lc(c.man_power, c.hours_actual, c.ot_manpower_actual, c.ot_hours_actual); });
-      if (departments.finishing) finishingData.forEach((f: any) => {
-        if (f.work_orders?.cm_per_dozen) totalFinCost += lc(f.m_power_actual, f.actual_hours, f.ot_manpower_actual, f.ot_hours_actual);
-      });
-      // Revenue: sewing output × (cm_per_dozen / 12)
-      if (departments.sewing) sewingData.forEach((s: any) => {
-        const cm = s.work_orders?.cm_per_dozen;
-        if (cm && s.good_today) totalRevenue += (cm / 12) * s.good_today;
-      });
-      const totalCostNat = totalSewCost + totalCutCost + totalFinCost;
-      const totalCostUsd = toUsd(totalCostNat);
-      const profit = totalRevenue - totalCostUsd;
-      const margin = totalRevenue > 0 ? Math.round((profit / totalRevenue) * 1000) / 10 : 0;
-      if (totalRevenue > 0 || totalCostNat > 0) {
-        R.push(["FINANCIAL SUMMARY (USD)"]);
-        R.push(["Revenue", "Sewing Cost", "Cutting Cost", "Finishing Cost", "Total Cost", "Profit", "Margin"]);
-        R.push([
-          fUsd(Math.round(totalRevenue * 100) / 100),
-          fUsd(toUsd(totalSewCost)), fUsd(toUsd(totalCutCost)), fUsd(toUsd(totalFinCost)),
-          fUsd(totalCostUsd),
-          `${profit >= 0 ? "+" : "-"}${fUsd(Math.abs(Math.round(profit * 100) / 100))}`,
-          margin + "%",
-        ]);
-        if (isBDT && bdtRate) R.push([`Cost in BDT: Tk${Math.round(totalCostNat).toLocaleString()} | Rate: ${(1 / bdtRate).toFixed(1)} BDT/USD`]);
-        R.push([]);
-      }
-    }
-
-    // Build target lookup: key = "lineId|woId|date" → target per hour
-    const tgtLookup = new Map<string, number>();
-    sewingTargets.forEach((t: any) => {
-      const key = `${t.line_id}|${t.work_order_id}|${t.production_date}`;
-      const resolved = t.target_total_planned != null
-        ? t.target_total_planned
-        : (t.per_hour_target || 0) * (t.hours_planned || 8);
-      tgtLookup.set(key, resolved);
-    });
-
-    // ── Sewing — grouped by Line ──
-    if (departments.sewing && sewingData.length > 0) {
-      R.push(["SEWING — LINE WISE OUTPUT & COST"]);
-      R.push([]);
-
-      const byLine: Record<string, any[]> = {};
-      sewingData.forEach((s: any) => {
-        const ln = s.lines?.name || s.lines?.line_id || "Unknown";
-        if (!byLine[ln]) byLine[ln] = [];
-        byLine[ln].push(s);
-      });
-      const lineKeys = Object.keys(byLine).sort((a, b) => cmpLines2(a, b));
-      let deptOutput = 0, deptReject = 0, deptRework = 0, deptCostN = 0, deptCostU = 0;
-
-      lineKeys.forEach(lineName => {
-        const entries = byLine[lineName].sort((a: any, b: any) => (a.production_date || "").localeCompare(b.production_date || ""));
-        R.push([`>>> ${lineName}`]);
-        R.push(["Day", "PO / Style", "Output", "Reject", "Rework", "Eff %", "Avg/Day", "MP", "Hrs", "OT MP", "OT Hrs", `Cost (${costCur})`, "Cost ($)", "Notes"]);
-        let lineOut = 0, lineRej = 0, lineRew = 0, lineCN = 0, lineCU = 0;
-        const lineDays = new Set<string>();
-        entries.forEach((s: any) => {
-          const cn = lc(s.manpower_actual, s.hours_actual, s.ot_manpower_actual, s.ot_hours_actual);
-          const cu = toUsd(cn);
-          lineOut += s.good_today || 0; lineRej += s.reject_today || 0; lineRew += s.rework_today || 0;
-          lineCN += cn; lineCU += cu;
-          if (s.good_today > 0) lineDays.add(s.production_date);
-          const tgtKey = `${s.line_id}|${s.work_order_id}|${s.production_date}`;
-          const dayTarget = tgtLookup.get(tgtKey) || 0;
-          const eff = dayTarget > 0 ? Math.round(((s.good_today || 0) / dayTarget) * 100) : null;
-          R.push([
-            fmtDate(s.production_date),
-            (s.work_orders?.po_number || "-") + " / " + (s.work_orders?.style || "-"),
-            s.good_today || 0, s.reject_today || 0, s.rework_today || 0,
-            eff != null ? eff + "%" : "", "",
-            s.manpower_actual, s.hours_actual, s.ot_manpower_actual, s.ot_hours_actual,
-            hcRate ? cn : "", hcRate ? cu : "",
-            s.blocker_description || s.remarks || "",
-          ]);
-        });
-        const lineAvg = lineDays.size > 0 ? Math.round(lineOut / lineDays.size) : 0;
-        R.push([`${lineName} Total`, "", lineOut, lineRej, lineRew, "", "", "", "", "", "", hcRate ? lineCN : "", hcRate ? lineCU : "", ""]);
-        if (lineAvg > 0) R.push([`  Avg Output/Day: ${fN(lineAvg)} pcs (${lineDays.size} working days)`]);
-        R.push([]);
-        deptOutput += lineOut; deptReject += lineRej; deptRework += lineRew; deptCostN += lineCN; deptCostU += lineCU;
-      });
-      R.push([`SEWING DEPARTMENT TOTAL — Output: ${fN(deptOutput)} | Cost: ${hcRate ? fUsd(deptCostU) : "-"}`]);
-      R.push([]);
-    }
-
-    // ── Cutting — grouped by PO ──
-    if (departments.cutting && cuttingData.length > 0) {
-      R.push(["CUTTING — PO WISE DETAIL & COST"]);
-      R.push([]);
-
-      const byPo: Record<string, { buyer: string; entries: any[] }> = {};
-      cuttingData.forEach((c: any) => {
-        const po = c.work_orders?.po_number || "Unknown PO";
-        if (!byPo[po]) byPo[po] = { buyer: c.work_orders?.buyer || "-", entries: [] };
-        byPo[po].entries.push(c);
-      });
-
-      let deptDayCut = 0, deptCostN = 0, deptCostU = 0;
-      Object.keys(byPo).sort().forEach(po => {
-        const { buyer, entries } = byPo[po];
-        entries.sort((a: any, b: any) => {
-          if (a.production_date !== b.production_date) return (a.production_date || "").localeCompare(b.production_date || "");
-          return cmpLines2(a.lines?.name || "", b.lines?.name || "");
-        });
-        R.push([`>>> PO: ${po} — Buyer: ${buyer}`]);
-        R.push(["Day", "Line", "Colour", "Day Cut", "Day Input", "Total Cut", "Balance", "MP", "Hrs", "OT MP", "OT Hrs", `Cost (${costCur})`, "Cost ($)"]);
-        let poCut = 0, poCN = 0, poCU = 0;
-        entries.forEach((c: any) => {
-          const cn = lc(c.man_power, c.hours_actual, c.ot_manpower_actual, c.ot_hours_actual);
-          const cu = toUsd(cn);
-          poCut += c.day_cutting || 0; poCN += cn; poCU += cu;
-          R.push([
-            fmtDate(c.production_date),
-            c.lines?.name || c.lines?.line_id || "-", c.work_orders?.color || c.colour || "-",
-            c.day_cutting || 0, c.day_input || 0, c.total_cutting, c.balance,
-            c.man_power, c.hours_actual, c.ot_manpower_actual, c.ot_hours_actual,
-            hcRate ? cn : "", hcRate ? cu : "",
-          ]);
-        });
-        R.push([`${po} Total`, "", "", poCut, "", "", "", "", "", "", "", hcRate ? poCN : "", hcRate ? poCU : ""]);
-        R.push([]);
-        deptDayCut += poCut; deptCostN += poCN; deptCostU += poCU;
-      });
-      R.push([`CUTTING DEPARTMENT TOTAL — Day Cut: ${fN(deptDayCut)} | Cost: ${hcRate ? fUsd(deptCostU) : "-"}`]);
-      R.push([]);
-    }
-
-    // ── Finishing — grouped by PO ──
-    if (departments.finishing && finishingData.length > 0) {
-      R.push(["FINISHING — PO WISE OUTPUT, COST & REVENUE"]);
-      R.push([]);
-
-      const byPo: Record<string, { buyer: string; cmDz: number | null; entries: any[] }> = {};
-      finishingData.forEach((f: any) => {
-        const po = f.work_orders?.po_number || "Unknown PO";
-        if (!byPo[po]) byPo[po] = { buyer: f.work_orders?.buyer || "-", cmDz: f.work_orders?.cm_per_dozen || null, entries: [] };
-        byPo[po].entries.push(f);
-      });
-
-      let deptPoly = 0, deptCostU = 0, deptRev = 0;
-      Object.keys(byPo).sort().forEach(po => {
-        const { buyer, cmDz, entries } = byPo[po];
-        entries.sort((a: any, b: any) => (a.production_date || "").localeCompare(b.production_date || ""));
-        R.push([`>>> PO: ${po} — Buyer: ${buyer}${cmDz ? ` — CM/Dz: $${cmDz.toFixed(2)}` : ""}`]);
-        R.push(["Day", "Thread", "Check", "Button", "Iron", "Get Up", "Poly", "Carton", "MP", "Hrs", "OT MP", "OT Hrs", "Cost ($)", "CM/Dz", "Revenue ($)"]);
-        let poPoly = 0, poCU = 0, poRev = 0;
-        entries.forEach((f: any) => {
-          const cn = lc(f.m_power_actual, f.actual_hours, f.ot_manpower_actual, f.ot_hours_actual);
-          const cu = toUsd(cn);
-          poCU += cu;
-          const rev = 0; // Revenue now driven by sewing output, not finishing poly
-          const adjPoly = effectivePoly(f.poly, f.actual_hours, f.ot_hours_actual);
-          const adjCarton = effectivePoly(f.carton, f.actual_hours, f.ot_hours_actual);
-          poPoly += adjPoly;
-          R.push([
-            fmtDate(f.production_date),
-            f.thread_cutting, f.inside_check, f.buttoning, f.iron, f.get_up,
-            adjPoly, adjCarton,
-            f.m_power_actual, f.actual_hours, f.ot_manpower_actual, f.ot_hours_actual,
-            hcRate ? cu : "",
-            cmDz ? "$" + cmDz.toFixed(2) : "",
-            rev > 0 ? Math.round(rev * 100) / 100 : "",
-          ]);
-        });
-        R.push([`${po} Total`, "", "", "", "", "", poPoly, "", "", "", "", "", hcRate ? poCU : "", "", poRev > 0 ? Math.round(poRev * 100) / 100 : ""]);
-        R.push([]);
-        deptPoly += poPoly; deptCostU += poCU; deptRev += poRev;
-      });
-      R.push([`FINISHING DEPARTMENT TOTAL — Poly: ${fN(deptPoly)} | Cost: ${hcRate ? fUsd(deptCostU) : "-"} | Revenue: ${deptRev > 0 ? fUsd(Math.round(deptRev * 100) / 100) : "-"} | Profit: ${deptRev > 0 && hcRate ? fUsd(Math.round((deptRev - deptCostU) * 100) / 100) : "-"}`]);
-      R.push([]);
-    }
-
-    // ── Storage — grouped by PO ──
-    if (departments.storage && storageData.length > 0) {
-      R.push(["STORAGE — BIN CARD TRANSACTIONS"]);
-      R.push([]);
-
-      const byPo: Record<string, { buyer: string; style: string; entries: any[] }> = {};
-      storageData.forEach((t: any) => {
-        const po = t.storage_bin_cards?.work_orders?.po_number || t.storage_bin_cards?.group_name || "Unknown";
-        if (!byPo[po]) byPo[po] = { buyer: t.storage_bin_cards?.buyer || "-", style: t.storage_bin_cards?.style || "-", entries: [] };
-        byPo[po].entries.push(t);
-      });
-
-      let totalRcv = 0, totalIss = 0;
-      Object.keys(byPo).sort().forEach(po => {
-        const { buyer, style, entries } = byPo[po];
-        entries.sort((a: any, b: any) => (a.transaction_date || "").localeCompare(b.transaction_date || ""));
-        R.push([`>>> PO: ${po} — Buyer: ${buyer}`]);
-        R.push(["Day", "PO", "Buyer", "Style", "Receive", "Issue", "Balance", "Ttl Receive", "Remarks"]);
-        let poRcv = 0, poIss = 0;
-        entries.forEach((t: any) => {
-          poRcv += t.receive_qty || 0; poIss += t.issue_qty || 0;
-          R.push([
-            fmtDate(t.transaction_date),
-            t.storage_bin_cards?.work_orders?.po_number || po,
-            buyer, style,
-            t.receive_qty, t.issue_qty, t.balance_qty, t.ttl_receive,
-            t.remarks || "",
-          ]);
-        });
-        R.push([`${po} Total`, "", "", "", poRcv, poIss, "", "", ""]);
-        R.push([]);
-        totalRcv += poRcv; totalIss += poIss;
-      });
-      R.push([`STORAGE DEPARTMENT TOTAL — Received: ${fN(totalRcv)} | Issued: ${fN(totalIss)}`]);
-      R.push([]);
-    }
-
-    R.push(["=== END OF REPORT ==="]);
-    const safePeriod = label.replace(/[^a-zA-Z0-9\- ]/g, "").replace(/\s+/g, "_");
-    await downloadCsvFile(R, `${reportType}_report_${safePeriod}.csv`);
-  }
-
   async function handleGenerate() {
     if (!profile?.factory_id || !anySelected) return;
     setGenerating(true);
@@ -738,99 +450,25 @@ export function ReportExportDialog({ defaultType, date, weekOffset = 0, dailyRep
         return;
       }
 
-      // Weekly / Monthly
-      const rate = headcountCost.currency === "BDT" ? await fetchExchangeRate() : null;
-      setBdtToUsd(rate);
-
-      const { startDate, endDate, label } = getDateRange();
+      // Weekly / Monthly — delegate to shared lib (keeps output identical)
+      const { startDate, endDate } = getDateRange();
       const factoryId = profile.factory_id;
       if (!factoryId) {
         throw new Error("Factory not available for report export");
       }
 
-      // Build date list for the period
-      const dates: string[] = [];
-      const todayStr = getTodayInTimezone(factory?.timezone || "Asia/Dhaka");
-      const cur = new Date(startDate + "T00:00:00");
-      const end = new Date(endDate + "T00:00:00");
-      const todayDate = new Date(todayStr + "T00:00:00");
-      while (cur <= end && cur <= todayDate) {
-        dates.push(format(cur, "yyyy-MM-dd"));
-        cur.setDate(cur.getDate() + 1);
-      }
-
-      // Parallel data fetch per department
-      const [sewingRes, sewingTgtRes, cuttingRes, finishingRes, storageRes] = await Promise.all([
-        departments.sewing
-          ? supabase
-              .from("sewing_actuals")
-              .select("*, lines(name, line_id), work_orders(po_number, buyer, style, cm_per_dozen, order_qty)")
-              .eq("factory_id", factoryId)
-              .gte("production_date", startDate)
-              .lte("production_date", endDate)
-          : Promise.resolve({ data: [] }),
-        departments.sewing
-          ? supabase
-              .from("sewing_targets")
-              .select("line_id, work_order_id, production_date, per_hour_target, target_total_planned, hours_planned")
-              .eq("factory_id", factoryId)
-              .gte("production_date", startDate)
-              .lte("production_date", endDate)
-          : Promise.resolve({ data: [] }),
-        departments.cutting
-          ? supabase
-              .from("cutting_actuals")
-              .select("*, lines!cutting_actuals_line_id_fkey(name, line_id), work_orders(po_number, buyer, style, color, cm_per_dozen, order_qty)")
-              .eq("factory_id", factoryId)
-              .gte("production_date", startDate)
-              .lte("production_date", endDate)
-          : Promise.resolve({ data: [] }),
-        departments.finishing
-          ? supabase
-              .from("finishing_daily_logs")
-              .select("*, lines(name, line_id), work_orders(po_number, buyer, style, cm_per_dozen, order_qty)")
-              .eq("factory_id", factoryId)
-              .eq("log_type", "OUTPUT")
-              .gte("production_date", startDate)
-              .lte("production_date", endDate)
-          : Promise.resolve({ data: [] }),
-        departments.storage
-          ? supabase
-              .from("storage_bin_card_transactions")
-              .select("*, storage_bin_cards(id, buyer, style, group_name, work_orders(po_number))")
-              .eq("factory_id", factoryId)
-              .gte("transaction_date", startDate)
-              .lte("transaction_date", endDate)
-          : Promise.resolve({ data: [] }),
-      ]);
-
-      const sewData = (sewingRes as any).data || [];
-      const sewTgtData = (sewingTgtRes as any).data || [];
-      const cutData = (cuttingRes as any).data || [];
-      const finData = (finishingRes as any).data || [];
-      const stoData = (storageRes as any).data || [];
-
-      if (exportFormat === "csv") {
-        generatePeriodCsv(sewData, cutData, finData, stoData, label, rate, dates, sewTgtData);
-      } else {
-        generateProductionReportPdf({
-          factoryName: factory?.name || "Factory",
-          reportType,
-          periodLabel: label,
-          startDate,
-          endDate,
-          dates,
-          departments,
-          sewing: sewData,
-          sewingTargets: sewTgtData,
-          cutting: cutData,
-          finishing: finData,
-          storage: stoData,
-          headcountCostRate: costConfigured && headcountCost.value ? headcountCost.value : 0,
-          headcountCostCurrency: headcountCost.currency,
-          bdtToUsdRate: rate,
-        });
-      }
+      await exportProductionReport({
+        factoryId,
+        factoryName: factory?.name || "Factory",
+        startDate,
+        endDate,
+        reportType,
+        format: exportFormat,
+        departments,
+        headcountCostRate: costConfigured && headcountCost.value ? headcountCost.value : undefined,
+        headcountCostCurrency: headcountCost.currency,
+        timezone: factory?.timezone || "Asia/Dhaka",
+      });
 
       toast.success("Report downloaded");
       setOpen(false);
