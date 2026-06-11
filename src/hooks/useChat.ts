@@ -52,6 +52,12 @@ export interface ChatToolUse {
   input: Record<string, unknown>;
 }
 
+export interface PendingAction {
+  kind: string;
+  humanSummary: string;
+  payload: Record<string, unknown>;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -60,6 +66,7 @@ export interface ChatMessage {
   noEvidence?: boolean;
   suggestedQuestions?: string[];
   toolsUsed?: ChatToolUse[];
+  pendingActions?: PendingAction[];
   timestamp: Date;
   isLoading?: boolean;
 }
@@ -79,6 +86,7 @@ export interface UseChatReturn {
   setLanguage: (lang: "en" | "bn" | "zh") => void;
   sendMessage: (content: string) => Promise<void>;
   submitFeedback: (messageId: string, feedback: "thumbs_up" | "thumbs_down", comment?: string) => Promise<void>;
+  runAction: (action: PendingAction) => Promise<{ ok: boolean; summary?: string; error?: string }>;
   clearConversation: () => void;
   fetchSource: (chunkId: string) => Promise<any>;
   recentConversations: ConversationSummary[];
@@ -178,6 +186,7 @@ export function useChat(): UseChatReturn {
         noEvidence: data.no_evidence,
         suggestedQuestions: data.suggested_questions,
         toolsUsed: data.tools_used,
+        pendingActions: data.pending_actions,
         timestamp: new Date(),
       };
 
@@ -201,6 +210,25 @@ export function useChat(): UseChatReturn {
       setIsLoading(false);
     }
   }, [conversationId, language, isLoading]);
+
+  const runAction = useCallback(
+    async (action: PendingAction): Promise<{ ok: boolean; summary?: string; error?: string }> => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+        if (!accessToken) return { ok: false, error: "Please sign in." };
+        const { data, error } = await supabase.functions.invoke("execute-action", {
+          body: { kind: action.kind, payload: action.payload },
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (error) return { ok: false, error: error.message || "The change could not be applied." };
+        return data as { ok: boolean; summary?: string; error?: string };
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : "Unexpected error" };
+      }
+    },
+    [],
+  );
 
   const submitFeedback = useCallback(
     async (messageId: string, feedback: "thumbs_up" | "thumbs_down", comment?: string) => {
@@ -324,6 +352,7 @@ export function useChat(): UseChatReturn {
     setLanguage: handleSetLanguage,
     sendMessage,
     submitFeedback,
+    runAction,
     clearConversation,
     fetchSource,
     recentConversations,
