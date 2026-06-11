@@ -216,6 +216,9 @@ serve(async (req) => {
     // Report exports Lina queued this turn; the client runs the real in-app export.
     const exportRequests: ExportRequest[] = [];
 
+    // Write actions Lina proposes this turn; the client confirms each via a card.
+    const proposedActions: import("../_shared/actions/po.ts").ProposedAction[] = [];
+
     // Per-request tool context (factoryId/role are server-derived — never from model input).
     const toolContext: ToolContext = {
       supabase: supabaseAdmin as unknown as ToolContext["supabase"],
@@ -227,6 +230,7 @@ serve(async (req) => {
       embed: async (text: string) => (await generateEmbedding(text)).embedding,
       escalate,
       requestExport: (input: ExportRequest) => { exportRequests.push(input); },
+      proposeAction: (action) => { proposedActions.push(action); },
     };
 
     // Run the agentic loop.
@@ -289,6 +293,7 @@ serve(async (req) => {
           factoryId: profile.factory_id,
           factoryName,
         })),
+        pending_actions: proposedActions,
         language,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
