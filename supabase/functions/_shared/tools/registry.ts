@@ -84,7 +84,7 @@ export const ALL_TOOLS: ToolDefinition[] = [
   },
   {
     name: "search_knowledge",
-    description: "Search the factory knowledge base (manuals, policies, FAQs, certificates) for documentation. Call this when the user asks how to do something, about compliance/certifications, or for guidance not answerable from live production numbers.",
+    description: "Search THIS factory's own uploaded documents (manuals, policies, FAQs, certificates) and ProductionPortal how-to guides. Use ONLY for factory-specific documentation or app usage — NOT for general industry advice or best practices, which you should answer from your own expertise. Do not call this for open-ended 'how would you improve X' questions.",
     input_schema: {
       type: "object",
       properties: { query: { type: "string", description: "What to search for." } },
