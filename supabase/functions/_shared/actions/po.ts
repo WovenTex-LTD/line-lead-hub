@@ -53,13 +53,21 @@ export function validateCreatePo(input: Record<string, unknown>): ValidationResu
 export function validateUpdatePo(input: Record<string, unknown>): ValidationResult {
   const po_number = str(input.po_number);
   if (!po_number) return { ok: false, error: "Which PO should I update? I need its PO number." };
-  const allowed = ["buyer", "style", "item", "color", "order_qty", "smv", "cm_per_dozen", "target_per_hour", "target_per_day"] as const;
+  const NUMERIC_FIELDS = ["order_qty", "smv", "cm_per_dozen", "target_per_hour", "target_per_day"] as const;
+  const TEXT_FIELDS = ["buyer", "style", "item", "color"] as const;
+  const allowed = [...NUMERIC_FIELDS, ...TEXT_FIELDS] as const;
   const fields: Record<string, unknown> = {};
   for (const k of allowed) {
-    if (input[k] !== undefined) {
-      fields[k] = ["order_qty", "smv", "cm_per_dozen", "target_per_hour", "target_per_day"].includes(k)
-        ? num(input[k]) ?? null
-        : str(input[k]);
+    if (input[k] === undefined) continue;
+    if ((NUMERIC_FIELDS as readonly string[]).includes(k)) {
+      const n = num(input[k]);
+      if (n === undefined) {
+        return { ok: false, error: `${k} must be a number.` };
+      }
+      fields[k] = n;
+    } else {
+      const s = str(input[k]);
+      if (s !== "") fields[k] = s;
     }
   }
   if (Object.keys(fields).length === 0) {

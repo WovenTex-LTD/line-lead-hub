@@ -30,4 +30,21 @@ describe("validateUpdatePo", () => {
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.action.payload.fields).toEqual({ order_qty: 6000 });
   });
+  it("rejects an invalid numeric field instead of nulling it", () => {
+    const r = validateUpdatePo({ po_number: "X", order_qty: "lots" as unknown as number });
+    expect(r.ok).toBe(false);
+  });
+  it("ignores an empty text field rather than blanking it", () => {
+    // buyer:"" should be skipped; with no other change this is 'nothing to change'
+    expect(validateUpdatePo({ po_number: "X", buyer: "" }).ok).toBe(false);
+    // a real change alongside an empty one keeps only the real change
+    const r = validateUpdatePo({ po_number: "X", buyer: "", style: "NewStyle" });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.action.payload.fields).toEqual({ style: "NewStyle" });
+  });
+  it("still accepts a valid numeric update", () => {
+    const r = validateUpdatePo({ po_number: "X", order_qty: 6000 });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.action.payload.fields).toEqual({ order_qty: 6000 });
+  });
 });
