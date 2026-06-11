@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { validateCreatePo, validateUpdatePo } from "./po";
+import { validateAssignPoLines, validateSetPoStatus, validateSetPoExFactory, validateArchivePo } from "./po";
 
 describe("validateCreatePo", () => {
   it("accepts a valid PO and builds a human summary + payload", () => {
@@ -46,5 +47,29 @@ describe("validateUpdatePo", () => {
     const r = validateUpdatePo({ po_number: "X", order_qty: 6000 });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.action.payload.fields).toEqual({ order_qty: 6000 });
+  });
+});
+
+describe("other PO validators", () => {
+  it("assign_po_lines needs a PO and at least one line", () => {
+    expect(validateAssignPoLines({ po_number: "1" }).ok).toBe(false);
+    const r = validateAssignPoLines({ po_number: "1", line_ids: ["a", "b"] });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.action.payload.line_ids).toEqual(["a", "b"]);
+  });
+  it("set_po_status validates the status enum", () => {
+    expect(validateSetPoStatus({ po_number: "1", status: "bogus" }).ok).toBe(false);
+    expect(validateSetPoStatus({ po_number: "1", status: "completed" }).ok).toBe(true);
+    expect(validateSetPoStatus({ po_number: "1", is_active: false }).ok).toBe(true);
+  });
+  it("set_po_ex_factory validates dates", () => {
+    expect(validateSetPoExFactory({ po_number: "1", planned_ex_factory: "bad" }).ok).toBe(false);
+    expect(validateSetPoExFactory({ po_number: "1", planned_ex_factory: "2026-07-10" }).ok).toBe(true);
+  });
+  it("archive_po needs a po_number", () => {
+    expect(validateArchivePo({}).ok).toBe(false);
+    const r = validateArchivePo({ po_number: "86600" });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.action.kind).toBe("archive_po");
   });
 });

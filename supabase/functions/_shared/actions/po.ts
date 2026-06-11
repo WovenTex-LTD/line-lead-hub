@@ -76,3 +76,56 @@ export function validateUpdatePo(input: Record<string, unknown>): ValidationResu
   const summary = `Update PO ${po_number}: ${Object.entries(fields).map(([k, v]) => `${k} → ${v}`).join(", ")}`;
   return { ok: true, action: { kind: "update_po", humanSummary: summary, payload: { po_number, fields } } };
 }
+
+export function validateAssignPoLines(input: Record<string, unknown>): ValidationResult {
+  const po_number = str(input.po_number);
+  if (!po_number) return { ok: false, error: "Which PO should I assign lines to?" };
+  const line_ids = Array.isArray(input.line_ids) ? (input.line_ids as unknown[]).map(String).filter(Boolean) : [];
+  if (line_ids.length === 0) return { ok: false, error: `Which line(s) should run PO ${po_number}?` };
+  return {
+    ok: true,
+    action: { kind: "assign_po_lines", humanSummary: `Assign PO ${po_number} to ${line_ids.length} line(s)`, payload: { po_number, line_ids } },
+  };
+}
+
+export function validateSetPoStatus(input: Record<string, unknown>): ValidationResult {
+  const po_number = str(input.po_number);
+  if (!po_number) return { ok: false, error: "Which PO's status should I change?" };
+  const status = input.status !== undefined ? str(input.status) : undefined;
+  const is_active = typeof input.is_active === "boolean" ? input.is_active : undefined;
+  if (status === undefined && is_active === undefined) {
+    return { ok: false, error: `What status should PO ${po_number} have?` };
+  }
+  if (status !== undefined && !VALID_PO_STATUS.includes(status)) {
+    return { ok: false, error: `Status must be one of: ${VALID_PO_STATUS.join(", ")}.` };
+  }
+  const parts = [status !== undefined ? `status → ${status}` : null, is_active !== undefined ? `active → ${is_active}` : null].filter(Boolean);
+  const payload: Record<string, unknown> = { po_number };
+  if (status !== undefined) payload.status = status;
+  if (is_active !== undefined) payload.is_active = is_active;
+  return { ok: true, action: { kind: "set_po_status", humanSummary: `Set PO ${po_number} ${parts.join(", ")}`, payload } };
+}
+
+export function validateSetPoExFactory(input: Record<string, unknown>): ValidationResult {
+  const po_number = str(input.po_number);
+  if (!po_number) return { ok: false, error: "Which PO's ex-factory date should I change?" };
+  const planned = input.planned_ex_factory !== undefined ? str(input.planned_ex_factory) : undefined;
+  const actual = input.actual_ex_factory !== undefined ? str(input.actual_ex_factory) : undefined;
+  if (planned === undefined && actual === undefined) return { ok: false, error: "Which date should I set?" };
+  if (planned !== undefined && !DATE_RE.test(planned)) return { ok: false, error: "Planned ex-factory must be YYYY-MM-DD." };
+  if (actual !== undefined && !DATE_RE.test(actual)) return { ok: false, error: "Actual ex-factory must be YYYY-MM-DD." };
+  const payload: Record<string, unknown> = { po_number };
+  if (planned !== undefined) payload.planned_ex_factory = planned;
+  if (actual !== undefined) payload.actual_ex_factory = actual;
+  const parts = [planned ? `planned → ${planned}` : null, actual ? `actual → ${actual}` : null].filter(Boolean);
+  return { ok: true, action: { kind: "set_po_ex_factory", humanSummary: `Set PO ${po_number} ex-factory ${parts.join(", ")}`, payload } };
+}
+
+export function validateArchivePo(input: Record<string, unknown>): ValidationResult {
+  const po_number = str(input.po_number);
+  if (!po_number) return { ok: false, error: "Which PO should I archive?" };
+  return {
+    ok: true,
+    action: { kind: "archive_po", humanSummary: `Archive PO ${po_number} (soft-delete — production history is kept)`, payload: { po_number } },
+  };
+}
