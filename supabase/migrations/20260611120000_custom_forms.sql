@@ -64,8 +64,11 @@ ALTER TABLE public.custom_form_submissions  ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "custom_form_templates_select" ON public.custom_form_templates
   FOR SELECT TO authenticated
   USING (factory_id = public.get_user_factory_id(auth.uid()));
-CREATE POLICY "custom_form_templates_write" ON public.custom_form_templates
-  FOR ALL TO authenticated
+CREATE POLICY "custom_form_templates_insert" ON public.custom_form_templates
+  FOR INSERT TO authenticated
+  WITH CHECK (public.is_admin_or_higher(auth.uid()) AND factory_id = public.get_user_factory_id(auth.uid()));
+CREATE POLICY "custom_form_templates_update" ON public.custom_form_templates
+  FOR UPDATE TO authenticated
   USING (public.is_admin_or_higher(auth.uid()) AND factory_id = public.get_user_factory_id(auth.uid()))
   WITH CHECK (public.is_admin_or_higher(auth.uid()) AND factory_id = public.get_user_factory_id(auth.uid()));
 
@@ -73,8 +76,13 @@ CREATE POLICY "custom_form_fields_select" ON public.custom_form_fields
   FOR SELECT TO authenticated
   USING (EXISTS (SELECT 1 FROM public.custom_form_templates t
                  WHERE t.id = template_id AND t.factory_id = public.get_user_factory_id(auth.uid())));
-CREATE POLICY "custom_form_fields_write" ON public.custom_form_fields
-  FOR ALL TO authenticated
+CREATE POLICY "custom_form_fields_insert" ON public.custom_form_fields
+  FOR INSERT TO authenticated
+  WITH CHECK (public.is_admin_or_higher(auth.uid())
+         AND EXISTS (SELECT 1 FROM public.custom_form_templates t
+                     WHERE t.id = template_id AND t.factory_id = public.get_user_factory_id(auth.uid())));
+CREATE POLICY "custom_form_fields_update" ON public.custom_form_fields
+  FOR UPDATE TO authenticated
   USING (public.is_admin_or_higher(auth.uid())
          AND EXISTS (SELECT 1 FROM public.custom_form_templates t
                      WHERE t.id = template_id AND t.factory_id = public.get_user_factory_id(auth.uid())))
@@ -84,7 +92,7 @@ CREATE POLICY "custom_form_fields_write" ON public.custom_form_fields
 
 CREATE POLICY "custom_form_submissions_insert" ON public.custom_form_submissions
   FOR INSERT TO authenticated
-  WITH CHECK (factory_id = public.get_user_factory_id(auth.uid()));
+  WITH CHECK (factory_id = public.get_user_factory_id(auth.uid()) AND submitted_by = auth.uid());
 CREATE POLICY "custom_form_submissions_select" ON public.custom_form_submissions
   FOR SELECT TO authenticated
   USING (factory_id = public.get_user_factory_id(auth.uid())
