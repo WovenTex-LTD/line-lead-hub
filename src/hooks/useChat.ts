@@ -28,6 +28,12 @@ export interface ChatMessage {
   isLoading?: boolean;
 }
 
+export interface ConversationSummary {
+  id: string;
+  title: string;
+  updatedAt: string;
+}
+
 export interface UseChatReturn {
   messages: ChatMessage[];
   isLoading: boolean;
@@ -39,6 +45,9 @@ export interface UseChatReturn {
   submitFeedback: (messageId: string, feedback: "thumbs_up" | "thumbs_down", comment?: string) => Promise<void>;
   clearConversation: () => void;
   fetchSource: (chunkId: string) => Promise<any>;
+  recentConversations: ConversationSummary[];
+  loadRecentConversations: () => Promise<void>;
+  loadConversation: (id: string) => Promise<void>;
 }
 
 export function useChat(): UseChatReturn {
@@ -47,6 +56,7 @@ export function useChat(): UseChatReturn {
   const [error, setError] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [language, setLanguage] = useState<"en" | "bn" | "zh">("en");
+  const [recentConversations, setRecentConversations] = useState<ConversationSummary[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Load language preference
@@ -203,6 +213,65 @@ export function useChat(): UseChatReturn {
     setError(null);
   }, []);
 
+  // Load the user's 5 most-recent conversations (RLS scopes to the user).
+  const loadRecentConversations = useCallback(async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user?.id;
+    if (!userId) return;
+
+    const { data, error } = await supabase
+      .from("chat_conversations")
+      .select("id, title, updated_at")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false })
+      .limit(5);
+
+    if (error) {
+      console.error("Failed to load recent conversations:", error);
+      return;
+    }
+    setRecentConversations(
+      (data || []).map((c) => ({
+        id: c.id,
+        title: c.title || "Untitled chat",
+        updatedAt: c.updated_at,
+      }))
+    );
+  }, []);
+
+  // Open a past conversation: pull its full message history into the panel.
+  const loadConversation = useCallback(async (id: string) => {
+    setError(null);
+    const { data, error } = await supabase
+      .from("chat_messages")
+      .select("id, role, content, citations, no_evidence, tools_used, created_at")
+      .eq("conversation_id", id)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      setError("Couldn't load that conversation. Please try again.");
+      return;
+    }
+
+    const loaded: ChatMessage[] = (data || []).map((m) => ({
+      id: m.id,
+      role: m.role as "user" | "assistant",
+      content: m.content,
+      citations: (m.citations as ChatCitation[]) || [],
+      noEvidence: m.no_evidence ?? false,
+      toolsUsed: (m.tools_used as ChatToolUse[]) || undefined,
+      timestamp: m.created_at ? new Date(m.created_at) : new Date(),
+    }));
+
+    setMessages(loaded);
+    setConversationId(id);
+  }, []);
+
+  // Prime the recent list when the panel mounts.
+  useEffect(() => {
+    loadRecentConversations();
+  }, [loadRecentConversations]);
+
   return {
     messages,
     isLoading,
@@ -214,5 +283,8 @@ export function useChat(): UseChatReturn {
     submitFeedback,
     clearConversation,
     fetchSource,
+    recentConversations,
+    loadRecentConversations,
+    loadConversation,
   };
 }

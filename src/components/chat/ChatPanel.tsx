@@ -1,8 +1,17 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, RotateCcw, AlertCircle } from "lucide-react";
+import { Send, Loader2, RotateCcw, AlertCircle, History } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useChat } from "@/hooks/useChat";
 import { ChatMessage } from "./ChatMessage";
 import { QuickActions } from "./QuickActions";
@@ -16,11 +25,15 @@ export function ChatPanel() {
     isLoading,
     error,
     language,
+    conversationId,
     setLanguage,
     sendMessage,
     submitFeedback,
     clearConversation,
     fetchSource,
+    recentConversations,
+    loadRecentConversations,
+    loadConversation,
   } = useChat();
 
   const [input, setInput] = useState("");
@@ -71,6 +84,11 @@ export function ChatPanel() {
     sendMessage(question);
   };
 
+  const handleLoadConversation = (id: string) => {
+    shouldAutoScroll.current = true;
+    loadConversation(id);
+  };
+
   return (
     <div className="flex flex-col flex-1 h-full overflow-hidden bg-gradient-to-b from-secondary/40 to-background">
       {/* Messages */}
@@ -118,17 +136,58 @@ export function ChatPanel() {
       <div className="border-t border-border/60 bg-card/80 backdrop-blur px-5 pt-3.5 pb-4 space-y-2.5 [&>*]:mx-auto [&>*]:w-full [&>*]:max-w-[680px]">
         <div className="flex items-center justify-between">
           <LanguageToggle language={language} onToggle={setLanguage} />
-          {messages.length > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearConversation}
-              className="h-7 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <RotateCcw className="h-3 w-3 mr-1" />
-              {language === "bn" ? "নতুন চ্যাট" : "New chat"}
-            </Button>
-          )}
+          <div className="flex items-center gap-0.5">
+            <DropdownMenu onOpenChange={(open) => { if (open) loadRecentConversations(); }}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <History className="h-3.5 w-3.5 mr-1" />
+                  {language === "bn" ? "ইতিহাস" : "History"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-72">
+                <DropdownMenuLabel className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  {language === "bn" ? "সাম্প্রতিক চ্যাট" : "Recent chats"}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {recentConversations.length === 0 ? (
+                  <div className="px-2 py-4 text-center text-xs text-muted-foreground">
+                    {language === "bn" ? "কোনো পূর্ববর্তী চ্যাট নেই" : "No previous chats yet"}
+                  </div>
+                ) : (
+                  recentConversations.map((c) => (
+                    <DropdownMenuItem
+                      key={c.id}
+                      onSelect={() => handleLoadConversation(c.id)}
+                      className={cn(
+                        "flex flex-col items-start gap-0.5 py-2",
+                        c.id === conversationId && "bg-primary/5"
+                      )}
+                    >
+                      <span className="w-full truncate text-sm font-medium text-foreground">{c.title}</span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {formatDistanceToNow(new Date(c.updatedAt), { addSuffix: true })}
+                      </span>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {messages.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearConversation}
+                className="h-7 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <RotateCcw className="h-3 w-3 mr-1" />
+                {language === "bn" ? "নতুন চ্যাট" : "New chat"}
+              </Button>
+            )}
+          </div>
         </div>
 
         <form
