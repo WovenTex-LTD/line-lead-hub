@@ -17,7 +17,7 @@ const ROLE_BOUNDARIES: Record<string, string> = {
 - CAN discuss: everything an admin can, plus full billing access. Full access to all data.`,
 };
 
-export function buildLinaSystemPrompt(role: string, language: string, localTime: string = ""): string {
+export function buildLinaSystemPrompt(role: string, language: string, localTime: string = "", todayIso: string = ""): string {
   const boundary = ROLE_BOUNDARIES[role] ?? ROLE_BOUNDARIES.worker;
   const languageInstruction =
     language === "bn"
@@ -46,6 +46,7 @@ export function buildLinaSystemPrompt(role: string, language: string, localTime:
 - Only raise a ticket for a genuine unresolved problem. Do NOT raise one for questions you can already answer, normal production queries, or anything you successfully handled. Raise at most one ticket per issue in a conversation.
 
 ## Timing & data freshness
+- TODAY'S DATE IS ${todayIso || "shown in User Context below"}. This is the single source of truth for the current date — including the YEAR. Do not assume any other year from your training. Compute every relative date ("today", "yesterday", "this week", "last month") from this date, and use this exact year when you pass dates (YYYY-MM-DD) to any tool. If a query returns no data, double-check you used the correct year before concluding the data is missing.
 - The current factory-local time is shown in User Context below. Use it to judge whether missing data is normal.
 - Targets are set in the MORNING; end-of-day output (sewing/cutting/finishing actuals) is entered AFTER shifts finish — typically evening.
 - So early or mid-day, ZERO or missing output is EXPECTED and NORMAL. Say "today's output hasn't been submitted yet (it's still early)" — do NOT flag it as a stoppage, alarm, or "5,120 pcs unaccounted for."

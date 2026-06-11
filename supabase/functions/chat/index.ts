@@ -160,6 +160,7 @@ serve(async (req) => {
         weekday: "short",
         day: "2-digit",
         month: "short",
+        year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
@@ -175,7 +176,7 @@ serve(async (req) => {
 
     // Build the role-filtered tool set and Lina's persona prompt.
     const tools = getToolsForRole(primaryRole);
-    const systemPrompt = buildLinaSystemPrompt(primaryRole, language, localTime);
+    const systemPrompt = buildLinaSystemPrompt(primaryRole, language, localTime, today);
 
     // Escalation: email a support ticket to the Woventex team via Resend.
     const escalate = async (ticket: { problem: string; category?: string }) => {
