@@ -1,36 +1,12 @@
+import { Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * Lina's mascot glyph — a friendly face whose "tuft" is a needle-and-thread
- * curl ending in an amber knot (a nod to the garment floor). Monochrome via
- * currentColor, so it sits cleanly white-on-blue inside her squircle; the amber
- * thread-knot is the one fixed accent. Crisp from 16px up.
+ * Lina's emblem — the robot mark, rendered monochrome via currentColor so it
+ * sits cleanly white-on-blue inside her squircle. Crisp from 16px up.
  */
 export function LinaGlyph({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
-      {/* needle-and-thread curl */}
-      <path
-        d="M15.8 11.4 C 15.8 7.6 19.8 6.4 20.9 9.4"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-      />
-      {/* amber thread knot */}
-      <circle cx="21.4" cy="9.9" r="1.7" fill="#F59E0B" />
-      {/* eyes */}
-      <circle cx="12.7" cy="16.8" r="1.85" fill="currentColor" />
-      <circle cx="19.3" cy="16.8" r="1.85" fill="currentColor" />
-      {/* smile */}
-      <path
-        d="M11.9 20.8 Q16 24.2 20.1 20.8"
-        stroke="currentColor"
-        strokeWidth="2.1"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  return <Bot className={className} strokeWidth={2} aria-hidden="true" />;
 }
 
 /**
