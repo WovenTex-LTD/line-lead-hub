@@ -6,6 +6,11 @@ import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 export type UserRole = "worker" | "storage" | "cutting" | "admin" | "owner" | string;
 export type Department = "sewing" | "cutting" | "finishing";
 
+export interface SupportTicket {
+  problem: string;
+  category?: string;
+}
+
 /** Per-request, server-derived context handed to every tool executor.
  *  factoryId/role come from the authenticated user — NEVER from model input. */
 export interface ToolContext {
@@ -16,6 +21,8 @@ export interface ToolContext {
   today: string; // YYYY-MM-DD for the factory's timezone
   language: string;
   embed: (text: string) => Promise<number[]>;
+  /** Escalate an unresolved problem to the Woventex team (sends an email). */
+  escalate: (ticket: SupportTicket) => Promise<{ ok: boolean; error?: string }>;
 }
 
 export interface ToolDefinition {

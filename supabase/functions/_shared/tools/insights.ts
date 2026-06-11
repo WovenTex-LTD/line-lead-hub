@@ -219,6 +219,21 @@ function formatChunks(rows: any[]): string {
     .join("\n\n");
 }
 
+/** raise_support_ticket(problem, [category]) — emails a ticket to the Woventex
+ *  team when Lina can't resolve a problem with her other tools. */
+export async function raiseSupportTicket(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  const problem = String(input.problem ?? "").trim();
+  if (!problem) {
+    return "I need a short description of the problem before I can raise a ticket.";
+  }
+  const category = typeof input.category === "string" ? input.category : undefined;
+  const result = await ctx.escalate({ problem, category });
+  if (!result.ok) {
+    return `I couldn't raise the ticket automatically${result.error ? ` (${result.error})` : ""}. Please email contact@woventex.co directly and the team will help.`;
+  }
+  return "I've raised a ticket with the Woventex team at contact@woventex.co — they'll follow up on this. Is there anything else I can help with in the meantime?";
+}
+
 /** search_knowledge(query) — vector RAG over knowledge_chunks. Embeds on demand. */
 export async function searchKnowledge(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
   const query = String(input.query ?? "").trim();

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 import { getCorsHeaders } from "../_shared/security.ts";
 import { generateEmbedding } from "../_shared/embeddings.ts";
 import { detectLanguage, createAnthropicCaller, parseSuggestedQuestions } from "../_shared/llm.ts";
@@ -176,6 +177,39 @@ serve(async (req) => {
     const tools = getToolsForRole(primaryRole);
     const systemPrompt = buildLinaSystemPrompt(primaryRole, language, localTime);
 
+    // Escalation: email a support ticket to the Woventex team via Resend.
+    const escalate = async (ticket: { problem: string; category?: string }) => {
+      try {
+        const apiKey = Deno.env.get("RESEND_API_KEY");
+        if (!apiKey) return { ok: false, error: "email is not configured" };
+        const who = profile?.full_name || user.email || "A ProductionPortal user";
+        const esc = (s: string) => s.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c] as string));
+        const html = `
+          <h2>Support ticket raised by Lina</h2>
+          <p><strong>From:</strong> ${esc(who)} (${esc(user.email ?? "no email")})</p>
+          <p><strong>Role:</strong> ${esc(primaryRole)} &nbsp;|&nbsp; <strong>Factory:</strong> ${esc(profile?.factory_id ?? "n/a")}</p>
+          <p><strong>Category:</strong> ${esc(ticket.category ?? "other")} &nbsp;|&nbsp; <strong>Local time:</strong> ${esc(localTime)}</p>
+          <hr/>
+          <p><strong>Problem</strong></p>
+          <p style="white-space:pre-wrap">${esc(ticket.problem)}</p>
+          <hr/>
+          <p style="color:#888;font-size:12px">Raised automatically by Lina, the ProductionPortal assistant. Reply to ${esc(user.email ?? "the user")} to follow up.</p>
+        `;
+        const res = await new Resend(apiKey).emails.send({
+          from: "Lina (ProductionPortal) <noreply@woventex.co>",
+          to: ["contact@woventex.co"],
+          subject: `Lina ticket: ${ticket.problem.slice(0, 70)}`,
+          html,
+        });
+        if ((res as { error?: { message?: string } }).error) {
+          return { ok: false, error: (res as { error?: { message?: string } }).error?.message ?? "send failed" };
+        }
+        return { ok: true };
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : String(e) };
+      }
+    };
+
     // Per-request tool context (factoryId/role are server-derived — never from model input).
     const toolContext: ToolContext = {
       supabase: supabaseAdmin as unknown as ToolContext["supabase"],
@@ -185,6 +219,7 @@ serve(async (req) => {
       today,
       language,
       embed: async (text: string) => (await generateEmbedding(text)).embedding,
+      escalate,
     };
 
     // Run the agentic loop.

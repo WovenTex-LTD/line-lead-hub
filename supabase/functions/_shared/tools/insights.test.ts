@@ -30,6 +30,7 @@ function ctx(role: string, supabase: any): ToolContext {
     today: "2026-06-08",
     language: "en",
     embed: async () => new Array(1536).fill(0),
+    escalate: async () => ({ ok: true }),
   };
 }
 
@@ -178,5 +179,31 @@ describe("searchKnowledge", () => {
     c.embed = async () => new Array(1536).fill(0);
     const out = await searchKnowledge(c, { query: "xyz" });
     expect(out.toLowerCase()).toContain("no");
+  });
+});
+
+import { raiseSupportTicket } from "./insights";
+
+describe("raiseSupportTicket", () => {
+  it("escalates the problem and confirms", async () => {
+    let sent: any = null;
+    const c = ctx("worker", fakeSupabase({}));
+    c.escalate = async (t) => { sent = t; return { ok: true }; };
+    const out = await raiseSupportTicket(c, { problem: "Export button is broken", category: "bug" });
+    expect(sent.problem).toBe("Export button is broken");
+    expect(out.toLowerCase()).toContain("ticket");
+  });
+
+  it("reports a failure without crashing", async () => {
+    const c = ctx("worker", fakeSupabase({}));
+    c.escalate = async () => ({ ok: false, error: "smtp down" });
+    const out = await raiseSupportTicket(c, { problem: "x" });
+    expect(out).toContain("contact@woventex.co");
+  });
+
+  it("asks for a description when none is given", async () => {
+    const c = ctx("worker", fakeSupabase({}));
+    const out = await raiseSupportTicket(c, {});
+    expect(out.toLowerCase()).toContain("description");
   });
 });

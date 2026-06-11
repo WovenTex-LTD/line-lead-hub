@@ -6,6 +6,7 @@ import { isToolAllowed } from "./types.ts";
 import {
   getProductionData, getBlockers, getWorkOrders, getLines,
   getFinancials, comparePeriods, findAnomalies, searchKnowledge,
+  raiseSupportTicket,
 } from "./insights.ts";
 
 export const ALL_TOOLS: ToolDefinition[] = [
@@ -91,6 +92,24 @@ export const ALL_TOOLS: ToolDefinition[] = [
     },
     allowedRoles: "all",
     execute: searchKnowledge,
+  },
+  {
+    name: "raise_support_ticket",
+    description: "Escalate a problem to the Woventex team by email (contact@woventex.co). Call this when the user reports something you genuinely cannot resolve with your other tools: a bug, broken or missing data, an access/permission problem, or a feature request. Provide a clear 'problem' summary. Do NOT use it for questions you can answer or actions another tool covers, and do not raise more than one ticket for the same issue.",
+    input_schema: {
+      type: "object",
+      properties: {
+        problem: { type: "string", description: "Clear summary of the unresolved problem to escalate." },
+        category: {
+          type: "string",
+          enum: ["bug", "data_issue", "access", "feature_request", "other"],
+          description: "Problem category.",
+        },
+      },
+      required: ["problem"],
+    },
+    allowedRoles: "all",
+    execute: raiseSupportTicket,
   },
 ];
 
