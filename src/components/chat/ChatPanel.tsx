@@ -74,7 +74,7 @@ export function ChatPanel() {
   return (
     <div className="flex flex-col flex-1 h-full overflow-hidden bg-gradient-to-b from-secondary/40 to-background">
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-5">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-6">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <LinaMark size="lg" glow className="mb-5" />
@@ -91,7 +91,7 @@ export function ChatPanel() {
             </div>
           </div>
         ) : (
-          <div className="space-y-5">
+          <div className="mx-auto max-w-[680px] space-y-6">
             {messages.map((message) => (
               <ChatMessage
                 key={message.id}
@@ -115,7 +115,7 @@ export function ChatPanel() {
       )}
 
       {/* Composer */}
-      <div className="border-t border-border/60 bg-card/80 backdrop-blur px-4 pt-3 pb-3 space-y-2.5">
+      <div className="border-t border-border/60 bg-card/80 backdrop-blur px-5 pt-3.5 pb-4 space-y-2.5 [&>*]:mx-auto [&>*]:w-full [&>*]:max-w-[680px]">
         <div className="flex items-center justify-between">
           <LanguageToggle language={language} onToggle={setLanguage} />
           {messages.length > 0 && (

@@ -196,7 +196,7 @@ function formatContent(content: string): React.ReactNode[] {
       while (i < lines.length) {
         const m = lines[i].match(/^\s*[-*]\s+(.*)$/);
         if (m) {
-          items.push(<li key={`li-${key}`} className="leading-snug">{formatInline(m[1], `li-${key++}`)}</li>);
+          items.push(<li key={`li-${key}`} className="leading-normal">{formatInline(m[1], `li-${key++}`)}</li>);
           i++;
         } else if (lines[i].trim() === "" && nextNonBlankIsBullet(i + 1, ulRe) !== -1) {
           i = nextNonBlankIsBullet(i + 1, ulRe);
@@ -204,7 +204,7 @@ function formatContent(content: string): React.ReactNode[] {
           break;
         }
       }
-      elements.push(<ul key={`ul-${key++}`} className="my-1.5 ml-4 list-disc space-y-0.5">{items}</ul>);
+      elements.push(<ul key={`ul-${key++}`} className="my-1.5 ml-4 list-disc space-y-1">{items}</ul>);
       continue;
     }
 
@@ -215,7 +215,7 @@ function formatContent(content: string): React.ReactNode[] {
       while (i < lines.length) {
         const m = lines[i].match(/^\s*\d+\.\s+(.*)$/);
         if (m) {
-          items.push(<li key={`ol-${key}`} className="leading-snug">{formatInline(m[1], `ol-${key++}`)}</li>);
+          items.push(<li key={`ol-${key}`} className="leading-normal">{formatInline(m[1], `ol-${key++}`)}</li>);
           i++;
         } else if (lines[i].trim() === "" && nextNonBlankIsBullet(i + 1, olRe) !== -1) {
           i = nextNonBlankIsBullet(i + 1, olRe);
@@ -223,13 +223,13 @@ function formatContent(content: string): React.ReactNode[] {
           break;
         }
       }
-      elements.push(<ol key={`ol-${key++}`} className="my-1.5 ml-4 list-decimal space-y-0.5">{items}</ol>);
+      elements.push(<ol key={`ol-${key++}`} className="my-1.5 ml-4 list-decimal space-y-1">{items}</ol>);
       continue;
     }
 
     // Paragraph — skip blank lines (paragraph margins handle spacing; no <br> spam)
     if (line.trim()) {
-      elements.push(<p key={`p-${key}`} className="mb-1.5 leading-snug">{formatInline(line, `p-${key++}`)}</p>);
+      elements.push(<p key={`p-${key}`} className="mb-2 leading-relaxed">{formatInline(line, `p-${key++}`)}</p>);
     }
     i++;
   }
@@ -283,10 +283,10 @@ export function ChatMessage({
       )}
 
       {/* Message body */}
-      <div className={cn("flex flex-col max-w-[82%] min-w-0", isUser ? "items-end" : "items-start")}>
+      <div className={cn("flex flex-col max-w-[88%] min-w-0", isUser ? "items-end" : "items-start")}>
         <div
           className={cn(
-            "rounded-2xl px-4 py-2.5 text-sm min-w-0 max-w-full overflow-hidden",
+            "rounded-2xl px-4 py-3 text-[15px] min-w-0 max-w-full overflow-hidden",
             isUser
               ? "bg-gradient-to-br from-primary to-primary/85 text-primary-foreground rounded-tr-md shadow-premium-sm"
               : "bg-card text-card-foreground ring-1 ring-border/70 rounded-tl-md shadow-premium-sm"

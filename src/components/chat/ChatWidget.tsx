@@ -40,11 +40,10 @@ export function ChatWidget() {
       {isOpen && (
         <div
           className={cn(
-            "fixed z-50 flex flex-col bg-background",
+            "fixed z-50 flex flex-col bg-background animate-in fade-in duration-300",
             isFullscreen
-              ? "inset-0"
-              : "bottom-24 right-5 w-[400px] h-[640px] max-h-[82vh] rounded-2xl shadow-premium-xl ring-1 ring-border/70 overflow-hidden",
-            "animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-300"
+              ? "inset-0 zoom-in-95"
+              : "top-0 bottom-0 right-0 w-[480px] max-w-[92vw] rounded-l-2xl shadow-premium-xl ring-1 ring-border/70 overflow-hidden slide-in-from-right"
           )}
         >
           {/* Header — deep-blue gradient with Lina's identity */}
