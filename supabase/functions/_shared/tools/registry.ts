@@ -6,7 +6,7 @@ import { isToolAllowed } from "./types.ts";
 import {
   getProductionData, getBlockers, getWorkOrders, getLines,
   getFinancials, comparePeriods, findAnomalies, searchKnowledge,
-  raiseSupportTicket,
+  raiseSupportTicket, generateReport,
 } from "./insights.ts";
 
 export const ALL_TOOLS: ToolDefinition[] = [
@@ -116,6 +116,22 @@ export const ALL_TOOLS: ToolDefinition[] = [
     },
     allowedRoles: "all",
     execute: raiseSupportTicket,
+  },
+  {
+    name: "generate_report",
+    description: "Generate a downloadable report FILE (PDF or CSV) and give the user a download link. Use when the user asks for a report, export, or downloadable file. report_type is 'production' (output summary + per-line), 'insights' (production summary + line ranking + blockers), or 'finance' (revenue/cost/profit/margin by PO; admin/owner only). Provide start_date and end_date (YYYY-MM-DD) for the period — compute them from today's date. format defaults to pdf; use csv only if the user asks for a spreadsheet/CSV.",
+    input_schema: {
+      type: "object",
+      properties: {
+        report_type: { type: "string", enum: ["production", "insights", "finance"], description: "Which report to generate." },
+        start_date: { type: "string", description: "Period start, YYYY-MM-DD." },
+        end_date: { type: "string", description: "Period end, YYYY-MM-DD." },
+        format: { type: "string", enum: ["pdf", "csv"], description: "File format. Defaults to pdf." },
+      },
+      required: ["report_type", "start_date", "end_date"],
+    },
+    allowedRoles: "all",
+    execute: generateReport,
   },
 ];
 

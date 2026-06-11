@@ -9,6 +9,7 @@ import {
   MessageCircleQuestion,
   PenLine,
   ArrowUpRight,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -51,7 +52,7 @@ const TOOL_LABELS: Record<string, string> = {
 // ---------------------------------------------------------------------------
 function formatInline(text: string, lineKey: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
-  const re = /(`([^`]+)`)|(\*\*(.+?)\*\*)|(\*([^*]+?)\*)|(\[Source:\s*([^\]]+)\])/g;
+  const re = /(`([^`]+)`)|(\*\*(.+?)\*\*)|(\*([^*]+?)\*)|(\[([^\]]+)\]\((https?:[^)]+)\))|(\[Source:\s*([^\]]+)\])/g;
 
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -77,9 +78,23 @@ function formatInline(text: string, lineKey: string): React.ReactNode[] {
         <em key={`${lineKey}-i${idx}`}>{match[6]}</em>
       );
     } else if (match[7]) {
+      // Markdown link [text](url) — e.g. a report download link
+      parts.push(
+        <a
+          key={`${lineKey}-l${idx}`}
+          href={match[9]}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+        >
+          <Download className="h-3.5 w-3.5 shrink-0" />
+          {match[8]}
+        </a>
+      );
+    } else if (match[10]) {
       parts.push(
         <span key={`${lineKey}-s${idx}`} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-xs font-medium">
-          <FileText className="h-3 w-3" />{match[8]}
+          <FileText className="h-3 w-3" />{match[11]}
         </span>
       );
     }

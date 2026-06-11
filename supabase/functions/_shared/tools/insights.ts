@@ -281,6 +281,29 @@ function formatChunks(rows: any[]): string {
     .join("\n\n");
 }
 
+/** generate_report(report_type, start_date, end_date, [format]) — produces a
+ *  downloadable production/insights/finance report and returns a download link. */
+export async function generateReport(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  const reportType = String(input.report_type ?? "") as "production" | "insights" | "finance";
+  if (!["production", "insights", "finance"].includes(reportType)) {
+    return "Tell me which report you'd like: production, insights, or finance.";
+  }
+  if (reportType === "finance" && !canSeeFinancials(ctx.role)) return DENY("financial reports");
+  if (reportType !== "finance" && !canSeeAnyProduction(ctx.role)) return DENY("production reports");
+
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+  const start = typeof input.start_date === "string" && DATE_RE.test(input.start_date) ? input.start_date : ctx.today;
+  const end = typeof input.end_date === "string" && DATE_RE.test(input.end_date) ? input.end_date : ctx.today;
+  const format = input.format === "csv" ? "csv" : "pdf";
+
+  const result = await ctx.generateReport({ reportType, start, end, format });
+  if (!result.ok || !result.url) {
+    return `I couldn't generate the report${result.error ? ` (${result.error})` : ""}. Please try again, or I can raise a ticket with the team.`;
+  }
+  const range = start === end ? start : `${start} to ${end}`;
+  return `Your ${reportType} report (${range}) is ready: [Download ${result.filename ?? "report"}](${result.url})\n\nThe link is valid for 24 hours.`;
+}
+
 /** raise_support_ticket(problem, [category]) — emails a ticket to the Woventex
  *  team when Lina can't resolve a problem with her other tools. */
 export async function raiseSupportTicket(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {

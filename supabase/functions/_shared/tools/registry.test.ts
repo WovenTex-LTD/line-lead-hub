@@ -12,6 +12,7 @@ function ctx(role: string): ToolContext {
     language: "en",
     embed: async () => [],
     escalate: async () => ({ ok: true }),
+    generateReport: async () => ({ ok: true, url: "https://example.com/r.pdf", filename: "r.pdf" }),
   };
 }
 
@@ -19,9 +20,9 @@ describe("registry", () => {
   it("includes all Phase-1 tools", () => {
     const names = ALL_TOOLS.map((t) => t.name).sort();
     expect(names).toEqual([
-      "compare_periods", "find_anomalies", "get_blockers", "get_financials",
-      "get_lines", "get_production_data", "get_work_orders", "raise_support_ticket",
-      "search_knowledge",
+      "compare_periods", "find_anomalies", "generate_report", "get_blockers",
+      "get_financials", "get_lines", "get_production_data", "get_work_orders",
+      "raise_support_ticket", "search_knowledge",
     ].sort());
   });
 

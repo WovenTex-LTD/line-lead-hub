@@ -8,7 +8,8 @@ import { buildLinaSystemPrompt } from "../_shared/persona.ts";
 import { getToolsForRole, toAnthropicTools, dispatchTool } from "../_shared/tools/registry.ts";
 import { getTodayForFactory } from "../_shared/live-data.ts";
 import { runAgentLoop } from "../_shared/agent-loop.ts";
-import type { ToolContext } from "../_shared/tools/types.ts";
+import { generateReport as generateReportFile } from "../_shared/reports.ts";
+import type { ToolContext, GenerateReportInput } from "../_shared/tools/types.ts";
 
 interface ChatRequest {
   message: string;
@@ -71,15 +72,17 @@ serve(async (req) => {
         ? "admin"
         : roles[0] || "worker";
 
-    // Get factory timezone for date queries
+    // Get factory timezone + name for date queries and report headers
     let factoryTimezone: string | null = null;
+    let factoryName = "Factory";
     if (profile?.factory_id) {
       const { data: factoryData } = await supabaseAdmin
         .from("factory_accounts")
-        .select("timezone")
+        .select("timezone, name")
         .eq("id", profile.factory_id)
         .single();
       factoryTimezone = factoryData?.timezone || null;
+      factoryName = factoryData?.name || "Factory";
     }
 
     logStep("User context", { roles, primaryRole, factoryId: profile?.factory_id });
@@ -221,6 +224,15 @@ serve(async (req) => {
       language,
       embed: async (text: string) => (await generateEmbedding(text)).embedding,
       escalate,
+      generateReport: (input: GenerateReportInput) =>
+        generateReportFile(supabaseAdmin as never, {
+          factoryId: profile.factory_id,
+          factoryName,
+          reportType: input.reportType,
+          start: input.start,
+          end: input.end,
+          format: input.format,
+        }),
     };
 
     // Run the agentic loop.

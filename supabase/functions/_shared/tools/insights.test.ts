@@ -33,6 +33,7 @@ function ctx(role: string, supabase: any): ToolContext {
     language: "en",
     embed: async () => new Array(1536).fill(0),
     escalate: async () => ({ ok: true }),
+    generateReport: async () => ({ ok: true, url: "https://example.com/r.pdf", filename: "r.pdf" }),
   };
 }
 
@@ -205,6 +206,33 @@ describe("searchKnowledge", () => {
     c.embed = async () => new Array(1536).fill(0);
     const out = await searchKnowledge(c, { query: "xyz" });
     expect(out.toLowerCase()).toContain("no");
+  });
+});
+
+import { generateReport } from "./insights";
+
+describe("generateReport", () => {
+  it("returns a download link on success", async () => {
+    let got: any = null;
+    const c = ctx("admin", fakeSupabase({}));
+    c.generateReport = async (i) => { got = i; return { ok: true, url: "https://x/r.pdf", filename: "production.pdf" }; };
+    const out = await generateReport(c, { report_type: "production", start_date: "2026-05-01", end_date: "2026-05-31" });
+    expect(got.reportType).toBe("production");
+    expect(got.format).toBe("pdf");
+    expect(out).toContain("https://x/r.pdf");
+    expect(out).toContain("production.pdf");
+  });
+
+  it("denies a worker a finance report", async () => {
+    const out = await generateReport(ctx("worker", fakeSupabase({})), { report_type: "finance", start_date: "2026-05-01", end_date: "2026-05-31" });
+    expect(out.toLowerCase()).toContain("don't have access");
+  });
+
+  it("reports a generation failure gracefully", async () => {
+    const c = ctx("admin", fakeSupabase({}));
+    c.generateReport = async () => ({ ok: false, error: "storage down" });
+    const out = await generateReport(c, { report_type: "insights", start_date: "2026-05-01", end_date: "2026-05-31" });
+    expect(out.toLowerCase()).toContain("couldn't generate");
   });
 });
 
