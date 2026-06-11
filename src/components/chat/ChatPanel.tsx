@@ -34,6 +34,7 @@ export function ChatPanel() {
     recentConversations,
     loadRecentConversations,
     loadConversation,
+    runAction,
   } = useChat();
 
   const [input, setInput] = useState("");
@@ -118,6 +119,7 @@ export function ChatPanel() {
                 onViewSource={fetchSource}
                 onSendSuggestion={handleSuggestion}
                 language={language}
+                onRunAction={runAction}
               />
             ))}
           </div>

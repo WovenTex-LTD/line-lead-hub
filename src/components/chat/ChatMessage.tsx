@@ -26,6 +26,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { ChatMessage as ChatMessageType, ChatCitation } from "@/hooks/useChat";
+import { ActionConfirmCard } from "./ActionConfirmCard";
+import type { PendingAction } from "@/hooks/useChat";
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -33,6 +35,7 @@ interface ChatMessageProps {
   onViewSource?: (chunkId: string) => Promise<any>;
   onSendSuggestion?: (question: string) => void;
   language: "en" | "bn" | "zh";
+  onRunAction?: (action: PendingAction) => Promise<{ ok: boolean; summary?: string; error?: string }>;
 }
 
 // Friendly labels for the "what Lina checked" chip under each answer.
@@ -260,6 +263,7 @@ export function ChatMessage({
   onViewSource,
   onSendSuggestion,
   language,
+  onRunAction,
 }: ChatMessageProps) {
   const [feedback, setFeedback] = useState<"thumbs_up" | "thumbs_down" | null>(null);
   const [sourcesOpen, setSourcesOpen] = useState(false);
@@ -333,6 +337,14 @@ export function ChatMessage({
             </div>
           );
         })()}
+
+        {!isUser && message.pendingActions && message.pendingActions.length > 0 && onRunAction && (
+          <div className="w-full space-y-2">
+            {message.pendingActions.map((a, i) => (
+              <ActionConfirmCard key={i} action={a} onRun={onRunAction} />
+            ))}
+          </div>
+        )}
 
         {/* No evidence warning */}
         {message.noEvidence && !isUser && (
