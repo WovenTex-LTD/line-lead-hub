@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { LinaMark } from "./LinaMark";
 import type { ChatMessage as ChatMessageType, ChatCitation } from "@/hooks/useChat";
 
 interface ChatMessageProps {
@@ -272,18 +271,9 @@ export function ChatMessage({
   };
 
   return (
-    <div className={cn("flex gap-2.5 min-w-0 animate-fade-in", isUser ? "flex-row-reverse" : "flex-row")}>
-      {/* Avatar */}
-      {isUser ? (
-        <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-[9px] bg-secondary text-xs font-semibold text-secondary-foreground ring-1 ring-border">
-          U
-        </div>
-      ) : (
-        <LinaMark size="sm" live={false} className="mt-0.5" />
-      )}
-
+    <div className={cn("flex min-w-0 animate-fade-in", isUser ? "justify-end" : "justify-start")}>
       {/* Message body */}
-      <div className={cn("flex flex-col max-w-[88%] min-w-0", isUser ? "items-end" : "items-start")}>
+      <div className={cn("flex flex-col max-w-[92%] min-w-0", isUser ? "items-end" : "items-start")}>
         <div
           className={cn(
             "rounded-2xl px-4 py-3 text-[15px] min-w-0 max-w-full overflow-hidden",
