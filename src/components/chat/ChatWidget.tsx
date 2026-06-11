@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Minimize2, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChatPanel } from "./ChatPanel";
+import { LinaGlyph } from "./LinaMark";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
@@ -50,9 +51,8 @@ export function ChatWidget() {
           <header className="relative flex items-center justify-between gap-2 px-4 py-3 bg-gradient-to-r from-primary via-primary to-primary/85 text-primary-foreground">
             <div className="flex items-center gap-3 min-w-0">
               {/* Header mark (translucent on the blue header) */}
-              <div className="relative grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-white/15 backdrop-blur-sm ring-1 ring-white/20 text-base font-semibold tracking-tight">
-                L
-                <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-accent ring-2 ring-primary animate-pulse-subtle" />
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-white/15 backdrop-blur-sm ring-1 ring-white/20 text-white">
+                <LinaGlyph className="h-6 w-6" />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -115,8 +115,7 @@ export function ChatWidget() {
             {showHint && (
               <span className="absolute inset-0 rounded-2xl bg-primary/30 animate-ping [animation-duration:2.4s]" />
             )}
-            <span className="relative text-2xl font-semibold leading-none tracking-tight">L</span>
-            <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-accent ring-2 ring-primary/50 animate-pulse-subtle" />
+            <LinaGlyph className="relative h-8 w-8 text-primary-foreground" />
           </button>
         </div>
       )}
