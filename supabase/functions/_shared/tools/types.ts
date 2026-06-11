@@ -32,6 +32,8 @@ export interface ToolContext {
   escalate: (ticket: SupportTicket) => Promise<{ ok: boolean; error?: string }>;
   /** Queue a report export for the client to run (produces the real in-app file). */
   requestExport: (input: ExportRequest) => void;
+  /** Queue a write action for the user to confirm (no write happens here). */
+  proposeAction: (action: import("../actions/po.ts").ProposedAction) => void;
 }
 
 export interface ToolDefinition {

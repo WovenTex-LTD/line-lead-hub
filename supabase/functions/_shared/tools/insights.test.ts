@@ -34,6 +34,7 @@ function ctx(role: string, supabase: any): ToolContext {
     embed: async () => new Array(1536).fill(0),
     escalate: async () => ({ ok: true }),
     requestExport: () => {},
+    proposeAction: () => {},
   };
 }
 

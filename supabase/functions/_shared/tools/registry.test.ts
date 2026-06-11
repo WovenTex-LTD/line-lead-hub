@@ -13,6 +13,7 @@ function ctx(role: string): ToolContext {
     embed: async () => [],
     escalate: async () => ({ ok: true }),
     requestExport: () => {},
+    proposeAction: () => {},
   };
 }
 
@@ -20,9 +21,10 @@ describe("registry", () => {
   it("includes all Phase-1 tools", () => {
     const names = ALL_TOOLS.map((t) => t.name).sort();
     expect(names).toEqual([
-      "compare_periods", "find_anomalies", "generate_report", "get_blockers",
-      "get_financials", "get_lines", "get_production_data", "get_work_orders",
-      "raise_support_ticket", "search_knowledge",
+      "archive_po", "assign_po_lines", "compare_periods", "create_po", "find_anomalies",
+      "generate_report", "get_blockers", "get_financials", "get_lines", "get_production_data",
+      "get_work_orders", "raise_support_ticket", "search_knowledge", "set_po_ex_factory",
+      "set_po_status", "update_po",
     ].sort());
   });
 

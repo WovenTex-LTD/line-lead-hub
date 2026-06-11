@@ -8,6 +8,10 @@ import {
   getFinancials, comparePeriods, findAnomalies, searchKnowledge,
   raiseSupportTicket, generateReport,
 } from "./insights.ts";
+import {
+  createPoTool, updatePoTool, assignPoLinesTool,
+  setPoStatusTool, setPoExFactoryTool, archivePoTool,
+} from "./actions-tools.ts";
 
 export const ALL_TOOLS: ToolDefinition[] = [
   {
@@ -132,6 +136,80 @@ export const ALL_TOOLS: ToolDefinition[] = [
     },
     allowedRoles: "all",
     execute: generateReport,
+  },
+  {
+    name: "create_po",
+    description: "Create a new purchase order (work order). Admin/owner only. Use when the user asks to add/create a PO. Required: po_number, buyer, style, planned_ex_factory (YYYY-MM-DD). Optional: order_qty, item, color, smv, cm_per_dozen, target_per_hour, target_per_day, line_ids. This PROPOSES the change for the user to approve — it does not write directly.",
+    input_schema: {
+      type: "object",
+      properties: {
+        po_number: { type: "string" }, buyer: { type: "string" }, style: { type: "string" },
+        planned_ex_factory: { type: "string", description: "YYYY-MM-DD" },
+        order_qty: { type: "number" }, item: { type: "string" }, color: { type: "string" },
+        smv: { type: "number" }, cm_per_dozen: { type: "number" },
+        target_per_hour: { type: "number" }, target_per_day: { type: "number" },
+        line_ids: { type: "array", items: { type: "string" }, description: "Line IDs to assign." },
+      },
+      required: ["po_number", "buyer", "style", "planned_ex_factory"],
+    },
+    allowedRoles: ["admin", "owner", "superadmin"],
+    execute: createPoTool,
+  },
+  {
+    name: "update_po",
+    description: "Edit fields on an existing PO. Admin/owner only. Identify the PO by po_number; provide only the fields to change (buyer, style, item, color, order_qty, smv, cm_per_dozen, target_per_hour, target_per_day). Proposes the change for approval.",
+    input_schema: {
+      type: "object",
+      properties: {
+        po_number: { type: "string" }, buyer: { type: "string" }, style: { type: "string" },
+        item: { type: "string" }, color: { type: "string" }, order_qty: { type: "number" },
+        smv: { type: "number" }, cm_per_dozen: { type: "number" },
+        target_per_hour: { type: "number" }, target_per_day: { type: "number" },
+      },
+      required: ["po_number"],
+    },
+    allowedRoles: ["admin", "owner", "superadmin"],
+    execute: updatePoTool,
+  },
+  {
+    name: "assign_po_lines",
+    description: "Set which production lines run a PO. Admin/owner only. Proposes the change for approval.",
+    input_schema: {
+      type: "object",
+      properties: { po_number: { type: "string" }, line_ids: { type: "array", items: { type: "string" } } },
+      required: ["po_number", "line_ids"],
+    },
+    allowedRoles: ["admin", "owner", "superadmin"],
+    execute: assignPoLinesTool,
+  },
+  {
+    name: "set_po_status",
+    description: "Change a PO's status (not_started, in_progress, completed, on_hold) and/or active flag. Admin/owner only. Proposes the change for approval.",
+    input_schema: {
+      type: "object",
+      properties: { po_number: { type: "string" }, status: { type: "string", enum: ["not_started", "in_progress", "completed", "on_hold"] }, is_active: { type: "boolean" } },
+      required: ["po_number"],
+    },
+    allowedRoles: ["admin", "owner", "superadmin"],
+    execute: setPoStatusTool,
+  },
+  {
+    name: "set_po_ex_factory",
+    description: "Set a PO's planned and/or actual ex-factory date (YYYY-MM-DD). Admin/owner only. Proposes the change for approval.",
+    input_schema: {
+      type: "object",
+      properties: { po_number: { type: "string" }, planned_ex_factory: { type: "string" }, actual_ex_factory: { type: "string" } },
+      required: ["po_number"],
+    },
+    allowedRoles: ["admin", "owner", "superadmin"],
+    execute: setPoExFactoryTool,
+  },
+  {
+    name: "archive_po",
+    description: "Archive (soft-delete) a PO — sets it inactive and status 'deleted'; production history is preserved. Admin/owner only. Proposes the change for approval. Never hard-deletes.",
+    input_schema: { type: "object", properties: { po_number: { type: "string" } }, required: ["po_number"] },
+    allowedRoles: ["admin", "owner", "superadmin"],
+    execute: archivePoTool,
   },
 ];
 
