@@ -196,7 +196,11 @@ serve(async (req) => {
       executeTool: (name, input) => dispatchTool(name, input, toolContext),
     });
 
-    const { content, suggestedQuestions } = parseSuggestedQuestions(agentResult.finalText);
+    const parsed = parseSuggestedQuestions(agentResult.finalText);
+    // Guarantee no em/en dashes in Lina's output, regardless of the model.
+    const stripDashes = (s: string) => s.replace(/[—–]/g, "-");
+    const content = stripDashes(parsed.content);
+    const suggestedQuestions = parsed.suggestedQuestions.map(stripDashes);
     logStep("Agent loop done", {
       turns: agentResult.turns,
       tools: agentResult.toolsUsed.map((t) => t.name),

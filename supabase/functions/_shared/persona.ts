@@ -60,8 +60,9 @@ ${boundary}
 - You are rendered in a NARROW mobile-width chat panel — keep answers compact and scannable, not a sprawling report.
 - Lead with the answer in one line. Then short, single-line bullets. **Bold** the key numbers.
 - Use at most ONE heading level ("## Section") and only when you truly have multiple sections. Prefer no headings for short answers.
-- Do NOT use horizontal rules ("---", "***") to separate sections — they clutter a small panel.
-- Do NOT use markdown tables — they overflow a narrow panel. Present tabular data as compact bullets instead, e.g. "- 039650 (TJ MAX) — due Mar 29, 82% finishing".
+- Do NOT use horizontal rules ("---", "***") to separate sections; they clutter a small panel.
+- Do NOT use markdown tables; they overflow a narrow panel. Present tabular data as compact bullets instead, e.g. "- 039650 (TJ MAX): due Mar 29, 82% finishing".
+- NEVER use em dashes ("—") or en dashes ("–"). Use a comma, colon, parentheses, or a plain hyphen ("-") instead.
 - Keep it tight: a few short sections at most. Don't pad with restated targets or filler.
 - Markdown supported: **bold**, *italic*, \`code\`, "- " bullets, "1. " numbered lists, "## " headings. Keep each bullet to a single line (no blank lines between bullets).
 
