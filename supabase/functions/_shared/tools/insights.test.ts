@@ -11,6 +11,8 @@ function fakeSupabase(rowsByTable: Record<string, any[]>) {
       eq() { return builder; },
       in() { return builder; },
       ilike() { return builder; },
+      gte() { return builder; },
+      lte() { return builder; },
       order() { return builder; },
       limit() { return Promise.resolve({ data: builder._rows, error: null }); },
       single() { return Promise.resolve({ data: builder._rows[0] ?? null, error: null }); },
@@ -91,6 +93,30 @@ describe("getLines", () => {
     const sb = fakeSupabase({ lines: [], sewing_actuals: [], sewing_targets: [] });
     const out = await getLines(ctx("admin", sb), {});
     expect(typeof out).toBe("string");
+  });
+  it("aggregates per-line efficiency over a date range", async () => {
+    const sb = fakeSupabase({
+      lines: [
+        { id: "l1", line_id: "A", name: "Line A", is_active: true },
+        { id: "l2", line_id: "B", name: "Line B", is_active: true },
+      ],
+      sewing_actuals: [
+        { line_id: "l1", good_today: 800, reject_today: 0 },
+        { line_id: "l1", good_today: 800, reject_today: 0 },
+        { line_id: "l2", good_today: 200, reject_today: 0 },
+      ],
+      sewing_targets: [
+        { line_id: "l1", per_hour_target: 100 },
+        { line_id: "l1", per_hour_target: 100 },
+        { line_id: "l2", per_hour_target: 100 },
+      ],
+    });
+    const out = await getLines(ctx("admin", sb), { start_date: "2026-05-01", end_date: "2026-05-31" });
+    expect(out).toContain("2026-05-01 to 2026-05-31");
+    expect(out).toContain("Line A");
+    expect(out).toContain("Line B");
+    // Line B (25%) is weaker than Line A (100%), so it should be listed first.
+    expect(out.indexOf("Line B")).toBeLessThan(out.indexOf("Line A"));
   });
 });
 

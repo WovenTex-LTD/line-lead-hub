@@ -46,8 +46,14 @@ export const ALL_TOOLS: ToolDefinition[] = [
   },
   {
     name: "get_lines",
-    description: "Get a per-line efficiency overview for today (output vs target). Call this for questions about line performance, which lines are behind, best/worst line, or efficiency.",
-    input_schema: { type: "object", properties: {} },
+    description: "Per-line sewing efficiency (output vs target, reject rate) over a date range. Call this for line performance, which lines are behind, best/worst line, or efficiency — for today OR for a week/month. Defaults to today; pass start_date and end_date (YYYY-MM-DD) for a weekly or monthly per-line breakdown.",
+    input_schema: {
+      type: "object",
+      properties: {
+        start_date: { type: "string", description: "Range start, YYYY-MM-DD. Defaults to today." },
+        end_date: { type: "string", description: "Range end, YYYY-MM-DD. Defaults to today." },
+      },
+    },
     allowedRoles: "all",
     execute: getLines,
   },

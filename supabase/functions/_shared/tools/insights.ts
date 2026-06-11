@@ -9,7 +9,6 @@ import {
   fetchFinishing,
   fetchBlockers,
   fetchWorkOrders,
-  fetchLines,
 } from "../live-data.ts";
 
 const DENY = (what: string) =>
@@ -66,11 +65,74 @@ export async function getWorkOrders(ctx: ToolContext, input: Record<string, unkn
   return result.error ? `(${result.error})` : result.summary;
 }
 
-/** get_lines() — per-line efficiency overview (sewing). */
-export async function getLines(ctx: ToolContext, _input: Record<string, unknown>): Promise<string> {
+/** get_lines([start_date], [end_date]) — per-line sewing efficiency over a date
+ *  range (output vs target, reject rate). Defaults to today; pass a range for
+ *  weekly/monthly per-line breakdowns. */
+export async function getLines(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
   if (!allowedDepartmentsForRole(ctx.role).includes("sewing")) return DENY("line performance data");
-  const result = await fetchLines(ctx.supabase, ctx.factoryId, ctx.today);
-  return result.error ? `(${result.error})` : result.summary;
+
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+  const start = typeof input.start_date === "string" && DATE_RE.test(input.start_date) ? input.start_date : ctx.today;
+  const end = typeof input.end_date === "string" && DATE_RE.test(input.end_date) ? input.end_date : ctx.today;
+
+  const [linesR, actR, tgtR] = await Promise.all([
+    ctx.supabase.from("lines").select("id, line_id, name, is_active").eq("factory_id", ctx.factoryId).eq("is_active", true),
+    ctx.supabase.from("sewing_actuals").select("line_id, good_today, reject_today").eq("factory_id", ctx.factoryId).gte("production_date", start).lte("production_date", end),
+    ctx.supabase.from("sewing_targets").select("line_id, per_hour_target").eq("factory_id", ctx.factoryId).gte("production_date", start).lte("production_date", end),
+  ]);
+
+  const lines = (linesR.data ?? []) as any[];
+  const actuals = (actR.data ?? []) as any[];
+  const targets = (tgtR.data ?? []) as any[];
+
+  const goodByLine = new Map<string, number>();
+  const rejectByLine = new Map<string, number>();
+  for (const a of actuals) {
+    goodByLine.set(a.line_id, (goodByLine.get(a.line_id) || 0) + (a.good_today || 0));
+    rejectByLine.set(a.line_id, (rejectByLine.get(a.line_id) || 0) + (a.reject_today || 0));
+  }
+  const targetByLine = new Map<string, number>();
+  for (const t of targets) {
+    targetByLine.set(t.line_id, (targetByLine.get(t.line_id) || 0) + (t.per_hour_target || 0) * 8);
+  }
+
+  const rows = lines
+    .map((line) => {
+      const good = goodByLine.get(line.id) || 0;
+      const reject = rejectByLine.get(line.id) || 0;
+      const target = targetByLine.get(line.id) || 0;
+      const produced = good + reject;
+      return {
+        name: line.name || line.line_id,
+        good,
+        reject,
+        target,
+        eff: target > 0 ? Math.round((good / target) * 100) : null,
+        rejRate: produced > 0 ? Math.round((reject / produced) * 1000) / 10 : 0,
+      };
+    })
+    .filter((r) => r.target > 0 || r.good > 0);
+
+  const period = start === end ? start : `${start} to ${end}`;
+  if (rows.length === 0) {
+    return `No sewing line activity is recorded for ${period}.`;
+  }
+
+  rows.sort((a, b) => (a.eff ?? 1e9) - (b.eff ?? 1e9)); // weakest first
+  const totalGood = rows.reduce((s, r) => s + r.good, 0);
+  const totalTarget = rows.reduce((s, r) => s + r.target, 0);
+  const overall = totalTarget > 0 ? Math.round((totalGood / totalTarget) * 100) : null;
+
+  const body = rows.map((r) => {
+    const effStr = r.eff !== null ? `${r.eff}% efficiency (${r.good}/${r.target} pcs)` : `${r.good} pcs (no target set)`;
+    const rejStr = r.rejRate > 0 ? `, ${r.rejRate}% reject` : "";
+    return `- ${r.name}: ${effStr}${rejStr}`;
+  });
+
+  return [
+    `Line performance for ${period} (weakest first)${overall !== null ? `, overall ${overall}%` : ""}:`,
+    ...body,
+  ].join("\n");
 }
 
 /** get_financials() — admin/owner only. Mirrors the app's Finances page:
