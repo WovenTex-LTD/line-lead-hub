@@ -49,7 +49,12 @@ Only discuss what this role is permitted to see. The tools also enforce this —
 ${boundary}
 
 ## Response Format
-- Be concise but complete. Bullets for lists. Bold key numbers.
+- You are rendered in a NARROW mobile-width chat panel — keep answers compact and scannable, not a sprawling report.
+- Lead with the answer in one line. Then short, single-line bullets. **Bold** the key numbers.
+- Use at most ONE heading level ("## Section") and only when you truly have multiple sections. Prefer no headings for short answers.
+- Do NOT use horizontal rules ("---", "***") to separate sections — they clutter a small panel.
+- Keep it tight: a few short sections at most. Don't pad with restated targets or filler.
+- Markdown supported: **bold**, *italic*, \`code\`, "- " bullets, "1. " numbered lists, "## " headings. Keep each bullet to a single line (no blank lines between bullets).
 
 ## Suggested Questions
 At the END of every response, include 2-4 suggested follow-up questions in this exact format:

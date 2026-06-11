@@ -88,6 +88,13 @@ function formatContent(content: string): React.ReactNode[] {
   const lines = content.split("\n");
   const elements: React.ReactNode[] = [];
   let i = 0;
+  let key = 0;
+
+  const nextNonBlankIsBullet = (from: number, re: RegExp): number => {
+    let j = from;
+    while (j < lines.length && lines[j].trim() === "") j++;
+    return j < lines.length && re.test(lines[j]) ? j : -1;
+  };
 
   while (i < lines.length) {
     const line = lines[i];
@@ -102,27 +109,78 @@ function formatContent(content: string): React.ReactNode[] {
       }
       i++; // skip closing ```
       elements.push(
-        <pre key={`cb-${i}`} className="my-2 rounded-lg bg-[hsl(222,47%,11%)] text-[hsl(214,32%,91%)] p-3 overflow-x-auto text-xs font-mono">
+        <pre key={`cb-${key++}`} className="my-2 rounded-lg bg-[hsl(222,47%,11%)] text-[hsl(214,32%,91%)] p-3 overflow-x-auto text-xs font-mono">
           <code>{codeLines.join("\n")}</code>
         </pre>
       );
       continue;
     }
 
-    if (line.startsWith("## ")) {
-      elements.push(<h3 key={i} className="font-semibold text-base mt-3 mb-1">{formatInline(line.slice(3), `h3-${i}`)}</h3>);
-    } else if (line.startsWith("# ")) {
-      elements.push(<h2 key={i} className="font-bold text-lg mt-3 mb-1">{formatInline(line.slice(2), `h2-${i}`)}</h2>);
-    } else if (line.startsWith("- ") || line.startsWith("* ")) {
-      elements.push(<li key={i} className="ml-4 list-disc">{formatInline(line.slice(2), `li-${i}`)}</li>);
-    } else if (/^\d+\.\s/.test(line)) {
-      elements.push(<li key={i} className="ml-4 list-decimal">{formatInline(line.replace(/^\d+\.\s/, ""), `ol-${i}`)}</li>);
-    } else if (line.trim()) {
-      elements.push(<p key={i} className="mb-2">{formatInline(line, `p-${i}`)}</p>);
-    } else {
-      elements.push(<br key={i} />);
+    // Horizontal rule (---, ***, ___) → subtle divider
+    if (/^\s*([-*_])\1{2,}\s*$/.test(line)) {
+      elements.push(<hr key={`hr-${key++}`} className="my-2.5 border-border/60" />);
+      i++;
+      continue;
     }
 
+    // Headings (#…######) — render compactly for a narrow panel
+    const heading = line.match(/^(#{1,6})\s+(.*)$/);
+    if (heading) {
+      const level = heading[1].length;
+      const cls =
+        level <= 1
+          ? "font-bold text-base mt-3 mb-1"
+          : "font-semibold text-sm mt-2.5 mb-1";
+      elements.push(
+        <div key={`h-${key}`} className={cls}>{formatInline(heading[2], `h-${key++}`)}</div>
+      );
+      i++;
+      continue;
+    }
+
+    // Unordered list — gather consecutive bullets into one tight <ul>,
+    // collapsing blank lines between items (loose → tight list)
+    const ulRe = /^\s*[-*]\s+/;
+    if (ulRe.test(line)) {
+      const items: React.ReactNode[] = [];
+      while (i < lines.length) {
+        const m = lines[i].match(/^\s*[-*]\s+(.*)$/);
+        if (m) {
+          items.push(<li key={`li-${key}`} className="leading-snug">{formatInline(m[1], `li-${key++}`)}</li>);
+          i++;
+        } else if (lines[i].trim() === "" && nextNonBlankIsBullet(i + 1, ulRe) !== -1) {
+          i = nextNonBlankIsBullet(i + 1, ulRe);
+        } else {
+          break;
+        }
+      }
+      elements.push(<ul key={`ul-${key++}`} className="my-1.5 ml-4 list-disc space-y-0.5">{items}</ul>);
+      continue;
+    }
+
+    // Ordered list — same grouping
+    const olRe = /^\s*\d+\.\s+/;
+    if (olRe.test(line)) {
+      const items: React.ReactNode[] = [];
+      while (i < lines.length) {
+        const m = lines[i].match(/^\s*\d+\.\s+(.*)$/);
+        if (m) {
+          items.push(<li key={`ol-${key}`} className="leading-snug">{formatInline(m[1], `ol-${key++}`)}</li>);
+          i++;
+        } else if (lines[i].trim() === "" && nextNonBlankIsBullet(i + 1, olRe) !== -1) {
+          i = nextNonBlankIsBullet(i + 1, olRe);
+        } else {
+          break;
+        }
+      }
+      elements.push(<ol key={`ol-${key++}`} className="my-1.5 ml-4 list-decimal space-y-0.5">{items}</ol>);
+      continue;
+    }
+
+    // Paragraph — skip blank lines (paragraph margins handle spacing; no <br> spam)
+    if (line.trim()) {
+      elements.push(<p key={`p-${key}`} className="mb-1.5 leading-snug">{formatInline(line, `p-${key++}`)}</p>);
+    }
     i++;
   }
 
