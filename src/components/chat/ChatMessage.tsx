@@ -25,9 +25,8 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { ChatMessage as ChatMessageType, ChatCitation } from "@/hooks/useChat";
+import type { ChatMessage as ChatMessageType, ChatCitation, PendingAction } from "@/hooks/useChat";
 import { ActionConfirmCard } from "./ActionConfirmCard";
-import type { PendingAction } from "@/hooks/useChat";
 
 interface ChatMessageProps {
   message: ChatMessageType;
