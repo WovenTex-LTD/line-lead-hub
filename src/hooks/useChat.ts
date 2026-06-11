@@ -11,6 +11,11 @@ export interface ChatCitation {
   snippet: string;
 }
 
+export interface ChatToolUse {
+  name: string;
+  input: Record<string, unknown>;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -18,6 +23,7 @@ export interface ChatMessage {
   citations?: ChatCitation[];
   noEvidence?: boolean;
   suggestedQuestions?: string[];
+  toolsUsed?: ChatToolUse[];
   timestamp: Date;
   isLoading?: boolean;
 }
@@ -125,6 +131,7 @@ export function useChat(): UseChatReturn {
         citations: data.citations,
         noEvidence: data.no_evidence,
         suggestedQuestions: data.suggested_questions,
+        toolsUsed: data.tools_used,
         timestamp: new Date(),
       };
 

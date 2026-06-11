@@ -1,4 +1,4 @@
-import { TrendingUp, AlertTriangle, Activity } from "lucide-react";
+import { TrendingUp, AlertTriangle, Activity, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface QuickActionsProps {
@@ -71,43 +71,33 @@ const QUICK_ACTIONS = {
 
 export function QuickActions({ onSelect, language }: QuickActionsProps) {
   const actions = QUICK_ACTIONS[language];
-  const isOddCount = actions.length % 2 !== 0;
 
   return (
-    <div className="grid grid-cols-2 gap-2.5 w-full max-w-sm">
-      {actions.map((action, index) => {
-        const isLastOdd = isOddCount && index === actions.length - 1;
-        return (
-          <button
-            key={index}
-            onClick={() => onSelect(action.prompt)}
-            className={cn(
-              "group flex flex-col items-start gap-2 p-3 rounded-xl border bg-card text-left",
-              "shadow-sm hover:shadow-md hover:border-primary/30",
-              "transition-all duration-200 hover:-translate-y-0.5",
-              "animate-in fade-in slide-in-from-bottom-2",
-              isLastOdd && "col-span-2 justify-self-center max-w-[calc(50%-0.3125rem)]"
-            )}
-            style={{
-              animationDelay: `${index * 75}ms`,
-              animationFillMode: "both",
-              animationDuration: "400ms",
-            }}
-          >
-            <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors duration-200">
-              <action.icon className="h-4 w-4" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-foreground leading-tight">
-                {action.label}
-              </p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                {action.hint}
-              </p>
-            </div>
-          </button>
-        );
-      })}
+    <div className="mx-auto flex w-full max-w-[320px] flex-col gap-2">
+      <p className="px-1 text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground/80">
+        {language === "bn" ? "শুরু করুন" : "Try asking"}
+      </p>
+      {actions.map((action, index) => (
+        <button
+          key={index}
+          onClick={() => onSelect(action.prompt)}
+          className={cn(
+            "group flex items-center gap-3 rounded-xl border border-border/70 bg-card px-3 py-2.5 text-left",
+            "shadow-premium-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-premium-md",
+            "animate-fade-in-up"
+          )}
+          style={{ animationDelay: `${index * 70}ms`, animationFillMode: "both" }}
+        >
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-primary/10 text-primary transition-colors duration-200 group-hover:bg-primary/15">
+            <action.icon className="h-4 w-4" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium leading-tight text-foreground">{action.label}</span>
+            <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{action.hint}</span>
+          </span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/40 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-primary" />
+        </button>
+      ))}
     </div>
   );
 }

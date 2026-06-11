@@ -6,12 +6,11 @@ import {
   FileText,
   Loader2,
   AlertTriangle,
-  Bot,
   MessageCircleQuestion,
   PenLine,
+  ArrowUpRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Collapsible,
   CollapsibleContent,
@@ -25,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { LinaMark } from "./LinaMark";
 import type { ChatMessage as ChatMessageType, ChatCitation } from "@/hooks/useChat";
 
 interface ChatMessageProps {
@@ -34,6 +34,18 @@ interface ChatMessageProps {
   onSendSuggestion?: (question: string) => void;
   language: "en" | "bn" | "zh";
 }
+
+// Friendly labels for the "what Lina checked" chip under each answer.
+const TOOL_LABELS: Record<string, string> = {
+  get_production_data: "production data",
+  get_blockers: "blockers",
+  get_work_orders: "work orders",
+  get_lines: "line performance",
+  get_financials: "financials",
+  compare_periods: "trends",
+  find_anomalies: "anomalies",
+  search_knowledge: "knowledge base",
+};
 
 // ---------------------------------------------------------------------------
 // Inline markdown: `code`, **bold**, *italic*, [Source: Title]
@@ -260,44 +272,62 @@ export function ChatMessage({
   };
 
   return (
-    <div className={cn("flex gap-3 min-w-0", isUser ? "flex-row-reverse" : "flex-row")}>
+    <div className={cn("flex gap-2.5 min-w-0 animate-fade-in", isUser ? "flex-row-reverse" : "flex-row")}>
       {/* Avatar */}
-      <Avatar className="h-8 w-8 shrink-0">
-        <AvatarFallback
-          className={cn(
-            "text-xs font-semibold",
-            isUser
-              ? "bg-primary text-primary-foreground"
-              : "bg-gradient-to-br from-primary to-primary/70 text-primary-foreground"
-          )}
-        >
-          {isUser ? "U" : <Bot className="h-4 w-4" />}
-        </AvatarFallback>
-      </Avatar>
+      {isUser ? (
+        <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-[9px] bg-secondary text-xs font-semibold text-secondary-foreground ring-1 ring-border">
+          U
+        </div>
+      ) : (
+        <LinaMark size="sm" live={false} className="mt-0.5" />
+      )}
 
       {/* Message body */}
-      <div className={cn("flex flex-col max-w-[80%] min-w-0", isUser ? "items-end" : "items-start")}>
+      <div className={cn("flex flex-col max-w-[82%] min-w-0", isUser ? "items-end" : "items-start")}>
         <div
           className={cn(
             "rounded-2xl px-4 py-2.5 text-sm min-w-0 max-w-full overflow-hidden",
             isUser
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "bg-card border shadow-sm",
-            isLoading && "min-w-[60px]"
+              ? "bg-gradient-to-br from-primary to-primary/85 text-primary-foreground rounded-tr-md shadow-premium-sm"
+              : "bg-card text-card-foreground ring-1 ring-border/70 rounded-tl-md shadow-premium-sm"
           )}
         >
           {isLoading ? (
-            <div className="flex items-center gap-1.5 py-1 px-1">
-              <div className="h-2 w-2 rounded-full bg-primary/60 animate-bounce [animation-delay:0ms]" />
-              <div className="h-2 w-2 rounded-full bg-primary/60 animate-bounce [animation-delay:150ms]" />
-              <div className="h-2 w-2 rounded-full bg-primary/60 animate-bounce [animation-delay:300ms]" />
+            <div className="flex items-center gap-2 py-0.5">
+              <span className="flex gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary/70 animate-bounce [animation-delay:0ms]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-primary/70 animate-bounce [animation-delay:150ms]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-primary/70 animate-bounce [animation-delay:300ms]" />
+              </span>
+              <span className="text-xs font-medium text-muted-foreground animate-pulse">
+                {language === "bn" ? "লিনা বিশ্লেষণ করছে…" : "Lina is analyzing…"}
+              </span>
             </div>
           ) : (
-            <div className="prose prose-sm dark:prose-invert max-w-none min-w-0 [overflow-wrap:anywhere]">
+            <div className="prose prose-sm dark:prose-invert max-w-none min-w-0 [overflow-wrap:anywhere] [font-variant-numeric:tabular-nums]">
               {formatContent(message.content)}
             </div>
           )}
         </div>
+
+        {/* What Lina checked — the agent's tool activity */}
+        {!isUser && !isLoading && message.toolsUsed && message.toolsUsed.length > 0 && (() => {
+          const labels = Array.from(
+            new Set(message.toolsUsed.map((t) => TOOL_LABELS[t.name]).filter(Boolean))
+          );
+          if (labels.length === 0) return null;
+          return (
+            <div className="mt-1.5 flex items-center gap-1.5 px-1 text-[11px] text-muted-foreground">
+              <span className="grid h-3.5 w-3.5 place-items-center rounded-full bg-primary/10">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              </span>
+              <span className="min-w-0 truncate">
+                {language === "bn" ? "দেখেছি: " : "Checked "}
+                {labels.join(" · ")}
+              </span>
+            </div>
+          );
+        })()}
 
         {/* No evidence warning */}
         {message.noEvidence && !isUser && (
@@ -372,14 +402,15 @@ export function ChatMessage({
                 <button
                   key={idx}
                   onClick={() => onSendSuggestion?.(question)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-left bg-card border rounded-lg shadow-sm hover:bg-accent hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer w-full"
+                  className="group flex w-full items-center gap-2 rounded-lg border border-border/70 bg-card px-3 py-2 text-left text-xs shadow-premium-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-premium-md"
                 >
-                  <span className="break-words text-left">{question}</span>
+                  <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{question}</span>
+                  <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40 transition-all duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary" />
                 </button>
               ))}
               <button
                 onClick={() => onSendSuggestion?.("")}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-muted/50 border border-dashed rounded-lg hover:bg-accent hover:border-primary/30 transition-all duration-200 cursor-pointer text-muted-foreground w-fit"
+                className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors duration-200 hover:border-primary/40 hover:text-foreground"
               >
                 <PenLine className="h-3 w-3 shrink-0" />
                 {language === "bn" ? "অন্য কিছু" : "Other"}

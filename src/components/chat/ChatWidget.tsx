@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { MessageCircle, X, Minimize2, Maximize2, Bot } from "lucide-react";
+import { X, Minimize2, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChatPanel } from "./ChatPanel";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,7 +9,7 @@ export function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [showPulse, setShowPulse] = useState(true);
+  const [showHint, setShowHint] = useState(true);
   const { user, profile } = useAuth();
 
   // Detect mobile
@@ -25,9 +25,9 @@ export function ChatWidget() {
     if (isMobile && isOpen) setIsFullscreen(true);
   }, [isMobile, isOpen]);
 
-  // Stop the pulse ring after a few seconds
+  // Fade the launcher hint + pulse after a few seconds
   useEffect(() => {
-    const timer = setTimeout(() => setShowPulse(false), 6000);
+    const timer = setTimeout(() => setShowHint(false), 6500);
     return () => clearTimeout(timer);
   }, []);
 
@@ -40,74 +40,85 @@ export function ChatWidget() {
       {isOpen && (
         <div
           className={cn(
-            "fixed z-50 bg-background border flex flex-col",
+            "fixed z-50 flex flex-col bg-background",
             isFullscreen
               ? "inset-0"
-              : "bottom-20 right-4 w-[400px] h-[600px] max-h-[80vh] rounded-xl shadow-2xl overflow-hidden",
+              : "bottom-24 right-5 w-[400px] h-[640px] max-h-[82vh] rounded-2xl shadow-premium-xl ring-1 ring-border/70 overflow-hidden",
             "animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-300"
           )}
         >
-          {/* Gradient header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-primary to-primary/85 text-white">
-            <div className="flex items-center gap-2.5">
-              <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-white/15 backdrop-blur-sm">
-                <Bot className="h-4 w-4" />
+          {/* Header — deep-blue gradient with Lina's identity */}
+          <header className="relative flex items-center justify-between gap-2 px-4 py-3 bg-gradient-to-r from-primary via-primary to-primary/85 text-primary-foreground">
+            <div className="flex items-center gap-3 min-w-0">
+              {/* Header mark (translucent on the blue header) */}
+              <div className="relative grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-white/15 backdrop-blur-sm ring-1 ring-white/20 text-base font-semibold tracking-tight">
+                L
+                <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-accent ring-2 ring-primary animate-pulse-subtle" />
               </div>
-              <div>
-                <span className="font-semibold text-sm leading-none">
-                  Lina
-                </span>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-[10px] text-white/70">Online</span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm leading-none tracking-tight">Lina</span>
+                  <span className="rounded bg-white/15 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider text-white/90">
+                    AI
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center gap-1.5 text-[11px] text-white/70">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_6px_1px_rgba(110,231,183,0.7)]" />
+                  Production assistant
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5">
               {!isMobile && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-white hover:bg-white/20"
+                  className="h-8 w-8 rounded-lg text-white/80 hover:text-white hover:bg-white/15"
                   onClick={() => setIsFullscreen(!isFullscreen)}
+                  aria-label={isFullscreen ? "Exit fullscreen" : "Expand to fullscreen"}
                 >
-                  {isFullscreen ? (
-                    <Minimize2 className="h-4 w-4" />
-                  ) : (
-                    <Maximize2 className="h-4 w-4" />
-                  )}
+                  {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                 </Button>
               )}
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-white hover:bg-white/20"
+                className="h-8 w-8 rounded-lg text-white/80 hover:text-white hover:bg-white/15"
                 onClick={() => setIsOpen(false)}
+                aria-label="Close Lina"
               >
                 <X className="h-4 w-4" />
               </Button>
             </div>
-          </div>
+          </header>
 
           {/* Chat Content */}
           <ChatPanel />
         </div>
       )}
 
-      {/* Floating Action Button */}
+      {/* Floating launcher */}
       {!isOpen && (
-        <div className="fixed bottom-4 right-4 z-50">
-          {showPulse && (
-            <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping [animation-duration:2s]" />
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3">
+          {showHint && (
+            <button
+              onClick={() => setIsOpen(true)}
+              className="hidden sm:flex animate-fade-in items-center gap-2 rounded-full bg-card/90 px-3.5 py-2 text-sm font-medium text-foreground shadow-premium-md ring-1 ring-border/70 backdrop-blur transition-all duration-200 hover:shadow-premium-lg"
+            >
+              Ask <span className="font-semibold text-primary">Lina</span>
+            </button>
           )}
-          <Button
+          <button
             onClick={() => setIsOpen(true)}
             aria-label="Open Lina, the production assistant"
-            className="relative h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95"
-            size="icon"
+            className="group relative grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-primary via-primary to-primary/70 text-primary-foreground shadow-glow-lg ring-1 ring-white/15 transition-all duration-300 hover:scale-105 hover:-translate-y-0.5 active:scale-95"
           >
-            <MessageCircle className="h-6 w-6" />
-          </Button>
+            {showHint && (
+              <span className="absolute inset-0 rounded-2xl bg-primary/30 animate-ping [animation-duration:2.4s]" />
+            )}
+            <span className="relative text-2xl font-semibold leading-none tracking-tight">L</span>
+            <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-accent ring-2 ring-primary/50 animate-pulse-subtle" />
+          </button>
         </div>
       )}
     </>

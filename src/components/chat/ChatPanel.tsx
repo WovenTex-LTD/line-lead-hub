@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, RotateCcw, AlertCircle, Bot, Sparkles } from "lucide-react";
+import { Send, Loader2, RotateCcw, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -7,6 +7,7 @@ import { useChat } from "@/hooks/useChat";
 import { ChatMessage } from "./ChatMessage";
 import { QuickActions } from "./QuickActions";
 import { LanguageToggle } from "./LanguageToggle";
+import { LinaMark } from "./LinaMark";
 import { cn } from "@/lib/utils";
 
 export function ChatPanel() {
@@ -28,8 +29,7 @@ export function ChatPanel() {
   const shouldAutoScroll = useRef(false);
 
   // Only auto-scroll when the user sends a message (so their message + loading
-  // dots are visible). Do NOT scroll when the bot response arrives — the user
-  // should see the beginning of the response, not be pushed to the bottom.
+  // dots are visible). Do NOT scroll when the bot response arrives.
   useEffect(() => {
     if (scrollRef.current && shouldAutoScroll.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -37,7 +37,6 @@ export function ChatPanel() {
     }
   }, [messages]);
 
-  // Focus input on mount
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
@@ -45,7 +44,6 @@ export function ChatPanel() {
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!input.trim() || isLoading) return;
-
     const message = input;
     setInput("");
     shouldAutoScroll.current = true;
@@ -74,36 +72,26 @@ export function ChatPanel() {
   };
 
   return (
-    <div className="flex flex-col flex-1 h-full overflow-hidden">
-      {/* Messages Area */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden p-4">
+    <div className="flex flex-col flex-1 h-full overflow-hidden bg-gradient-to-b from-secondary/40 to-background">
+      {/* Messages */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-5">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center p-6">
-            {/* Bot avatar */}
-            <div className="relative mb-5">
-              <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-primary to-primary/70 text-white shadow-lg">
-                <Bot className="h-8 w-8" />
-              </div>
-              <div className="absolute -bottom-1 -right-1 flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500 border-2 border-background">
-                <Sparkles className="h-3 w-3 text-white" />
-              </div>
-            </div>
-
-            <h3 className="text-lg font-semibold text-foreground mb-1">
-              {language === "bn"
-                ? "আমি লিনা — কীভাবে সাহায্য করতে পারি?"
-                : "I'm Lina — how can I help?"}
+          <div className="flex flex-col items-center justify-center h-full text-center px-4">
+            <LinaMark size="lg" glow className="mb-5" />
+            <h3 className="text-lg font-semibold tracking-tight text-foreground text-balance">
+              {language === "bn" ? "আমি লিনা" : "I'm Lina"}
             </h3>
-            <p className="text-sm text-muted-foreground mb-6 max-w-[280px]">
+            <p className="mt-1.5 text-sm text-muted-foreground max-w-[300px] text-pretty leading-relaxed">
               {language === "bn"
-                ? "প্রোডাকশন, লাইন পারফরম্যান্স, ব্লকার বা অর্ডার সম্পর্কে জিজ্ঞাসা করুন"
-                : "Ask me about production, line performance, blockers, orders, or how things work"}
+                ? "প্রোডাকশন, লাইন পারফরম্যান্স, ব্লকার বা অর্ডার সম্পর্কে জিজ্ঞাসা করুন — আমি লাইভ ডেটা দেখে উত্তর দেব।"
+                : "Your production assistant. Ask about output, line performance, blockers, or orders — I'll pull the live data and dig in."}
             </p>
-
-            <QuickActions onSelect={handleQuickAction} language={language} />
+            <div className="mt-7 w-full">
+              <QuickActions onSelect={handleQuickAction} language={language} />
+            </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-5">
             {messages.map((message) => (
               <ChatMessage
                 key={message.id}
@@ -118,7 +106,7 @@ export function ChatPanel() {
         )}
       </div>
 
-      {/* Error Display */}
+      {/* Error */}
       {error && (
         <Alert variant="destructive" className="mx-4 mb-2">
           <AlertCircle className="h-4 w-4" />
@@ -126,9 +114,8 @@ export function ChatPanel() {
         </Alert>
       )}
 
-      {/* Footer */}
-      <div className="border-t p-4 space-y-3">
-        {/* Language Toggle & Clear */}
+      {/* Composer */}
+      <div className="border-t border-border/60 bg-card/80 backdrop-blur px-4 pt-3 pb-3 space-y-2.5">
         <div className="flex items-center justify-between">
           <LanguageToggle language={language} onToggle={setLanguage} />
           {messages.length > 0 && (
@@ -136,7 +123,7 @@ export function ChatPanel() {
               variant="ghost"
               size="sm"
               onClick={clearConversation}
-              className="text-xs"
+              className="h-7 text-xs text-muted-foreground hover:text-foreground"
             >
               <RotateCcw className="h-3 w-3 mr-1" />
               {language === "bn" ? "নতুন চ্যাট" : "New chat"}
@@ -144,46 +131,37 @@ export function ChatPanel() {
           )}
         </div>
 
-        {/* Input Area */}
-        <form onSubmit={handleSubmit} className="flex gap-2 items-end">
-          <div className="flex-1 relative">
-            <Textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={
-                language === "bn"
-                  ? "আপনার প্রশ্ন লিখুন..."
-                  : "Type your question..."
-              }
-              className="min-h-[44px] max-h-[120px] resize-none pr-10 rounded-xl focus-visible:ring-primary/30"
-              disabled={isLoading}
-            />
-            {input.length > 0 && (
-              <span className="absolute right-3 bottom-2 text-[10px] text-muted-foreground/50 pointer-events-none">
-                {input.length}
-              </span>
-            )}
-          </div>
+        <form
+          onSubmit={handleSubmit}
+          className="group flex items-end gap-2 rounded-2xl border border-border bg-background p-1.5 pl-3 shadow-premium-sm transition-all duration-200 focus-within:border-primary/50 focus-within:shadow-glow"
+        >
+          <Textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={language === "bn" ? "লিনাকে জিজ্ঞাসা করুন..." : "Ask Lina anything…"}
+            className="min-h-[40px] max-h-[120px] flex-1 resize-none border-0 bg-transparent px-0 py-2 text-sm shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/70"
+            disabled={isLoading}
+            rows={1}
+          />
           <Button
             type="submit"
             size="icon"
             disabled={isLoading || !input.trim()}
+            aria-label="Send message"
             className={cn(
-              "h-[44px] w-[44px] shrink-0 rounded-xl transition-all duration-200",
-              input.trim() && !isLoading && "shadow-md hover:shadow-lg"
+              "h-9 w-9 shrink-0 rounded-xl bg-gradient-to-br from-primary to-primary/80 transition-all duration-200",
+              input.trim() && !isLoading
+                ? "shadow-glow hover:scale-105 active:scale-95"
+                : "opacity-50"
             )}
           >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </form>
 
-        <p className="text-[10px] text-muted-foreground/70 text-center leading-tight">
+        <p className="text-[10px] leading-tight text-center text-muted-foreground/70">
           {language === "bn"
             ? "লিনা ভুল করতে পারে। গুরুত্বপূর্ণ সিদ্ধান্তের আগে যাচাই করুন।"
             : "Lina is AI-powered and can make mistakes. Verify important figures."}

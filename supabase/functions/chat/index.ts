@@ -237,6 +237,7 @@ serve(async (req) => {
         conversation_id: conversationId,
         no_evidence: false,
         suggested_questions: suggestedQuestions,
+        tools_used: agentResult.toolsUsed,
         language,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
