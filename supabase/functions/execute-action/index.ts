@@ -99,40 +99,49 @@ serve(async (req) => {
       newData = insert;
       const lineIds = Array.isArray(p.line_ids) ? (p.line_ids as string[]) : [];
       if (lineIds.length) {
-        await userClient.from("work_order_line_assignments").insert(
+        const { data: laData, error: laError } = await userClient.from("work_order_line_assignments").insert(
           lineIds.map((line_id) => ({ work_order_id: data.id, line_id, factory_id: factoryId })),
-        );
+        ).select("id");
+        if (laError || !laData?.length) {
+          summary = `${summary} (created, but I couldn't assign the line(s) — please set them manually)`;
+        }
       }
     } else if (kind === "update_po") {
       const fields = p.fields as Record<string, unknown>;
-      const { error } = await userClient.from("work_orders").update(fields).eq("id", poId);
+      const { data, error } = await userClient.from("work_orders").update(fields).eq("id", poId).select("id");
       if (error) return json({ ok: false, error: rlsMsg(error) });
+      if (!data?.length) return json({ ok: false, error: "You don't have permission to make that change." });
       newData = fields;
     } else if (kind === "assign_po_lines") {
-      await userClient.from("work_order_line_assignments").delete().eq("work_order_id", poId);
-      const { error } = await userClient.from("work_order_line_assignments").insert(
+      const { error: delError } = await userClient.from("work_order_line_assignments").delete().eq("work_order_id", poId);
+      if (delError) return json({ ok: false, error: rlsMsg(delError) });
+      const { data, error } = await userClient.from("work_order_line_assignments").insert(
         (p.line_ids as string[]).map((line_id) => ({ work_order_id: poId, line_id, factory_id: factoryId })),
-      );
+      ).select("id");
       if (error) return json({ ok: false, error: rlsMsg(error) });
+      if (!data?.length) return json({ ok: false, error: "You don't have permission to make that change." });
       tableName = "work_order_line_assignments";
       newData = { line_ids: p.line_ids };
     } else if (kind === "set_po_status") {
       const upd: Record<string, unknown> = {};
       if (p.status !== undefined) upd.status = p.status;
       if (p.is_active !== undefined) upd.is_active = p.is_active;
-      const { error } = await userClient.from("work_orders").update(upd).eq("id", poId);
+      const { data, error } = await userClient.from("work_orders").update(upd).eq("id", poId).select("id");
       if (error) return json({ ok: false, error: rlsMsg(error) });
+      if (!data?.length) return json({ ok: false, error: "You don't have permission to make that change." });
       newData = upd;
     } else if (kind === "set_po_ex_factory") {
       const upd: Record<string, unknown> = {};
       if (p.planned_ex_factory !== undefined) upd.planned_ex_factory = p.planned_ex_factory;
       if (p.actual_ex_factory !== undefined) upd.actual_ex_factory = p.actual_ex_factory;
-      const { error } = await userClient.from("work_orders").update(upd).eq("id", poId);
+      const { data, error } = await userClient.from("work_orders").update(upd).eq("id", poId).select("id");
       if (error) return json({ ok: false, error: rlsMsg(error) });
+      if (!data?.length) return json({ ok: false, error: "You don't have permission to make that change." });
       newData = upd;
     } else if (kind === "archive_po") {
-      const { error } = await userClient.from("work_orders").update({ is_active: false, status: "deleted" }).eq("id", poId);
+      const { data, error } = await userClient.from("work_orders").update({ is_active: false, status: "deleted" }).eq("id", poId).select("id");
       if (error) return json({ ok: false, error: rlsMsg(error) });
+      if (!data?.length) return json({ ok: false, error: "You don't have permission to make that change." });
       newData = { is_active: false, status: "deleted" };
     }
 
@@ -148,6 +157,6 @@ serve(async (req) => {
     return json({ ok: true, summary, recordId });
   } catch (e) {
     log("ERROR", { message: e instanceof Error ? e.message : String(e) });
-    return json({ ok: false, error: e instanceof Error ? e.message : "Unexpected error" }, 500);
+    return json({ ok: false, error: "Something went wrong applying that change. Please try again." }, 500);
   }
 });
