@@ -4,6 +4,8 @@ import { useCustomFormConfig, submitCustomForm } from "@/hooks/useCustomForms";
 import { CustomFormRenderer } from "@/components/custom-forms/CustomFormRenderer";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 export default function CustomFormFill() {
   const { templateId } = useParams();
@@ -25,6 +27,12 @@ export default function CustomFormFill() {
 
   return (
     <div className="container max-w-2xl py-4 px-4 pb-24">
+      <Button
+        variant="ghost" size="sm" className="mb-3 -ml-2 text-muted-foreground"
+        onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/forms"))}
+      >
+        <ArrowLeft className="h-4 w-4 mr-1.5" /> Back
+      </Button>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-bold">{config.template.name}</h1>
         {isAdminOrHigher() && (

@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { getSubmission } from "@/hooks/useCustomForms";
 import type { CustomFormSubmission } from "@/types/custom-form";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 export default function CustomFormSubmissionView() {
   const { submissionId } = useParams();
+  const navigate = useNavigate();
   const [sub, setSub] = useState<CustomFormSubmission | null>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -23,6 +26,12 @@ export default function CustomFormSubmissionView() {
 
   return (
     <div className="container max-w-2xl py-4 px-4 pb-24">
+      <Button
+        variant="ghost" size="sm" className="mb-3 -ml-2 text-muted-foreground"
+        onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/forms"))}
+      >
+        <ArrowLeft className="h-4 w-4 mr-1.5" /> Back
+      </Button>
       <h1 className="text-xl font-bold mb-1">Submission</h1>
       <p className="text-sm text-muted-foreground mb-4">{new Date(sub.created_at).toLocaleString()}</p>
       <Card><CardContent className="space-y-3 pt-4">
