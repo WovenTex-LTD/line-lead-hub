@@ -85,6 +85,13 @@ serve(async (req) => {
         ? "You don't have permission to make that change."
         : (e?.message ?? "The change could not be applied.");
 
+    // Every line UUID must be one of THIS factory's lines (payloads come from the client).
+    const linesBelongToFactory = async (lineIds: string[]): Promise<boolean> => {
+      if (lineIds.length === 0) return true;
+      const { data } = await userClient.from("lines").select("id").eq("factory_id", factoryId).in("id", lineIds);
+      return (data?.length ?? 0) === lineIds.length;
+    };
+
     // Custom-form creation writes to its own tables and returns early.
     if (kind === "create_custom_form") {
       const { data: tpl, error: tplErr } = await userClient
@@ -196,7 +203,9 @@ serve(async (req) => {
       recordId = data.id;
       newData = insert;
       const lineIds = Array.isArray(p.line_ids) ? (p.line_ids as string[]) : [];
-      if (lineIds.length) {
+      if (lineIds.length && !(await linesBelongToFactory(lineIds))) {
+        summary = `${summary} (created, but those lines aren't in your factory — please assign lines manually)`;
+      } else if (lineIds.length) {
         const { data: laData, error: laError } = await userClient.from("work_order_line_assignments").insert(
           lineIds.map((line_id) => ({ work_order_id: data.id, line_id, factory_id: factoryId })),
         ).select("id");
@@ -211,6 +220,9 @@ serve(async (req) => {
       if (!data?.length) return json({ ok: false, error: "You don't have permission to make that change." });
       newData = fields;
     } else if (kind === "assign_po_lines") {
+      if (!(await linesBelongToFactory(p.line_ids as string[]))) {
+        return json({ ok: false, error: "One or more of those lines don't exist in your factory. Please ask Lina to propose the assignment again." });
+      }
       const { error: delError } = await userClient.from("work_order_line_assignments").delete().eq("work_order_id", poId);
       if (delError) return json({ ok: false, error: rlsMsg(delError) });
       const { data, error } = await userClient.from("work_order_line_assignments").insert(

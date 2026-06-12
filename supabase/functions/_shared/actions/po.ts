@@ -18,7 +18,13 @@ export type ValidationResult =
   | { ok: false; error: string };
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const VALID_PO_STATUS = ["not_started", "in_progress", "completed", "on_hold"];
+
+// Lines are referenced by their database UUID in action payloads. The preview tools
+// resolve human references ("Line 2") to UUIDs before validating, so anything else
+// here means a malformed/forged payload — reject with a friendly re-propose hint.
+const LINE_IDS_ERROR = "I couldn't identify those production lines. Please name the line(s) again so I can re-propose the change.";
 
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 const num = (v: unknown) => (typeof v === "number" && !Number.isNaN(v) ? v : undefined);
@@ -36,7 +42,8 @@ export function validateCreatePo(input: Record<string, unknown>): ValidationResu
   }
   const order_qty = num(input.order_qty) ?? 0;
   const status = VALID_PO_STATUS.includes(str(input.status)) ? str(input.status) : "not_started";
-  const lineIds = Array.isArray(input.line_ids) ? (input.line_ids as unknown[]).map(String) : [];
+  const lineIds = Array.isArray(input.line_ids) ? (input.line_ids as unknown[]).map(String).filter(Boolean) : [];
+  if (lineIds.some((id) => !UUID_RE.test(id))) return { ok: false, error: LINE_IDS_ERROR };
   const payload: Record<string, unknown> = {
     po_number, buyer, style, order_qty, planned_ex_factory, status,
     item: str(input.item) || null,
@@ -83,6 +90,7 @@ export function validateAssignPoLines(input: Record<string, unknown>): Validatio
   if (!po_number) return { ok: false, error: "Which PO should I assign lines to?" };
   const line_ids = Array.isArray(input.line_ids) ? (input.line_ids as unknown[]).map(String).filter(Boolean) : [];
   if (line_ids.length === 0) return { ok: false, error: `Which line(s) should run PO ${po_number}?` };
+  if (line_ids.some((id) => !UUID_RE.test(id))) return { ok: false, error: LINE_IDS_ERROR };
   return {
     ok: true,
     action: { kind: "assign_po_lines", humanSummary: `Assign PO ${po_number} to ${line_ids.length} line(s)`, payload: { po_number, line_ids } },

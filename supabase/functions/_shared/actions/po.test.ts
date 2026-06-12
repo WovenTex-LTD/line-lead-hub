@@ -53,9 +53,14 @@ describe("validateUpdatePo", () => {
 describe("other PO validators", () => {
   it("assign_po_lines needs a PO and at least one line", () => {
     expect(validateAssignPoLines({ po_number: "1" }).ok).toBe(false);
-    const r = validateAssignPoLines({ po_number: "1", line_ids: ["a", "b"] });
+    const u1 = "11111111-1111-4111-8111-111111111111";
+    const u2 = "22222222-2222-4222-8222-222222222222";
+    const r = validateAssignPoLines({ po_number: "1", line_ids: [u1, u2] });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.action.payload.line_ids).toEqual(["a", "b"]);
+    if (r.ok) expect(r.action.payload.line_ids).toEqual([u1, u2]);
+  });
+  it("assign_po_lines rejects non-UUID line refs (resolution happens in the preview tool)", () => {
+    expect(validateAssignPoLines({ po_number: "1", line_ids: ["line_2"] }).ok).toBe(false);
   });
   it("set_po_status validates the status enum", () => {
     expect(validateSetPoStatus({ po_number: "1", status: "bogus" }).ok).toBe(false);

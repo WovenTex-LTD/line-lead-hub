@@ -150,7 +150,7 @@ export const ALL_TOOLS: ToolDefinition[] = [
         order_qty: { type: "number" }, item: { type: "string" }, color: { type: "string" },
         smv: { type: "number" }, cm_per_dozen: { type: "number" },
         target_per_hour: { type: "number" }, target_per_day: { type: "number" },
-        line_ids: { type: "array", items: { type: "string" }, description: "Line IDs to assign." },
+        line_ids: { type: "array", items: { type: "string" }, description: "Production lines to run this PO, exactly as the user refers to them (e.g. 'Line 2'). They are matched to the factory's real lines automatically." },
       },
       required: ["po_number", "buyer", "style", "planned_ex_factory"],
     },
@@ -178,7 +178,7 @@ export const ALL_TOOLS: ToolDefinition[] = [
     description: "Set which production lines run a PO. Admin/owner only. Proposes the change for approval.",
     input_schema: {
       type: "object",
-      properties: { po_number: { type: "string" }, line_ids: { type: "array", items: { type: "string" } } },
+      properties: { po_number: { type: "string" }, line_ids: { type: "array", items: { type: "string" }, description: "Lines exactly as the user refers to them (e.g. 'Line 2'); matched to the factory's real lines automatically. Replaces the PO's current line set." } },
       required: ["po_number", "line_ids"],
     },
     allowedRoles: ["admin", "owner", "superadmin"],
