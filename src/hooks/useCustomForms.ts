@@ -4,7 +4,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   CustomFormConfig, CustomFormField, CustomFormTemplate, CustomFormSubmission, FormSlotOverride, PoDetail,
 } from "@/types/custom-form";
-import { getSlotProduction } from "@/lib/production-slots";
 
 function orderFields(fields: CustomFormField[]): CustomFormField[] {
   return [...fields]
@@ -86,81 +85,12 @@ export function useCustomFormConfig(templateId: string | undefined) {
   return { config, loading };
 }
 
-const localToday = () => {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-};
-
-/** A slot form (a version of a production form) carries the production form's standard
- *  fields, so on submit it writes a real row into that slot's production table and shows
- *  up natively in the production views — with real values, no empty columns. Line and PO
- *  come from the form's pickers; production_mapping supplies the rest. One row per
- *  line/PO/day (updated, not duplicated). Non-fatal: never blocks the custom submission. */
-async function writeProductionRow(
-  config: CustomFormConfig, values: Record<string, unknown>, userId: string,
-): Promise<{ written: boolean; reason?: string }> {
-  const slot = getSlotProduction(config.template.slot_key);
-  if (!slot) return { written: false };
-  const mapping = config.template.production_mapping ?? {};
-  const factoryId = config.template.factory_id;
-
-  const lineField = config.fields.find((f) => f.field_type === "dynamic_select" && f.source_key === "lines");
-  const poField = config.fields.find((f) => f.field_type === "po_select");
-  const lineName = lineField ? (values[lineField.key] as string | undefined) : undefined;
-  const poNumber = poField ? (values[poField.key] as string | undefined) : undefined;
-  if (!lineName || !poNumber) {
-    return { written: false, reason: "This form needs a Line field and a PO field for its data to reach the production views." };
-  }
-
-  const [{ data: lineRows }, { data: poRow }] = await Promise.all([
-    supabase.from("lines").select("id, line_id, name").eq("factory_id", factoryId).eq("is_active", true),
-    supabase.from("work_orders").select("id").eq("factory_id", factoryId).eq("po_number", poNumber).maybeSingle(),
-  ]);
-  const line = ((lineRows as { id: string; line_id: string | null; name: string | null }[]) || [])
-    .find((l) => l.name === lineName || l.line_id === lineName);
-  const lineId = line?.id;
-  const workOrderId = (poRow as { id: string } | null)?.id;
-  if (!lineId || !workOrderId) {
-    return { written: false, reason: "Couldn't match the selected Line or PO to a production record." };
-  }
-
-  const mapped: Record<string, number> = {};
-  for (const [friendlyKey, fieldKey] of Object.entries(mapping)) {
-    const target = slot.targets.find((t) => t.key === friendlyKey);
-    if (!target) continue;
-    const raw = values[fieldKey as string];
-    const n = typeof raw === "number" ? raw : Number(raw);
-    if (Number.isFinite(n)) mapped[target.column] = n;
-  }
-
-  const production_date = localToday();
-  try {
-    const { data: existing } = await supabase
-      .from(slot.table as never).select("id")
-      .eq("factory_id", factoryId).eq("line_id", lineId).eq("work_order_id", workOrderId)
-      .eq("production_date", production_date).maybeSingle();
-    if (existing && (existing as { id: string }).id) {
-      const { error } = await supabase.from(slot.table as never).update(mapped as never).eq("id", (existing as { id: string }).id);
-      if (error) return { written: false, reason: error.message };
-    } else {
-      const { error } = await supabase.from(slot.table as never).insert({
-        factory_id: factoryId, line_id: lineId, work_order_id: workOrderId,
-        submitted_by: userId, production_date, ...mapped,
-      } as never);
-      if (error) return { written: false, reason: error.message };
-    }
-    return { written: true };
-  } catch (e) {
-    return { written: false, reason: e instanceof Error ? e.message : String(e) };
-  }
-}
-
-/** Insert a submission (the form keeps its own fields). For a slot form, also writes the
- *  matching production row so it appears in the production views like the default form. */
+/** Insert a submission. The form keeps its OWN fields — the submission is displayed
+ *  by reading those fields back (the detail view pulls fields from the form), never by
+ *  forcing the form to match a fixed layout. */
 export async function submitCustomForm(
   config: CustomFormConfig, values: Record<string, unknown>, userId: string | undefined,
-): Promise<{ ok: boolean; error?: string; production?: { written: boolean; reason?: string } }> {
+): Promise<{ ok: boolean; error?: string }> {
   if (!userId) return { ok: false, error: "You must be signed in to submit." };
   const { error } = await supabase.from("custom_form_submissions" as never).insert({
     template_id: config.template.id,
@@ -171,8 +101,7 @@ export async function submitCustomForm(
     fields_snapshot: config.fields,
   });
   if (error) return { ok: false, error: error.message };
-  const production = await writeProductionRow(config, values, userId);
-  return { ok: true, production };
+  return { ok: true };
 }
 
 export function useFormSubmissions(templateId: string | undefined) {
