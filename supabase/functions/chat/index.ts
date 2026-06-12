@@ -330,7 +330,11 @@ serve(async (req) => {
           factoryId: profile.factory_id,
           factoryName,
         })),
-        pending_actions: proposedActions,
+        // Dedupe identical proposals (the model occasionally calls a propose tool twice
+        // in one loop) so the user never sees two Approve cards for the same change.
+        pending_actions: proposedActions.filter((a, i, arr) =>
+          arr.findIndex((b) => b.kind === a.kind && JSON.stringify(b.payload) === JSON.stringify(a.payload)) === i
+        ),
         language,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },

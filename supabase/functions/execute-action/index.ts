@@ -44,9 +44,28 @@ serve(async (req) => {
     const factoryId = profile?.factory_id;
     if (!factoryId) return json({ ok: false, error: "Your account isn't linked to a factory." }, 400);
 
-    const body = await req.json() as { kind?: string; payload?: Record<string, unknown> };
+    const body = await req.json() as { kind?: string; payload?: Record<string, unknown>; conversation_id?: string };
     const kind = String(body.kind ?? "");
     const rawPayload = (body.payload ?? {}) as Record<string, unknown>;
+
+    // Record the approved change back into the chat so Lina knows it is done and
+    // never re-proposes it on the next turn. Ownership-checked; failures are non-fatal.
+    const recordApproval = async (summary: string) => {
+      const convId = body.conversation_id;
+      if (!convId) return;
+      try {
+        const { data: conv } = await admin
+          .from("chat_conversations").select("user_id").eq("id", convId).single();
+        if (conv?.user_id !== user.id) return;
+        await admin.from("chat_messages").insert({
+          conversation_id: convId,
+          role: "assistant",
+          content: `Applied (you approved): ${summary}`,
+        });
+      } catch (e) {
+        log("recordApproval failed", { message: e instanceof Error ? e.message : String(e) });
+      }
+    };
 
     // Re-validate server-side (never trust the client). factory_id is server-derived.
     const v = revalidate(kind, rawPayload);
@@ -96,6 +115,7 @@ serve(async (req) => {
         old_data: null, new_data: { name: p.name, field_count: rows.length },
       });
       log("done", { kind, recordId: tpl.id });
+      await recordApproval(action.humanSummary);
       return json({ ok: true, summary: action.humanSummary, recordId: tpl.id });
     }
 
@@ -137,6 +157,7 @@ serve(async (req) => {
         old_data: null, new_data: { name: p.name, field_count: rows.length },
       });
       log("done", { kind, recordId: tpl.id });
+      await recordApproval(action.humanSummary);
       return json({ ok: true, summary: action.humanSummary, recordId: tpl.id });
     }
 
@@ -231,6 +252,7 @@ serve(async (req) => {
     });
 
     log("done", { kind, recordId });
+    await recordApproval(summary);
     return json({ ok: true, summary, recordId });
   } catch (e) {
     log("ERROR", { message: e instanceof Error ? e.message : String(e) });

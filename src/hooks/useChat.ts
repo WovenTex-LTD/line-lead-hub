@@ -219,7 +219,7 @@ export function useChat(): UseChatReturn {
         const accessToken = sessionData.session?.access_token;
         if (!accessToken) return { ok: false, error: "Please sign in." };
         const { data, error } = await supabase.functions.invoke("execute-action", {
-          body: { kind: action.kind, payload: action.payload },
+          body: { kind: action.kind, payload: action.payload, conversation_id: conversationId },
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         if (error) return { ok: false, error: error.message || "The change could not be applied." };
@@ -228,7 +228,7 @@ export function useChat(): UseChatReturn {
         return { ok: false, error: e instanceof Error ? e.message : "Unexpected error" };
       }
     },
-    [],
+    [conversationId],
   );
 
   const submitFeedback = useCallback(
