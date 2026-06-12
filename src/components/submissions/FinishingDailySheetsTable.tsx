@@ -30,6 +30,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { useSortableTable } from "@/hooks/useSortableTable";
 import { SortableTableHead } from "@/components/ui/sortable-table-head";
 import type { Database } from "@/integrations/supabase/types";
+import { searchNorm } from "@/lib/normalize-name";
 
 type FinishingLogType = Database["public"]["Enums"]["finishing_log_type"];
 
@@ -164,7 +165,7 @@ export function FinishingDailySheetsTable({
       const matchesTab = activeTab === "targets" ? log.log_type === "TARGET" : log.log_type === "OUTPUT";
       if (!matchesTab) return false;
       if (!searchTerm) return true;
-      const search = searchTerm.trim().toLowerCase();
+      const search = searchNorm(searchTerm);
       return (
         (log.po_number?.toLowerCase() || "").includes(search) ||
         (log.style?.toLowerCase() || "").includes(search) ||

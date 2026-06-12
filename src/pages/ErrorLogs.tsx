@@ -54,6 +54,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { DEV_FACTORY_ID_PREFIX } from "@/lib/constants";
 import { EmptyState } from "@/components/EmptyState";
+import { searchNorm } from "@/lib/normalize-name";
 
 interface ErrorLog {
   id: string;
@@ -172,11 +173,11 @@ export default function ErrorLogs() {
   // Client-side search filtering on the current page
   const filteredLogs = useMemo(() => {
     if (!searchTerm.trim()) return logs;
-    const q = searchTerm.trim().toLowerCase();
+    const q = searchNorm(searchTerm);
     return logs.filter(
       (l) =>
-        l.message.toLowerCase().includes(q) ||
-        l.source?.toLowerCase().includes(q)
+        searchNorm(l.message).includes(q) ||
+        searchNorm(l.source).includes(q)
     );
   }, [logs, searchTerm]);
 

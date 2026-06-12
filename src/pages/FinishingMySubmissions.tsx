@@ -28,6 +28,7 @@ import { isTodayInTimezone } from "@/lib/date-utils";
 import { FileText, Clock, Target, TrendingUp, Search, Package, Edit2, Eye } from "lucide-react";
 import { FinishingSubmissionView, FinishingTargetData, FinishingActualData } from "@/components/FinishingSubmissionView";
 import { useEditPermission } from "@/hooks/useEditPermission";
+import { searchNorm } from "@/lib/normalize-name";
 
 interface FinishingDailyLog {
   id: string;
@@ -159,14 +160,14 @@ export default function FinishingMySubmissions() {
     }
 
     if (searchQuery.trim()) {
-      const query = searchQuery.trim().toLowerCase();
+      const query = searchNorm(searchQuery);
       result = result.filter(
         (item) =>
-          item.work_order?.po_number?.toLowerCase().includes(query) ||
-          item.work_order?.style?.toLowerCase().includes(query) ||
-          item.work_order?.buyer?.toLowerCase().includes(query) ||
-          item.line?.line_id?.toLowerCase().includes(query) ||
-          item.line?.name?.toLowerCase().includes(query)
+          searchNorm(item.work_order?.po_number).includes(query) ||
+          searchNorm(item.work_order?.style).includes(query) ||
+          searchNorm(item.work_order?.buyer).includes(query) ||
+          searchNorm(item.line?.line_id).includes(query) ||
+          searchNorm(item.line?.name).includes(query)
       );
     }
 

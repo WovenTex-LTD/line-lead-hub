@@ -19,6 +19,7 @@ import {
 } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { searchNorm } from "@/lib/normalize-name";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -324,16 +325,16 @@ export default function Finances() {
   // ── Filtered rows ─────────────────────────────────────────────────────────
 
   const filteredLineRows = useMemo(() => sortedLineRows.filter(r => {
-    const q = lineSearch.trim().toLowerCase();
-    if (q && !r.name.toLowerCase().includes(q)) return false;
+    const q = searchNorm(lineSearch);
+    if (q && !searchNorm(r.name).includes(q)) return false;
     if (lineMarginFilter === "positive" && r.margin <= 0) return false;
     if (lineMarginFilter === "negative" && r.margin >= 0) return false;
     return true;
   }), [sortedLineRows, lineSearch, lineMarginFilter]);
 
   const filteredPoRows = useMemo(() => sortedPoRows.filter(r => {
-    const q = poSearch.trim().toLowerCase();
-    if (q && !r.po.toLowerCase().includes(q) && !r.buyer.toLowerCase().includes(q) && !r.style.toLowerCase().includes(q)) return false;
+    const q = searchNorm(poSearch);
+    if (q && !searchNorm(r.po).includes(q) && !searchNorm(r.buyer).includes(q) && !searchNorm(r.style).includes(q)) return false;
     if (poMarginFilter === "positive" && r.margin <= 0) return false;
     if (poMarginFilter === "negative" && r.margin >= 0) return false;
     return true;

@@ -1,3 +1,4 @@
+import { searchNorm } from "@/lib/normalize-name";
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -308,11 +309,11 @@ export default function AllSubmissions() {
   // Filter functions
   const filterBySearch = <T extends { lines?: { line_id: string; name: string | null } | null; work_orders?: { po_number: string; buyer?: string } | null }>(items: T[]) => {
     if (!searchTerm) return items;
-    const term = searchTerm.trim().toLowerCase();
+    const term = searchNorm(searchTerm);
     return items.filter(item =>
-      (item.lines?.name || item.lines?.line_id || '').toLowerCase().includes(term) ||
-      (item.work_orders?.po_number || '').toLowerCase().includes(term) ||
-      (item.work_orders?.buyer || '').toLowerCase().includes(term)
+      searchNorm(item.lines?.name || item.lines?.line_id || '').includes(term) ||
+      searchNorm(item.work_orders?.po_number || '').includes(term) ||
+      searchNorm(item.work_orders?.buyer || '').includes(term)
     );
   };
 

@@ -34,7 +34,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EmptyState } from "@/components/EmptyState";
 import { AutocompleteCombobox } from "@/components/ui/autocomplete-combobox";
-import { normalizeName, cleanDisplayName } from "@/lib/normalize-name";
+import { normalizeName, cleanDisplayName, searchNorm } from "@/lib/normalize-name";
 
 interface WorkOrder {
   id: string;
@@ -683,10 +683,10 @@ export default function WorkOrders() {
   }
 
   const filteredWorkOrders = workOrders.filter(wo => 
-    wo.po_number.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
-    wo.buyer.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
-    wo.style.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
-    (wo.item && wo.item.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    searchNorm(wo.po_number).includes(searchNorm(searchQuery)) ||
+    searchNorm(wo.buyer).includes(searchNorm(searchQuery)) ||
+    searchNorm(wo.style).includes(searchNorm(searchQuery)) ||
+    (wo.item && searchNorm(wo.item).includes(searchNorm(searchQuery)))
   );
 
   if (loading) {

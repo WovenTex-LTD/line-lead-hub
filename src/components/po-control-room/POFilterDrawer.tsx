@@ -1,3 +1,4 @@
+import { searchNorm } from "@/lib/normalize-name";
 import { useState, useMemo } from "react";
 import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
 import {
@@ -341,7 +342,7 @@ function CheckboxList({ options, selected, onToggle, maxVisible = 8 }: CheckboxL
     () =>
       search.trim()
         ? options.filter((o) =>
-            o.label.toLowerCase().includes(search.trim().toLowerCase())
+            searchNorm(o.label).includes(searchNorm(search))
           )
         : options,
     [options, search]

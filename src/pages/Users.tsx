@@ -24,6 +24,7 @@ import { ROLE_LABELS } from "@/lib/constants";
 import { InviteUserDialog } from "@/components/users/InviteUserDialog";
 import { EditUserDialog } from "@/components/users/EditUserDialog";
 import { CleanupGlobalRolesDialog } from "@/components/users/CleanupGlobalRolesDialog";
+import { searchNorm } from "@/lib/normalize-name";
 
 interface User {
   id: string;
@@ -179,9 +180,9 @@ export default function UsersPage() {
   };
 
   const filteredUsers = users.filter(user =>
-    user.full_name.toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
-    (user.role || '').toLowerCase().includes(searchTerm.trim().toLowerCase())
+    searchNorm(user.full_name).includes(searchNorm(searchTerm)) ||
+    searchNorm(user.email).includes(searchNorm(searchTerm)) ||
+    searchNorm(user.role || '').includes(searchNorm(searchTerm))
   );
 
   const getRoleBadgeClass = (role: string | null) => {

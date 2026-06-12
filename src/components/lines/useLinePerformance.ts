@@ -16,6 +16,7 @@ import type {
 } from "./types";
 
 import { compareLineNames, lineNumber } from "@/lib/sort-lines";
+import { searchNorm } from "@/lib/normalize-name";
 
 function extractLineNumber(lineId: string): number {
   return lineNumber(lineId);
@@ -541,12 +542,12 @@ export function useLinePerformance() {
     const { searchTerm, unitFilter, floorFilter } = filters;
 
     if (searchTerm) {
-      const term = searchTerm.trim().toLowerCase();
+      const term = searchNorm(searchTerm);
       result = result.filter(
         (l) =>
-          (l.name || l.lineId).toLowerCase().includes(term) ||
-          (l.unitName || "").toLowerCase().includes(term) ||
-          (l.floorName || "").toLowerCase().includes(term)
+          searchNorm(l.name || l.lineId).includes(term) ||
+          searchNorm(l.unitName || "").includes(term) ||
+          searchNorm(l.floorName || "").includes(term)
       );
     }
 

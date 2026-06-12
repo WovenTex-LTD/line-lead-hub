@@ -1,3 +1,4 @@
+import { searchNorm } from "@/lib/normalize-name";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -134,14 +135,14 @@ export default function QCDailySheetList() {
     if (tab === "today") list = list.filter((r) => r.inspection_date === today);
     else if (tab !== "all") list = list.filter((r) => r.status === tab);
     if (search) {
-      const q = search.trim().toLowerCase();
+      const q = searchNorm(search);
       list = list.filter(
         (r) =>
-          r.po_number.toLowerCase().includes(q) ||
-          r.buyer.toLowerCase().includes(q) ||
-          r.style.toLowerCase().includes(q) ||
-          r.line_name.toLowerCase().includes(q) ||
-          (r.inspector_name ?? "").toLowerCase().includes(q)
+          searchNorm(r.po_number).includes(q) ||
+          searchNorm(r.buyer).includes(q) ||
+          searchNorm(r.style).includes(q) ||
+          searchNorm(r.line_name).includes(q) ||
+          searchNorm(r.inspector_name ?? "").includes(q)
       );
     }
     return list;

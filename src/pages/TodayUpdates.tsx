@@ -32,6 +32,7 @@ import { DollarSign, TrendingUp as TrendingUpIcon, TrendingDown } from "lucide-r
 import { PRODUCTION_CM_SHARE } from "@/lib/sewing-financials";
 import { DailyReportButton, DailyReportData, DailyReportSewingLine, DailyReportCuttingLine, DailyReportFinishingLine, DailyReportNote } from "@/components/DailyProductionReport";
 import { ReportExportDialog } from "@/components/ReportExportDialog";
+import { searchNorm } from "@/lib/normalize-name";
 
 interface SewingUpdate {
   id: string;
@@ -413,39 +414,39 @@ export default function TodayUpdates() {
   }
 
   const filteredSewing = sewingUpdates.filter(u => 
-    (u.lines?.name || u.lines?.line_id || '').toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
-    (u.work_orders?.po_number || '').toLowerCase().includes(searchTerm.trim().toLowerCase())
+    searchNorm(u.lines?.name || u.lines?.line_id || '').includes(searchNorm(searchTerm)) ||
+    searchNorm(u.work_orders?.po_number || '').includes(searchNorm(searchTerm))
   );
 
   const filteredFinishing = finishingDailyLogs.filter(s =>
-    (s.work_orders?.po_number || '').toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
-    (s.work_orders?.buyer || '').toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
-    (s.work_orders?.style || '').toLowerCase().includes(searchTerm.trim().toLowerCase())
+    searchNorm(s.work_orders?.po_number || '').includes(searchNorm(searchTerm)) ||
+    searchNorm(s.work_orders?.buyer || '').includes(searchNorm(searchTerm)) ||
+    searchNorm(s.work_orders?.style || '').includes(searchNorm(searchTerm))
   );
 
   const filteredCutting = cuttingActuals.filter(c =>
-    (c.lines?.name || c.lines?.line_id || '').toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
-    (c.work_orders?.po_number || '').toLowerCase().includes(searchTerm.trim().toLowerCase())
+    searchNorm(c.lines?.name || c.lines?.line_id || '').includes(searchNorm(searchTerm)) ||
+    searchNorm(c.work_orders?.po_number || '').includes(searchNorm(searchTerm))
   );
 
   const filteredCuttingTargets = cuttingTargets.filter(t =>
-    (t.lines?.name || t.lines?.line_id || '').toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
-    (t.work_orders?.po_number || '').toLowerCase().includes(searchTerm.trim().toLowerCase())
+    searchNorm(t.lines?.name || t.lines?.line_id || '').includes(searchNorm(searchTerm)) ||
+    searchNorm(t.work_orders?.po_number || '').includes(searchNorm(searchTerm))
   );
 
   const filteredSewingTargets = sewingTargets.filter(t =>
-    (t.lines?.name || t.lines?.line_id || '').toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
-    (t.work_orders?.po_number || '').toLowerCase().includes(searchTerm.trim().toLowerCase())
+    searchNorm(t.lines?.name || t.lines?.line_id || '').includes(searchNorm(searchTerm)) ||
+    searchNorm(t.work_orders?.po_number || '').includes(searchNorm(searchTerm))
   );
 
   const filteredSewingActuals = sewingActuals.filter(a =>
-    (a.lines?.name || a.lines?.line_id || '').toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
-    (a.work_orders?.po_number || '').toLowerCase().includes(searchTerm.trim().toLowerCase())
+    searchNorm(a.lines?.name || a.lines?.line_id || '').includes(searchNorm(searchTerm)) ||
+    searchNorm(a.work_orders?.po_number || '').includes(searchNorm(searchTerm))
   );
 
   const filteredStorage = (storageTransactions || []).filter(s =>
-    (s.storage_bin_cards?.work_orders?.po_number || '').toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
-    (s.storage_bin_cards?.style || '').toLowerCase().includes(searchTerm.trim().toLowerCase())
+    searchNorm(s.storage_bin_cards?.work_orders?.po_number || '').includes(searchNorm(searchTerm)) ||
+    searchNorm(s.storage_bin_cards?.style || '').includes(searchNorm(searchTerm))
   );
 
   // Group storage transactions by po_set_signature or batch_id

@@ -13,3 +13,11 @@ export function cleanDisplayName(s: string | null | undefined): string {
   if (!s) return "";
   return s.trim().replace(/\s+/g, " ");
 }
+
+// Search-bar normalization: lowercase and strip ALL spacing/punctuation from
+// BOTH the query and the value, so "PO 1123" finds "PO1123" and "t shirt"
+// finds "T-Shirt". Unicode-aware: letters in any script (e.g. Bengali) are kept.
+export function searchNorm(s: string | null | undefined): string {
+  if (!s) return "";
+  return s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+}

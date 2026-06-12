@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { StorageBinCardDetailModal } from "@/components/StorageBinCardDetailModal";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { usePagination } from "@/hooks/usePagination";
+import { searchNorm } from "@/lib/normalize-name";
 
 interface BinCard {
   id: string;
@@ -203,13 +204,13 @@ export function StorageSubmissionsTable({
 
   const filteredCards = useMemo(() => {
     if (!searchTerm) return binCards;
-    const term = searchTerm.trim().toLowerCase();
+    const term = searchNorm(searchTerm);
     return binCards.filter(card =>
-      card.work_orders.po_number.toLowerCase().includes(term) ||
-      card.work_orders.buyer.toLowerCase().includes(term) ||
-      card.work_orders.style.toLowerCase().includes(term) ||
-      (card.description?.toLowerCase().includes(term)) ||
-      (card.group_name?.toLowerCase().includes(term))
+      searchNorm(card.work_orders.po_number).includes(term) ||
+      searchNorm(card.work_orders.buyer).includes(term) ||
+      searchNorm(card.work_orders.style).includes(term) ||
+      (searchNorm(card.description).includes(term)) ||
+      (searchNorm(card.group_name).includes(term))
     );
   }, [binCards, searchTerm]);
 

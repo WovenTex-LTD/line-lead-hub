@@ -1,3 +1,4 @@
+import { searchNorm } from "@/lib/normalize-name";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -111,12 +112,12 @@ export default function QCOrderManagerList() {
     let list = rows;
     if (tab !== "all") list = list.filter((r) => effectiveTrackerStatus(r) === tab);
     if (search) {
-      const q = search.trim().toLowerCase();
+      const q = searchNorm(search);
       list = list.filter(
         (r) =>
-          r.po_number.toLowerCase().includes(q) ||
-          r.buyer.toLowerCase().includes(q) ||
-          r.style.toLowerCase().includes(q)
+          searchNorm(r.po_number).includes(q) ||
+          searchNorm(r.buyer).includes(q) ||
+          searchNorm(r.style).includes(q)
       );
     }
     return list;

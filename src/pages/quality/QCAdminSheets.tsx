@@ -37,6 +37,7 @@ import {
 } from "@/components/quality/status-vis";
 import { DateFilter } from "@/components/quality/date-filter";
 import { downloadBulkSheetsPDF } from "@/lib/qc-pdf";
+import { searchNorm } from "@/lib/normalize-name";
 
 type FilterTab = "today" | "all" | "awaiting_signoff" | "in_progress" | "signed_off";
 
@@ -120,14 +121,14 @@ export default function QCAdminSheets() {
     else if (tab !== "all") list = list.filter((r) => r.status === tab);
     if (dateFilter) list = list.filter((r) => r.inspection_date === dateFilter);
     if (search) {
-      const q = search.trim().toLowerCase();
+      const q = searchNorm(search);
       list = list.filter(
         (r) =>
-          r.po_number.toLowerCase().includes(q) ||
-          r.buyer.toLowerCase().includes(q) ||
-          r.style.toLowerCase().includes(q) ||
-          r.line_name.toLowerCase().includes(q) ||
-          (r.inspector_name ?? "").toLowerCase().includes(q)
+          searchNorm(r.po_number).includes(q) ||
+          searchNorm(r.buyer).includes(q) ||
+          searchNorm(r.style).includes(q) ||
+          searchNorm(r.line_name).includes(q) ||
+          searchNorm(r.inspector_name ?? "").includes(q)
       );
     }
     return list;

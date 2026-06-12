@@ -26,6 +26,7 @@ import { SortableTableHead } from "@/components/ui/sortable-table-head";
 import { CuttingSubmissionView } from "@/components/CuttingSubmissionView";
 import { EditCuttingTargetModal } from "@/components/EditCuttingTargetModal";
 import { EditCuttingActualModal } from "@/components/EditCuttingActualModal";
+import { searchNorm } from "@/lib/normalize-name";
 
 interface CuttingSubmission {
   id: string;
@@ -202,11 +203,11 @@ export function CuttingSubmissionsTable({
 
   const filteredSubmissions = useMemo(() => {
     if (!searchTerm) return submissions;
-    const term = searchTerm.trim().toLowerCase();
+    const term = searchNorm(searchTerm);
     return submissions.filter(s =>
-      (s.lines?.name || s.lines?.line_id || "").toLowerCase().includes(term) ||
-      (s.work_orders?.po_number || s.po_no || "").toLowerCase().includes(term) ||
-      (s.work_orders?.buyer || s.buyer || "").toLowerCase().includes(term)
+      searchNorm(s.lines?.name || s.lines?.line_id || "").includes(term) ||
+      searchNorm(s.work_orders?.po_number || s.po_no || "").includes(term) ||
+      searchNorm(s.work_orders?.buyer || s.buyer || "").includes(term)
     );
   }, [submissions, searchTerm]);
 

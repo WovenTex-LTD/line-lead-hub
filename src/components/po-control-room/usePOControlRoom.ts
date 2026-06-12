@@ -1,3 +1,4 @@
+import { searchNorm } from "@/lib/normalize-name";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { differenceInDays } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
@@ -547,12 +548,12 @@ export function usePOControlRoom(filters: POFilters = EMPTY_FILTERS) {
     }
 
     if (searchTerm) {
-      const q = searchTerm.trim().toLowerCase();
+      const q = searchNorm(searchTerm);
       list = list.filter(
         (po) =>
-          po.po_number.toLowerCase().includes(q) ||
-          po.buyer.toLowerCase().includes(q) ||
-          po.style.toLowerCase().includes(q)
+          searchNorm(po.po_number).includes(q) ||
+          searchNorm(po.buyer).includes(q) ||
+          searchNorm(po.style).includes(q)
       );
     }
 
@@ -637,17 +638,17 @@ export function usePOControlRoom(filters: POFilters = EMPTY_FILTERS) {
     }
 
     if (searchTerm) {
-      const q = searchTerm.trim().toLowerCase();
+      const q = searchNorm(searchTerm);
       list = list.filter((so) => {
-        if (so.buyer.toLowerCase().includes(q)) return true;
-        if (so.style_name.toLowerCase().includes(q)) return true;
-        if (so.style_number?.toLowerCase().includes(q)) return true;
+        if (searchNorm(so.buyer).includes(q)) return true;
+        if (searchNorm(so.style_name).includes(q)) return true;
+        if (searchNorm(so.style_number).includes(q)) return true;
         // Match if any child PO matches
         return so.pos.some(
           (po) =>
-            po.po_number.toLowerCase().includes(q) ||
-            po.buyer.toLowerCase().includes(q) ||
-            po.style.toLowerCase().includes(q)
+            searchNorm(po.po_number).includes(q) ||
+            searchNorm(po.buyer).includes(q) ||
+            searchNorm(po.style).includes(q)
         );
       });
     }
@@ -659,12 +660,12 @@ export function usePOControlRoom(filters: POFilters = EMPTY_FILTERS) {
   const clusteredRunning = useMemo((): Map<POCluster, POControlRoomData[]> => {
     let running = baseOrders.filter((po) => po.workflowState === "running");
     if (searchTerm) {
-      const q = searchTerm.trim().toLowerCase();
+      const q = searchNorm(searchTerm);
       running = running.filter(
         (po) =>
-          po.po_number.toLowerCase().includes(q) ||
-          po.buyer.toLowerCase().includes(q) ||
-          po.style.toLowerCase().includes(q)
+          searchNorm(po.po_number).includes(q) ||
+          searchNorm(po.buyer).includes(q) ||
+          searchNorm(po.style).includes(q)
       );
     }
     const map = new Map<POCluster, POControlRoomData[]>();

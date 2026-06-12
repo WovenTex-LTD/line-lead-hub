@@ -15,6 +15,7 @@ import { Loader2, AlertTriangle, Search, Filter, Clock, CheckCircle, Package, Tr
 import { SewingMachine } from "@/components/icons/SewingMachine";
 import { BLOCKER_IMPACT_LABELS } from "@/lib/constants";
 import { toast } from "sonner";
+import { searchNorm } from "@/lib/normalize-name";
 
 interface Blocker {
   id: string;
@@ -90,9 +91,9 @@ export default function Blockers() {
   // Important: we do NOT populate the search input, so the full blocker list stays visible.
   useEffect(() => {
     if (!loading && blockers.length > 0 && deepLinkSearch) {
-      const q = deepLinkSearch.trim().toLowerCase();
+      const q = searchNorm(deepLinkSearch);
       const matchingBlocker = blockers.find((b) =>
-        b.line_name.toLowerCase().includes(q) || (b.description || "").toLowerCase().includes(q)
+        searchNorm(b.line_name).includes(q) || searchNorm(b.description || "").includes(q)
       );
 
       if (matchingBlocker && !detailModalOpen) {
@@ -292,9 +293,9 @@ export default function Blockers() {
   }
 
   const filteredBlockers = blockers.filter(b => {
-    const matchesSearch = b.line_name.toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
-      (b.description || '').toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
-      (b.po_number || '').toLowerCase().includes(searchTerm.trim().toLowerCase());
+    const matchesSearch = searchNorm(b.line_name).includes(searchNorm(searchTerm)) ||
+      searchNorm(b.description || '').includes(searchNorm(searchTerm)) ||
+      searchNorm(b.po_number || '').includes(searchNorm(searchTerm));
     const matchesImpact = filterImpact === 'all' || b.impact === filterImpact;
     const matchesTab = activeTab === 'all' || b.status === activeTab;
     return matchesSearch && matchesImpact && matchesTab;

@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { searchNorm } from "@/lib/normalize-name";
 
 interface BinCardWithWorkOrder {
   id: string;
@@ -180,14 +181,14 @@ export default function StorageHistory() {
     const directMatches = binCards.filter(card => {
       // Text search — also match any PO in the same group + group_name
       if (searchTerm) {
-        const term = searchTerm.trim().toLowerCase();
+        const term = searchNorm(searchTerm);
         let matchesSearch = (
-          card.work_orders.po_number.toLowerCase().includes(term) ||
-          card.work_orders.buyer.toLowerCase().includes(term) ||
-          card.work_orders.style.toLowerCase().includes(term) ||
-          (card.work_orders.item?.toLowerCase().includes(term)) ||
-          (card.description?.toLowerCase().includes(term)) ||
-          (card.group_name?.toLowerCase().includes(term))
+          searchNorm(card.work_orders.po_number).includes(term) ||
+          searchNorm(card.work_orders.buyer).includes(term) ||
+          searchNorm(card.work_orders.style).includes(term) ||
+          (searchNorm(card.work_orders.item).includes(term)) ||
+          (searchNorm(card.description).includes(term)) ||
+          (searchNorm(card.group_name).includes(term))
         );
         // Also check sibling POs/buyers/styles in the same group
         if (!matchesSearch) {
@@ -196,9 +197,9 @@ export default function StorageHistory() {
             const groupData = groupSearchMap.get(key);
             if (groupData) {
               matchesSearch = (
-                groupData.poNumbers.some(po => po.toLowerCase().includes(term)) ||
-                groupData.buyers.some(b => b.toLowerCase().includes(term)) ||
-                groupData.styles.some(s => s.toLowerCase().includes(term))
+                groupData.poNumbers.some(po => searchNorm(po).includes(term)) ||
+                groupData.buyers.some(b => searchNorm(b).includes(term)) ||
+                groupData.styles.some(s => searchNorm(s).includes(term))
               );
             }
           }
