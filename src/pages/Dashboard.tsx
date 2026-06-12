@@ -46,6 +46,7 @@ import { NoteFormDialog } from "@/components/production-notes/NoteFormDialog";
 import type { NoteDepartment } from "@/hooks/useProductionNotes";
 import { useHeadcountCost } from "@/hooks/useHeadcountCost";
 import { motion } from "framer-motion";
+import { CustomSubmissionsSection } from "@/components/custom-forms/CustomSubmissionsSection";
 
 const stagger = {
   hidden: {},
@@ -1116,6 +1117,9 @@ export default function Dashboard() {
           onDismiss={onboarding.dismiss}
         />
       )}
+
+      {/* Custom-form submissions today (additive; hidden when none) */}
+      <CustomSubmissionsSection scope="today" />
 
       {/* KPI Cards */}
       <motion.div
