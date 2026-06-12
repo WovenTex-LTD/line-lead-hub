@@ -50,10 +50,14 @@ function normalizeFields(input: unknown): { ok: true; fields: NormalizedField[] 
     let key = slug(label); let n = 2;
     while (usedKeys.has(key)) key = `${slug(label)}_${n++}`;
     usedKeys.add(key);
-    const section = str(f.section) || null;
+    // Accept BOTH the model's raw shape (section/required) and our own normalized output
+    // (section_label/is_required), so execute-action's server-side re-validation of an
+    // already-normalized payload preserves these instead of dropping them.
+    const section = str(f.section) || str(f.section_label) || null;
+    const required = f.required === true || f.is_required === true;
     if (section !== lastSection) { sectionOrder++; lastSection = section; }
     fields.push({
-      key, label, field_type: type, is_required: f.required === true,
+      key, label, field_type: type, is_required: required,
       options, section_label: section, section_order: Math.max(0, sectionOrder), sort_order: i,
     });
   }

@@ -100,6 +100,9 @@ serve(async (req) => {
     }
 
     // Custom-form update (edit-by-name): replace the existing form's field set. Returns early.
+    // v1 notes: if two active forms share a name we intentionally edit the most-recent one;
+    // and the delete+reinsert below is non-atomic (a reinsert failure leaves the form field-less
+    // and returns an honest error — recoverable by re-running; past submissions keep fields_snapshot).
     if (kind === "update_custom_form") {
       const { data: tpl, error: findErr } = await userClient
         .from("custom_form_templates").select("id, version")

@@ -41,6 +41,32 @@ describe("validateCreateCustomForm", () => {
   });
 });
 
+describe("server-side re-validation round-trip", () => {
+  it("preserves is_required and section_label when re-validating a normalized payload (create)", () => {
+    const first = validateCreateCustomForm({
+      name: "F", target_role: "cutting",
+      fields: [{ label: "Op", type: "text", required: true, section: "Header" }],
+    });
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const again = validateCreateCustomForm(first.action.payload); // mirrors execute-action revalidate()
+    expect(again.ok).toBe(true);
+    if (!again.ok) return;
+    const fld = (again.action.payload.fields as Array<{ is_required: boolean; section_label: string | null }>)[0];
+    expect(fld.is_required).toBe(true);
+    expect(fld.section_label).toBe("Header");
+  });
+  it("preserves is_required when re-validating a normalized payload (update)", () => {
+    const first = validateUpdateCustomForm({ name: "F", fields: [{ label: "Op", type: "text", required: true }] });
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const again = validateUpdateCustomForm(first.action.payload);
+    expect(again.ok).toBe(true);
+    if (!again.ok) return;
+    expect((again.action.payload.fields as Array<{ is_required: boolean }>)[0].is_required).toBe(true);
+  });
+});
+
 describe("validateUpdateCustomForm", () => {
   it("requires the form name", () => {
     expect(validateUpdateCustomForm({ fields: [{ label: "A", type: "text" }] }).ok).toBe(false);
