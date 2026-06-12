@@ -1,4 +1,3 @@
-import { CustomSubmissionsSection } from "@/components/custom-forms/CustomSubmissionsSection";
 import { searchNorm } from "@/lib/normalize-name";
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -585,9 +584,6 @@ export default function AllSubmissions() {
           <ReportExportDialog />
         </div>
       </div>
-
-      {/* Custom-form submissions (additive; hidden when none) */}
-      <CustomSubmissionsSection scope="all" />
 
       {/* Department Selection - Primary Tabs */}
       <div className="grid grid-cols-4 gap-3">

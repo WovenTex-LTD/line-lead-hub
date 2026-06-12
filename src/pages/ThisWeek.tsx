@@ -12,7 +12,6 @@ import { SewingMachine } from "@/components/icons/SewingMachine";
 import { useHeadcountCost } from "@/hooks/useHeadcountCost";
 import { jsPDF } from "jspdf";
 import { ReportExportDialog } from "@/components/ReportExportDialog";
-import { CustomSubmissionsSection } from "@/components/custom-forms/CustomSubmissionsSection";
 
 interface DailyStats {
   date: string;
@@ -905,9 +904,6 @@ export default function ThisWeek() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Custom-form submissions this week (additive; hidden when none) */}
-      <CustomSubmissionsSection scope="week" />
 
       {/* Daily Breakdown */}
       <Tabs defaultValue="sewing">
