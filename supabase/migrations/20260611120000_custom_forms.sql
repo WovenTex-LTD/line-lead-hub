@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS public.custom_form_templates (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_custom_form_templates_factory ON public.custom_form_templates(factory_id, status);
+-- Upgrade-safe: add target_role even if the table was created by an earlier version of this migration.
+ALTER TABLE public.custom_form_templates ADD COLUMN IF NOT EXISTS target_role TEXT;
 
 CREATE TABLE IF NOT EXISTS public.custom_form_fields (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
