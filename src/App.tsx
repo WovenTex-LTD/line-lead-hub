@@ -87,6 +87,10 @@ const QCDailySheetDetail = lazy(() => import("./pages/quality/QCDailySheetDetail
 const QCMyRecords = lazy(() => import("./pages/quality/QCMyRecords"));
 const QCAdminTrackers = lazy(() => import("./pages/quality/QCAdminTrackers"));
 const QCAdminSheets = lazy(() => import("./pages/quality/QCAdminSheets"));
+const CustomFormsList = lazy(() => import("./pages/custom-forms/CustomFormsList"));
+const CustomFormFill = lazy(() => import("./pages/custom-forms/CustomFormFill"));
+const CustomFormSubmissions = lazy(() => import("./pages/custom-forms/CustomFormSubmissions"));
+const CustomFormSubmissionView = lazy(() => import("./pages/custom-forms/CustomFormSubmissionView"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -244,6 +248,11 @@ function AppRoutes() {
         {/* Admin review pages — admin-only, distinct from the QC inspector list pages. */}
         <Route path="/quality/admin/trackers" element={<SubscriptionGate><ProtectedRoute adminOnly><QCAdminTrackers /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/quality/admin/sheets" element={<SubscriptionGate><ProtectedRoute adminOnly><QCAdminSheets /></ProtectedRoute></SubscriptionGate>} />
+        {/* Custom Forms module routes */}
+        <Route path="/forms" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker','admin','owner','sewing','finishing','cutting','qc','storage']}><CustomFormsList /></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/forms/:templateId" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker','admin','owner','sewing','finishing','cutting','qc','storage']}><CustomFormFill /></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/forms/:templateId/submissions" element={<SubscriptionGate><ProtectedRoute adminOnly><CustomFormSubmissions /></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/forms/submissions/:submissionId" element={<SubscriptionGate><ProtectedRoute adminOnly><CustomFormSubmissionView /></ProtectedRoute></SubscriptionGate>} />
       </Route>
 
       {/* Buyer portal routes */}
