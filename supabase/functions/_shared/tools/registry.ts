@@ -11,6 +11,7 @@ import {
 import {
   createPoTool, updatePoTool, assignPoLinesTool,
   setPoStatusTool, setPoExFactoryTool, archivePoTool,
+  proposeCreateFormTool,
 } from "./actions-tools.ts";
 
 export const ALL_TOOLS: ToolDefinition[] = [
@@ -210,6 +211,35 @@ export const ALL_TOOLS: ToolDefinition[] = [
     input_schema: { type: "object", properties: { po_number: { type: "string" } }, required: ["po_number"] },
     allowedRoles: ["admin", "owner", "superadmin"],
     execute: archivePoTool,
+  },
+  {
+    name: "propose_create_form",
+    description: "Create a new custom digital form from a description or an uploaded paper form image. Admin/owner only. Use when the user uploads a photo/PDF of a form, or asks to build a new form/checklist. Extract a name and the list of fields. This PROPOSES the form for the user to approve — it does not create it directly.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "The form's title." },
+        description: { type: "string" },
+        fields: {
+          type: "array",
+          description: "The fields, in order, as they appear on the form.",
+          items: {
+            type: "object",
+            properties: {
+              label: { type: "string" },
+              type: { type: "string", enum: ["text", "number", "date", "dropdown", "textarea", "checkbox"] },
+              required: { type: "boolean" },
+              section: { type: "string", description: "Optional group/section heading this field belongs under." },
+              options: { type: "array", items: { type: "string" }, description: "Choices for a dropdown field." },
+            },
+            required: ["label", "type"],
+          },
+        },
+      },
+      required: ["name", "fields"],
+    },
+    allowedRoles: ["admin", "owner", "superadmin"],
+    execute: proposeCreateFormTool,
   },
 ];
 

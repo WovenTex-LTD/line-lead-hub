@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createPoTool, archivePoTool } from "./actions-tools";
+import { createPoTool, archivePoTool, proposeCreateFormTool } from "./actions-tools";
 import type { ToolContext } from "./types";
 
 function ctx(role: string) {
@@ -37,5 +37,21 @@ describe("PO preview tools", () => {
     const { c, proposed } = ctx("owner");
     await archivePoTool(c, { po_number: "86600" });
     expect(proposed[0].kind).toBe("archive_po");
+  });
+});
+
+describe("propose_create_form tool", () => {
+  it("admin proposes a form (no write)", async () => {
+    const { c, proposed } = ctx("admin");
+    const out = await proposeCreateFormTool(c, { name: "QA", fields: [{ label: "Op", type: "text" }] });
+    expect(proposed.length).toBe(1);
+    expect(proposed[0].kind).toBe("create_custom_form");
+    expect(out.toLowerCase()).toContain("approve");
+  });
+  it("worker is denied", async () => {
+    const { c, proposed } = ctx("worker");
+    const out = await proposeCreateFormTool(c, { name: "QA", fields: [{ label: "Op", type: "text" }] });
+    expect(proposed.length).toBe(0);
+    expect(out.toLowerCase()).toContain("don't have access");
   });
 });
