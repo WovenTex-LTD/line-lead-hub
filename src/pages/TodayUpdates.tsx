@@ -33,6 +33,7 @@ import { PRODUCTION_CM_SHARE } from "@/lib/sewing-financials";
 import { DailyReportButton, DailyReportData, DailyReportSewingLine, DailyReportCuttingLine, DailyReportFinishingLine, DailyReportNote } from "@/components/DailyProductionReport";
 import { ReportExportDialog } from "@/components/ReportExportDialog";
 import { searchNorm } from "@/lib/normalize-name";
+import { CustomSubmissionsSection } from "@/components/custom-forms/CustomSubmissionsSection";
 
 interface SewingUpdate {
   id: string;
@@ -1327,6 +1328,9 @@ export default function TodayUpdates() {
           className="pl-9"
         />
       </div>
+
+      {/* Custom-form submissions today (additive; hidden when none) */}
+      <CustomSubmissionsSection scope="today" />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>

@@ -193,6 +193,71 @@ export function useFactoryPOs() {
   return { options, details, loading };
 }
 
+export interface CustomSubmissionEntry {
+  id: string;
+  templateId: string;
+  formName: string;
+  targetRole: string | null;
+  submitterName: string | null;
+  createdAt: string;
+}
+
+/** Custom-form submissions for the factory, scoped to today / this week / all,
+ *  with the form name and submitter resolved — for surfacing them in the records
+ *  pages alongside production data. Read-only; never touches production tables. */
+export function useCustomSubmissions(scope: "today" | "week" | "all") {
+  const { profile } = useAuth();
+  const [entries, setEntries] = useState<CustomSubmissionEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!profile?.factory_id) { setLoading(false); return; }
+      setLoading(true);
+      let q = supabase
+        .from("custom_form_submissions" as never)
+        .select("id, template_id, submitted_by, created_at, custom_form_templates(name, target_role)")
+        .eq("factory_id", profile.factory_id)
+        .order("created_at", { ascending: false });
+      const now = new Date();
+      if (scope === "today") {
+        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        q = q.gte("created_at", start.toISOString());
+      } else if (scope === "week") {
+        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+        q = q.gte("created_at", start.toISOString());
+      } else {
+        q = q.limit(100);
+      }
+      const { data, error } = await q;
+      if (error) { console.error("custom submissions:", error.message); if (!cancelled) { setEntries([]); setLoading(false); } return; }
+      const rows = (data as Record<string, unknown>[]) || [];
+      const ids = [...new Set(rows.map((r) => r.submitted_by).filter(Boolean) as string[])];
+      let names: Record<string, string> = {};
+      if (ids.length) {
+        const { data: profs } = await supabase.from("profiles").select("id, full_name").in("id", ids);
+        names = Object.fromEntries(((profs as { id: string; full_name: string }[]) || []).map((p) => [p.id, p.full_name]));
+      }
+      if (cancelled) return;
+      setEntries(rows.map((r) => {
+        const tpl = r.custom_form_templates as { name?: string; target_role?: string | null } | null;
+        const by = r.submitted_by as string | null;
+        return {
+          id: r.id as string,
+          templateId: r.template_id as string,
+          formName: tpl?.name ?? "Form",
+          targetRole: tpl?.target_role ?? null,
+          submitterName: by ? (names[by] ?? null) : null,
+          createdAt: r.created_at as string,
+        };
+      }));
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [profile?.factory_id, scope]);
+  return { entries, loading };
+}
+
 /** All slot overrides for the user's factory, as a slot_key -> template_id map. */
 export function useSlotOverrides() {
   const { profile } = useAuth();
