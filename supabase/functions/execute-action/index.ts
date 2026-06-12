@@ -96,7 +96,7 @@ serve(async (req) => {
     if (kind === "create_custom_form") {
       const { data: tpl, error: tplErr } = await userClient
         .from("custom_form_templates")
-        .insert({ factory_id: factoryId, name: p.name, description: p.description ?? null, target_role: p.target_role ?? null, created_by: user.id })
+        .insert({ factory_id: factoryId, name: p.name, description: p.description ?? null, target_role: p.target_role ?? null, slot_key: p.slot_key ?? null, created_by: user.id })
         .select("id")
         .single();
       if (tplErr || !tpl) return json({ ok: false, error: rlsMsg(tplErr) });

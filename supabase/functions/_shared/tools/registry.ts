@@ -217,12 +217,13 @@ export const ALL_TOOLS: ToolDefinition[] = [
   },
   {
     name: "propose_create_form",
-    description: "Create a NEW custom digital form from a description or an uploaded paper form image. Admin/owner only. Use when the user wants to add a new form/checklist (it appears in a chosen role's catalogue alongside that role's read-only default form). Extract a name, the role it is for, and the list of fields. This PROPOSES the form for the user to approve — it does not create it directly. To CHANGE an existing custom form, use propose_update_form instead so a duplicate isn't created.",
+    description: "Create a NEW custom digital form from a description or an uploaded paper form image. Admin/owner only. Use when the user wants to add a new form/checklist (it appears in a chosen role's catalogue alongside that role's read-only default form). Extract a name, the role it is for, and the list of fields. If the user wants a NEW VERSION of one of the default production forms, also set slot_key so it appears on that form's versions screen. This PROPOSES the form for the user to approve — it does not create it directly. To CHANGE an existing custom form, use propose_update_form instead so a duplicate isn't created.",
     input_schema: {
       type: "object",
       properties: {
         name: { type: "string", description: "The form's title." },
-        target_role: { type: "string", enum: ["sewing", "cutting", "finishing", "qc", "storage", "worker"], description: "Which role/department this form belongs to. Ask the user if unclear." },
+        target_role: { type: "string", enum: ["sewing", "cutting", "finishing", "qc", "storage", "worker"], description: "Which role/department this form belongs to. Ask the user if unclear. Not needed when slot_key is set (the slot implies the role)." },
+        slot_key: { type: "string", enum: ["sewing_morning_targets", "sewing_end_of_day", "cutting_morning_targets", "cutting_end_of_day", "finishing_daily_target", "finishing_daily_output"], description: "Set ONLY when this form is meant as a new version/variant of that default production form. Omit for a standalone form." },
         description: { type: "string" },
         fields: {
           type: "array",

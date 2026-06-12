@@ -84,3 +84,30 @@ describe("validateUpdateCustomForm", () => {
     }
   });
 });
+
+describe("slot_key (form versions)", () => {
+  const fields = [{ label: "Date", type: "date" }];
+  it("accepts a valid slot_key and derives the role from it", () => {
+    const r = validateCreateCustomForm({ name: "Cutting Targets v2", slot_key: "cutting_morning_targets", fields });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.action.payload.slot_key).toBe("cutting_morning_targets");
+      expect(r.action.payload.target_role).toBe("cutting");
+      expect(r.action.humanSummary.toLowerCase()).toContain("new version");
+    }
+  });
+  it("slot_key wins over a conflicting target_role", () => {
+    const r = validateCreateCustomForm({ name: "X", slot_key: "sewing_end_of_day", target_role: "cutting", fields });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.action.payload.target_role).toBe("sewing");
+  });
+  it("rejects an unknown slot_key", () => {
+    const r = validateCreateCustomForm({ name: "X", slot_key: "qc_daily_sheet", fields });
+    expect(r.ok).toBe(false);
+  });
+  it("standalone forms keep slot_key null", () => {
+    const r = validateCreateCustomForm({ name: "X", target_role: "cutting", fields });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.action.payload.slot_key).toBe(null);
+  });
+});

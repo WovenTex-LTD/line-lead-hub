@@ -6,6 +6,17 @@ import type { ProposedAction, ValidationResult } from "./po.ts";
 const VALID_TYPES = ["text", "number", "date", "dropdown", "textarea", "checkbox"];
 // Roles a custom form can be tagged to (it shows in that role's catalogue).
 const VALID_FORM_ROLES = ["sewing", "cutting", "finishing", "qc", "storage", "worker"];
+// Default production form slots a custom form can be a VERSION of. The slot key
+// implies the role. Must match FORM_SLOTS in src/lib/form-slots.ts.
+export const FORM_SLOT_ROLES: Record<string, string> = {
+  sewing_morning_targets: "sewing",
+  sewing_end_of_day: "sewing",
+  cutting_morning_targets: "cutting",
+  cutting_end_of_day: "cutting",
+  finishing_daily_target: "finishing",
+  finishing_daily_output: "finishing",
+};
+const SLOT_LABEL = (k: string) => k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
 function slug(label: string): string {
@@ -67,7 +78,15 @@ function normalizeFields(input: unknown): { ok: true; fields: NormalizedField[] 
 export function validateCreateCustomForm(input: Record<string, unknown>): ValidationResult {
   const name = str(input.name);
   if (!name) return { ok: false, error: "What should the form be called?" };
-  const target_role = str(input.target_role);
+
+  // Optional: this form is a new VERSION of a default production form (slot).
+  // The slot implies the role, so it wins over a conflicting target_role.
+  const slot_key = str(input.slot_key) || null;
+  if (slot_key && !(slot_key in FORM_SLOT_ROLES)) {
+    return { ok: false, error: `"${slot_key}" isn't a default form I know. Use one of: ${Object.keys(FORM_SLOT_ROLES).join(", ")} — or omit slot_key for a standalone form.` };
+  }
+
+  const target_role = slot_key ? FORM_SLOT_ROLES[slot_key] : str(input.target_role);
   if (!target_role) return { ok: false, error: `Which role is "${name}" for? (one of: ${VALID_FORM_ROLES.join(", ")})` };
   if (!VALID_FORM_ROLES.includes(target_role)) {
     return { ok: false, error: `"${target_role}" isn't a role I can assign a form to. Use one of: ${VALID_FORM_ROLES.join(", ")}.` };
@@ -79,8 +98,10 @@ export function validateCreateCustomForm(input: Record<string, unknown>): Valida
 
   const action: ProposedAction = {
     kind: "create_custom_form",
-    humanSummary: `Create ${target_role} form "${name}" with ${norm.fields.length} field${norm.fields.length === 1 ? "" : "s"}`,
-    payload: { name, description: str(input.description) || null, target_role, allowed_fill_roles: [], fields: norm.fields },
+    humanSummary: slot_key
+      ? `Create "${name}" as a new version of ${SLOT_LABEL(slot_key)} (${norm.fields.length} field${norm.fields.length === 1 ? "" : "s"})`
+      : `Create ${target_role} form "${name}" with ${norm.fields.length} field${norm.fields.length === 1 ? "" : "s"}`,
+    payload: { name, description: str(input.description) || null, target_role, slot_key, allowed_fill_roles: [], fields: norm.fields },
   };
   return { ok: true, action };
 }

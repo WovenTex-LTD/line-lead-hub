@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  CustomFormConfig, CustomFormField, CustomFormTemplate, CustomFormSubmission,
+  CustomFormConfig, CustomFormField, CustomFormTemplate, CustomFormSubmission, FormSlotOverride,
 } from "@/types/custom-form";
 
 function orderFields(fields: CustomFormField[]): CustomFormField[] {
@@ -121,6 +121,46 @@ export function useFormSubmissions(templateId: string | undefined) {
 export async function getSubmission(id: string): Promise<CustomFormSubmission | null> {
   const { data } = await supabase.from("custom_form_submissions" as never).select("*").eq("id", id).maybeSingle();
   return (data as CustomFormSubmission) || null;
+}
+
+/** All slot overrides for the user's factory, as a slot_key -> template_id map. */
+export function useSlotOverrides() {
+  const { profile } = useAuth();
+  const [overrides, setOverrides] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const fetchOverrides = useCallback(async () => {
+    if (!profile?.factory_id) { setLoading(false); return; }
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("form_slot_overrides" as never).select("*")
+      .eq("factory_id", profile.factory_id);
+    if (error) console.error("slot overrides:", error);
+    const m: Record<string, string> = {};
+    for (const o of (data as FormSlotOverride[]) || []) {
+      if (o.active_template_id) m[o.slot_key] = o.active_template_id;
+    }
+    setOverrides(m);
+    setLoading(false);
+  }, [profile?.factory_id]);
+  useEffect(() => { fetchOverrides(); }, [fetchOverrides]);
+  return { overrides, loading, refresh: fetchOverrides };
+}
+
+/** Set the active version for a slot: a template id, or null to restore the default form. */
+export async function setSlotActive(
+  factoryId: string, slotKey: string, templateId: string | null,
+): Promise<{ ok: boolean; error?: string }> {
+  if (templateId === null) {
+    const { error } = await supabase
+      .from("form_slot_overrides" as never).delete()
+      .eq("factory_id", factoryId).eq("slot_key", slotKey);
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }
+  const { error } = await supabase
+    .from("form_slot_overrides" as never)
+    .upsert({ factory_id: factoryId, slot_key: slotKey, active_template_id: templateId } as never,
+      { onConflict: "factory_id,slot_key" });
+  return error ? { ok: false, error: error.message } : { ok: true };
 }
 
 export async function archiveTemplate(id: string): Promise<{ ok: boolean; error?: string }> {

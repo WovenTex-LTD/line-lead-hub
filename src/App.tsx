@@ -9,6 +9,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { BuyerLayout } from "@/components/layout/BuyerLayout";
 import { SubscriptionGate } from "@/components/SubscriptionGate";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { SlotGuard } from "@/components/custom-forms/SlotGuard";
 import { AccountNotActive } from "@/components/AccountNotActive";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -88,6 +89,7 @@ const QCMyRecords = lazy(() => import("./pages/quality/QCMyRecords"));
 const QCAdminTrackers = lazy(() => import("./pages/quality/QCAdminTrackers"));
 const QCAdminSheets = lazy(() => import("./pages/quality/QCAdminSheets"));
 const CustomFormsList = lazy(() => import("./pages/custom-forms/CustomFormsList"));
+const FormSlotVersions = lazy(() => import("./pages/custom-forms/FormSlotVersions"));
 const CustomFormFill = lazy(() => import("./pages/custom-forms/CustomFormFill"));
 const CustomFormSubmissions = lazy(() => import("./pages/custom-forms/CustomFormSubmissions"));
 const CustomFormSubmissionView = lazy(() => import("./pages/custom-forms/CustomFormSubmissionView"));
@@ -179,11 +181,11 @@ function AppRoutes() {
         <Route path="/dashboard" element={<SubscriptionGate><ProtectedRoute adminOnly><Dashboard /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/update/sewing" element={<SubscriptionGate><ProtectedRoute adminOnly><SewingUpdate /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/update/finishing" element={<SubscriptionGate><ProtectedRoute adminOnly><FinishingUpdate /></ProtectedRoute></SubscriptionGate>} />
-        <Route path="/sewing/morning-targets" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker', 'sewing']}><SewingMorningTargets /></ProtectedRoute></SubscriptionGate>} />
-        <Route path="/sewing/end-of-day" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker', 'sewing']}><SewingEndOfDay /></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/sewing/morning-targets" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker', 'sewing']}><SlotGuard slotKey="sewing_morning_targets"><SewingMorningTargets /></SlotGuard></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/sewing/end-of-day" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker', 'sewing']}><SlotGuard slotKey="sewing_end_of_day"><SewingEndOfDay /></SlotGuard></ProtectedRoute></SubscriptionGate>} />
 
-        <Route path="/finishing/daily-target" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker', 'finishing']}><FinishingDailyTarget /></ProtectedRoute></SubscriptionGate>} />
-        <Route path="/finishing/daily-output" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker', 'finishing']}><FinishingDailyOutput /></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finishing/daily-target" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker', 'finishing']}><SlotGuard slotKey="finishing_daily_target"><FinishingDailyTarget /></SlotGuard></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/finishing/daily-output" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker', 'finishing']}><SlotGuard slotKey="finishing_daily_output"><FinishingDailyOutput /></SlotGuard></ProtectedRoute></SubscriptionGate>} />
         <Route path="/finishing/my-submissions" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker', 'finishing']}><FinishingMySubmissions /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/finishing/overview" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker', 'finishing']}><FinishingOverview /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/finishing/daily-summary" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker', 'finishing']}><FinishingDailySummary /></ProtectedRoute></SubscriptionGate>} />
@@ -219,8 +221,8 @@ function AppRoutes() {
         <Route path="/storage/history" element={<SubscriptionGate><ProtectedRoute allowedRoles={['storage']}><StorageHistory /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/storage/dashboard" element={<SubscriptionGate><ProtectedRoute allowedRoles={['storage']}><StorageDashboard /></ProtectedRoute></SubscriptionGate>} />
         {/* Cutting module routes */}
-        <Route path="/cutting/morning-targets" element={<SubscriptionGate><ProtectedRoute allowedRoles={['cutting']}><CuttingMorningTargets /></ProtectedRoute></SubscriptionGate>} />
-        <Route path="/cutting/end-of-day" element={<SubscriptionGate><ProtectedRoute allowedRoles={['cutting']}><CuttingEndOfDay /></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/cutting/morning-targets" element={<SubscriptionGate><ProtectedRoute allowedRoles={['cutting']}><SlotGuard slotKey="cutting_morning_targets"><CuttingMorningTargets /></SlotGuard></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/cutting/end-of-day" element={<SubscriptionGate><ProtectedRoute allowedRoles={['cutting']}><SlotGuard slotKey="cutting_end_of_day"><CuttingEndOfDay /></SlotGuard></ProtectedRoute></SubscriptionGate>} />
         <Route path="/cutting/form" element={<SubscriptionGate><ProtectedRoute allowedRoles={['cutting']}><CuttingForm /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/cutting/summary" element={<SubscriptionGate><ProtectedRoute allowedRoles={['cutting']}><CuttingSummary /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/cutting/submissions" element={<SubscriptionGate><ProtectedRoute allowedRoles={['cutting']}><CuttingAllSubmissions /></ProtectedRoute></SubscriptionGate>} />
@@ -250,6 +252,7 @@ function AppRoutes() {
         <Route path="/quality/admin/sheets" element={<SubscriptionGate><ProtectedRoute adminOnly><QCAdminSheets /></ProtectedRoute></SubscriptionGate>} />
         {/* Custom Forms module routes */}
         <Route path="/forms" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker','admin','owner','sewing','finishing','cutting','qc','storage']}><CustomFormsList /></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/forms/versions/:ref" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker','admin','owner','sewing','finishing','cutting','qc','storage']}><FormSlotVersions /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/forms/:templateId" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker','admin','owner','sewing','finishing','cutting','qc','storage']}><CustomFormFill /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/forms/:templateId/submissions" element={<SubscriptionGate><ProtectedRoute adminOnly><CustomFormSubmissions /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/forms/submissions/:submissionId" element={<SubscriptionGate><ProtectedRoute adminOnly><CustomFormSubmissionView /></ProtectedRoute></SubscriptionGate>} />

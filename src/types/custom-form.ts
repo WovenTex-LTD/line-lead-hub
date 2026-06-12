@@ -26,6 +26,7 @@ export interface CustomFormTemplate {
   status: "active" | "archived";
   version: number;
   target_role: string | null;
+  slot_key: string | null;
   allowed_fill_roles: string[];
   created_by: string | null;
   created_at: string;
@@ -52,3 +53,11 @@ export interface CustomFormSubmission {
 
 /** Roles allowed to fill a form when a template lists none explicitly. */
 export const DEFAULT_FILL_ROLES = ["admin", "owner", "supervisor"];
+
+/** Per-slot active-version override. Absent row (or null template) = default form active. */
+export interface FormSlotOverride {
+  factory_id: string;
+  slot_key: string;
+  active_template_id: string | null;
+  updated_at: string;
+}
