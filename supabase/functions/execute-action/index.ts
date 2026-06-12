@@ -6,6 +6,7 @@ import {
   validateSetPoStatus, validateSetPoExFactory, validateArchivePo,
   type ProposedAction, type ValidationResult,
 } from "../_shared/actions/po.ts";
+import { validateCreateCustomForm } from "../_shared/actions/forms.ts";
 
 const log = (s: string, d?: unknown) => console.log(`[EXECUTE-ACTION] ${s}${d ? " " + JSON.stringify(d) : ""}`);
 
@@ -17,6 +18,7 @@ function revalidate(kind: string, payload: Record<string, unknown>): ValidationR
     case "set_po_status": return validateSetPoStatus(payload);
     case "set_po_ex_factory": return validateSetPoExFactory(payload);
     case "archive_po": return validateArchivePo(payload);
+    case "create_custom_form": return validateCreateCustomForm(payload);
     default: return { ok: false, error: `Unknown action: ${kind}` };
   }
 }
@@ -62,6 +64,39 @@ serve(async (req) => {
       e?.message?.toLowerCase().includes("row-level security")
         ? "You don't have permission to make that change."
         : (e?.message ?? "The change could not be applied.");
+
+    // Custom-form creation writes to its own tables and returns early.
+    if (kind === "create_custom_form") {
+      const { data: tpl, error: tplErr } = await userClient
+        .from("custom_form_templates")
+        .insert({ factory_id: factoryId, name: p.name, description: p.description ?? null, created_by: user.id })
+        .select("id")
+        .single();
+      if (tplErr || !tpl) return json({ ok: false, error: rlsMsg(tplErr) });
+
+      const fields = Array.isArray(p.fields) ? (p.fields as Record<string, unknown>[]) : [];
+      const rows = fields.map((f) => ({
+        template_id: tpl.id,
+        section_label: f.section_label ?? null,
+        section_order: typeof f.section_order === "number" ? f.section_order : 0,
+        key: f.key, label: f.label, field_type: f.field_type,
+        is_required: f.is_required === true,
+        options: f.options ?? null,
+        sort_order: typeof f.sort_order === "number" ? f.sort_order : 0,
+      }));
+      const { data: inserted, error: fErr } = await userClient
+        .from("custom_form_fields").insert(rows).select("id");
+      if (fErr || !inserted?.length) {
+        return json({ ok: false, error: rlsMsg(fErr) || "The form was created but its fields could not be added." });
+      }
+      await admin.from("audit_log").insert({
+        factory_id: factoryId, user_id: user.id, action: "INSERT",
+        table_name: "custom_form_templates", record_id: tpl.id,
+        old_data: null, new_data: { name: p.name, field_count: rows.length },
+      });
+      log("done", { kind, recordId: tpl.id });
+      return json({ ok: true, summary: action.humanSummary, recordId: tpl.id });
+    }
 
     // Resolve PO id (factory-scoped) for non-create actions.
     let poId: string | null = null;
