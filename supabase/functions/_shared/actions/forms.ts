@@ -216,3 +216,99 @@ export function validateUpdateCustomForm(input: Record<string, unknown>): Valida
   };
   return { ok: true, action };
 }
+
+// ── Diff-based editing ──────────────────────────────────────────────────────
+// applyFormEdits takes a form's CURRENT fields (as raw field objects) plus a set
+// of targeted operations and returns the resulting raw field list. The caller
+// (the propose tool) reads the current fields from the DB, applies the diff here,
+// then runs validateUpdateCustomForm on the result — so only the named fields
+// change and nothing is ever dropped by omission.
+
+export interface FormEditOps {
+  add?: Record<string, unknown>[];                 // new field specs (+ optional `after` label)
+  remove?: string[];                               // labels to delete
+  rename?: { from: string; to: string }[];         // label changes
+  set?: Record<string, unknown>[];                 // { field: label, required?, section?, type?, options?, formula?, auto_source?, source_key? }
+}
+
+const _norm = (s: unknown) => (typeof s === "string" ? s.trim().replace(/\s+/g, " ").toLowerCase() : "");
+const _findIdx = (list: Record<string, unknown>[], label: string) =>
+  list.findIndex((f) => _norm(f.label) === _norm(label));
+
+// Rewrite a key reference inside a computed formula when its field is renamed.
+function _rekeyFormula(formula: unknown, oldKey: string, newKey: string): unknown {
+  if (typeof formula !== "string" || !oldKey || oldKey === newKey) return formula;
+  return formula.replace(new RegExp(`(?<![\\w])${oldKey}(?![\\w])`, "g"), newKey);
+}
+
+export function applyFormEdits(
+  current: Record<string, unknown>[],
+  ops: FormEditOps,
+): { ok: true; fields: Record<string, unknown>[] } | { ok: false; error: string } {
+  // Work on a shallow copy of plain field specs.
+  const list: Record<string, unknown>[] = current.map((f) => ({ ...f }));
+
+  // 1) remove
+  for (const label of ops.remove ?? []) {
+    const idx = _findIdx(list, label);
+    if (idx === -1) return { ok: false, error: `There's no field called "${label}" on this form, so I can't remove it.` };
+    list.splice(idx, 1);
+  }
+
+  // 2) rename (also fixes computed formulas that referenced the old key)
+  for (const r of ops.rename ?? []) {
+    const idx = _findIdx(list, r.from);
+    if (idx === -1) return { ok: false, error: `There's no field called "${r.from}" on this form, so I can't rename it.` };
+    const to = typeof r.to === "string" ? r.to.trim() : "";
+    if (!to) return { ok: false, error: `Rename for "${r.from}" needs a new name.` };
+    const oldKey = slug(String(list[idx].label ?? ""));
+    const newKey = slug(to);
+    list[idx].label = to;
+    for (const f of list) if (f.formula) f.formula = _rekeyFormula(f.formula, oldKey, newKey);
+  }
+
+  // 3) set (modify attributes / convert type of an existing field)
+  for (const s of ops.set ?? []) {
+    const label = String(s.field ?? "");
+    const idx = _findIdx(list, label);
+    if (idx === -1) return { ok: false, error: `There's no field called "${label}" on this form, so I can't change it.` };
+    const f = list[idx];
+    if (s.required !== undefined) f.required = s.required === true;
+    if (s.section !== undefined) f.section = s.section;
+    if (s.type !== undefined) {
+      // Changing type clears type-specific extras unless re-supplied below.
+      f.type = s.type;
+      delete f.formula; delete f.auto_source; delete f.source_key;
+    }
+    if (s.options !== undefined) f.options = s.options;
+    if (s.formula !== undefined) f.formula = s.formula;
+    if (s.auto_source !== undefined) f.auto_source = s.auto_source;
+    if (s.source_key !== undefined) f.source_key = s.source_key;
+  }
+
+  // 4) add (append, or insert after a named field)
+  for (const a of ops.add ?? []) {
+    const spec: Record<string, unknown> = { ...a };
+    const after = typeof a.after === "string" ? a.after : null;
+    delete spec.after;
+    if (after) {
+      const idx = _findIdx(list, after);
+      if (idx === -1) return { ok: false, error: `I can't place a field after "${after}" because there's no such field.` };
+      list.splice(idx + 1, 0, spec);
+    } else {
+      list.push(spec);
+    }
+  }
+
+  if (list.length === 0) return { ok: false, error: "That would remove every field. A form needs at least one field." };
+  return { ok: true, fields: list };
+}
+
+export function summarizeFormEdits(name: string, ops: FormEditOps): string {
+  const parts: string[] = [];
+  if (ops.add?.length) parts.push(`add ${ops.add.map((a) => `"${a.label}"`).join(", ")}`);
+  if (ops.remove?.length) parts.push(`remove ${ops.remove.map((r) => `"${r}"`).join(", ")}`);
+  if (ops.rename?.length) parts.push(`rename ${ops.rename.map((r) => `"${r.from}" → "${r.to}"`).join(", ")}`);
+  if (ops.set?.length) parts.push(`update ${ops.set.map((s) => `"${s.field}"`).join(", ")}`);
+  return `Edit form "${name}": ${parts.join("; ") || "no changes"}`;
+}

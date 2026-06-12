@@ -7,7 +7,10 @@ import {
   validateSetPoStatus, validateSetPoExFactory, validateArchivePo,
   UUID_RE, type ValidationResult,
 } from "../actions/po.ts";
-import { validateCreateCustomForm, validateUpdateCustomForm } from "../actions/forms.ts";
+import {
+  validateCreateCustomForm, validateUpdateCustomForm,
+  applyFormEdits, summarizeFormEdits, type FormEditOps,
+} from "../actions/forms.ts";
 
 const ADMIN_ROLES = ["admin", "owner", "superadmin"];
 const DENY = "You don't have access to make that change. It requires an admin or owner role. Please contact your administrator.";
@@ -105,4 +108,84 @@ export async function proposeCreateFormTool(ctx: ToolContext, input: Record<stri
 export async function proposeUpdateFormTool(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
   if (!gate(ctx)) return DENY;
   return propose(ctx, validateUpdateCustomForm(input));
+}
+
+const FIELD_TYPE_DESC: Record<string, (f: Record<string, unknown>) => string> = {
+  computed: (f) => `computed: ${f.formula ?? "?"}`,
+  auto: (f) => `auto-filled (${f.auto_source ?? "?"})`,
+  dynamic_select: (f) => `dropdown from ${f.source_key ?? "?"}`,
+  po_select: () => "PO picker",
+  dropdown: (f) => `dropdown (${(Array.isArray(f.options) ? f.options.length : 0)} options)`,
+};
+
+/** Read a form's current fields so the (model and the) edit tool work from truth. */
+async function loadFormFields(ctx: ToolContext, name: string): Promise<
+  | { ok: true; templateName: string; role: string | null; rows: Record<string, unknown>[] }
+  | { ok: false; error: string }
+> {
+  const { data: tpl } = await ctx.supabase
+    .from("custom_form_templates").select("id, name, target_role")
+    .eq("factory_id", ctx.factoryId).eq("name", name).eq("status", "active")
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (!tpl) return { ok: false, error: `I couldn't find an active form named "${name}".` };
+  const { data: rows } = await ctx.supabase
+    .from("custom_form_fields").select("*")
+    .eq("template_id", (tpl as Record<string, unknown>).id)
+    .order("section_order", { ascending: true }).order("sort_order", { ascending: true });
+  return { ok: true, templateName: (tpl as Record<string, unknown>).name as string, role: (tpl as Record<string, unknown>).target_role as string | null, rows: (rows as Record<string, unknown>[]) ?? [] };
+}
+
+// DB row -> the raw field shape applyFormEdits / validateUpdateCustomForm consume.
+function rowToRaw(r: Record<string, unknown>): Record<string, unknown> {
+  const raw: Record<string, unknown> = { label: r.label, type: r.field_type, required: r.is_required === true, section: r.section_label ?? null };
+  if (r.options) raw.options = r.options;
+  if (r.formula) raw.formula = r.formula;
+  if (r.auto_source) raw.auto_source = r.auto_source;
+  if (r.source_key) raw.source_key = r.source_key;
+  return raw;
+}
+
+/** READ tool: show a form's current fields (so Lina edits the right ones). */
+export async function getCustomFormTool(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  if (!gate(ctx)) return DENY;
+  const name = typeof input.name === "string" ? input.name.trim() : "";
+  if (!name) return "Which form? Tell me its name.";
+  const loaded = await loadFormFields(ctx, name);
+  if (!loaded.ok) return loaded.error;
+  if (loaded.rows.length === 0) return `Form "${loaded.templateName}" has no fields yet.`;
+  const lines = loaded.rows.map((r, i) => {
+    const t = String(r.field_type);
+    const desc = FIELD_TYPE_DESC[t] ? FIELD_TYPE_DESC[t](r) : t;
+    const req = r.is_required === true ? ", required" : "";
+    const sec = r.section_label ? ` [${r.section_label}]` : "";
+    return `${i + 1}. ${r.label} — ${desc}${req}${sec}`;
+  });
+  return `Form "${loaded.templateName}" (role: ${loaded.role ?? "—"}), ${loaded.rows.length} fields:\n${lines.join("\n")}`;
+}
+
+/** EDIT tool: apply a targeted diff to a form's current fields (nothing else changes). */
+export async function proposeEditFormTool(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  if (!gate(ctx)) return DENY;
+  const name = typeof input.name === "string" ? input.name.trim() : "";
+  if (!name) return "Which form should I edit? Tell me its name.";
+  const ops: FormEditOps = {
+    add: Array.isArray(input.add) ? (input.add as Record<string, unknown>[]) : undefined,
+    remove: Array.isArray(input.remove) ? (input.remove as unknown[]).map(String) : undefined,
+    rename: Array.isArray(input.rename) ? (input.rename as { from: string; to: string }[]) : undefined,
+    set: Array.isArray(input.set) ? (input.set as Record<string, unknown>[]) : undefined,
+  };
+  const anyOp = (ops.add?.length || ops.remove?.length || ops.rename?.length || ops.set?.length);
+  if (!anyOp) return `What change should I make to "${name}"? (add, remove, rename, or update fields)`;
+
+  const loaded = await loadFormFields(ctx, name);
+  if (!loaded.ok) return loaded.error;
+
+  const edited = applyFormEdits(loaded.rows.map(rowToRaw), ops);
+  if (!edited.ok) return edited.error;
+
+  // Validate the RESULT and propose it through the existing update path.
+  const res = validateUpdateCustomForm({ name: loaded.templateName, fields: edited.fields });
+  if (!res.ok) return res.error;
+  res.action.humanSummary = summarizeFormEdits(loaded.templateName, ops);
+  return propose(ctx, res);
 }

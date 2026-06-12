@@ -13,6 +13,8 @@ import {
   setPoStatusTool, setPoExFactoryTool, archivePoTool,
   proposeCreateFormTool,
   proposeUpdateFormTool,
+  proposeEditFormTool,
+  getCustomFormTool,
 } from "./actions-tools.ts";
 
 export const ALL_TOOLS: ToolDefinition[] = [
@@ -279,6 +281,73 @@ export const ALL_TOOLS: ToolDefinition[] = [
     },
     allowedRoles: ["admin", "owner", "superadmin"],
     execute: proposeUpdateFormTool,
+  },
+  {
+    name: "get_custom_form",
+    description: "Show the current fields of an existing custom form, by exact name: each field's label, type, required flag, section, and any formula/source. Admin/owner only. Call this BEFORE editing a form (or when the user asks what's on a form) so you work from the real fields, never from memory.",
+    input_schema: {
+      type: "object",
+      properties: { name: { type: "string", description: "The exact name of the custom form." } },
+      required: ["name"],
+    },
+    allowedRoles: ["admin", "owner", "superadmin"],
+    execute: getCustomFormTool,
+  },
+  {
+    name: "propose_edit_form",
+    description: "Make a TARGETED change to an existing custom form WITHOUT re-listing all its fields. Admin/owner only. This reads the form's current fields and applies only the operations you give, so fields you don't mention are kept exactly as they are. PREFER THIS over propose_update_form for any edit to an existing form (add/remove/rename a field, change a field's required flag or section, or convert a field's type — e.g. make it computed or auto-filled). If unsure of the exact field labels, call get_custom_form first. Proposes the change for the user to approve.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "The exact name of the form to edit." },
+        remove: { type: "array", items: { type: "string" }, description: "Exact labels of fields to delete. Only these are removed." },
+        rename: {
+          type: "array",
+          description: "Rename fields.",
+          items: { type: "object", properties: { from: { type: "string" }, to: { type: "string" } }, required: ["from", "to"] },
+        },
+        set: {
+          type: "array",
+          description: "Modify existing fields (change required/section, or convert the field's type and its formula/source).",
+          items: {
+            type: "object",
+            properties: {
+              field: { type: "string", description: "Exact label of the field to change." },
+              required: { type: "boolean" },
+              section: { type: "string" },
+              type: { type: "string", enum: ["text", "number", "date", "dropdown", "textarea", "checkbox", "computed", "auto", "po_select", "dynamic_select"] },
+              options: { type: "array", items: { type: "string" } },
+              formula: { type: "string", description: "When converting to type computed: arithmetic referencing OTHER fields by exact label in braces, e.g. \"{A} * {B}\"." },
+              auto_source: { type: "string", enum: ["submission_date", "submission_time", "submission_datetime", "current_month", "current_year", "user_name", "user_email", "factory_name"] },
+              source_key: { type: "string", enum: ["lines", "stages", "stage_progress", "milestones", "blocker_types", "blocker_owners", "blocker_impacts"] },
+            },
+            required: ["field"],
+          },
+        },
+        add: {
+          type: "array",
+          description: "New fields to add. Each is a normal field spec, optionally with `after` to place it.",
+          items: {
+            type: "object",
+            properties: {
+              label: { type: "string" },
+              type: { type: "string", enum: ["text", "number", "date", "dropdown", "textarea", "checkbox", "computed", "auto", "po_select", "dynamic_select"] },
+              required: { type: "boolean" },
+              section: { type: "string" },
+              options: { type: "array", items: { type: "string" } },
+              formula: { type: "string" },
+              auto_source: { type: "string", enum: ["submission_date", "submission_time", "submission_datetime", "current_month", "current_year", "user_name", "user_email", "factory_name"] },
+              source_key: { type: "string", enum: ["lines", "stages", "stage_progress", "milestones", "blocker_types", "blocker_owners", "blocker_impacts"] },
+              after: { type: "string", description: "Insert this new field directly after the field with this label (otherwise it's added at the end)." },
+            },
+            required: ["label", "type"],
+          },
+        },
+      },
+      required: ["name"],
+    },
+    allowedRoles: ["admin", "owner", "superadmin"],
+    execute: proposeEditFormTool,
   },
 ];
 

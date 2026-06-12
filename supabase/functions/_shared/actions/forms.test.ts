@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateCreateCustomForm, validateUpdateCustomForm } from "./forms";
+import { validateCreateCustomForm, validateUpdateCustomForm, applyFormEdits } from "./forms";
 
 describe("validateCreateCustomForm", () => {
   it("requires a name", () => {
@@ -241,5 +241,63 @@ describe("dynamic_select field", () => {
     const r = validateCreateCustomForm(base([{ label: "Qty", type: "number" }]));
     expect(r.ok).toBe(true);
     if (r.ok) expect((r.action.payload.fields as any[])[0].source_key).toBe(null);
+  });
+});
+
+describe("applyFormEdits (diff-based editing)", () => {
+  // Simulates a form's CURRENT fields (raw shape, as read from the DB).
+  const current = () => [
+    { label: "Date", type: "auto", auto_source: "submission_date", required: false, section: "Header" },
+    { label: "Line Output", type: "number", required: true, section: "Production" },
+    { label: "Garment SAM", type: "number", required: true, section: "Production" },
+    { label: "Efficiency", type: "computed", formula: "line_output * garment_sam", required: false, section: "Production" },
+    { label: "Factory Name", type: "auto", auto_source: "factory_name", required: false, section: "Header" },
+  ];
+
+  it("removes only the named field; everything else stays", () => {
+    const r = applyFormEdits(current(), { remove: ["Factory Name"] });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      const labels = r.fields.map((f) => f.label);
+      expect(labels).toEqual(["Date", "Line Output", "Garment SAM", "Efficiency"]);
+    }
+  });
+  it("errors (no destructive change) when removing a field that doesn't exist", () => {
+    const r = applyFormEdits(current(), { remove: ["Supervisor"] });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.toLowerCase()).toContain("supervisor");
+  });
+  it("adds a field at the end, or after a named field", () => {
+    const end = applyFormEdits(current(), { add: [{ label: "Remarks", type: "textarea" }] });
+    expect(end.ok).toBe(true);
+    if (end.ok) expect(end.fields[end.fields.length - 1].label).toBe("Remarks");
+    const after = applyFormEdits(current(), { add: [{ label: "Shift", type: "text", after: "Date" }] });
+    if (after.ok) expect(after.fields[1].label).toBe("Shift");
+  });
+  it("renames a field and rewrites computed formulas that referenced it", () => {
+    const r = applyFormEdits(current(), { rename: [{ from: "Line Output", to: "Output Qty" }] });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.fields.find((f) => f.label === "Output Qty")).toBeTruthy();
+      const eff = r.fields.find((f) => f.label === "Efficiency")!;
+      expect(eff.formula).toBe("output_qty * garment_sam");
+    }
+  });
+  it("set converts a field's type and clears stale config", () => {
+    const r = applyFormEdits(current(), { set: [{ field: "Factory Name", type: "text" }] });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      const f = r.fields.find((x) => x.label === "Factory Name")!;
+      expect(f.type).toBe("text");
+      expect(f.auto_source).toBeUndefined();
+    }
+  });
+  it("set can make a field required", () => {
+    const r = applyFormEdits(current(), { set: [{ field: "Efficiency", required: true }] });
+    if (r.ok) expect(r.fields.find((f) => f.label === "Efficiency")!.required).toBe(true);
+  });
+  it("refuses to remove the last field", () => {
+    const r = applyFormEdits([{ label: "Only", type: "text" }], { remove: ["Only"] });
+    expect(r.ok).toBe(false);
   });
 });
