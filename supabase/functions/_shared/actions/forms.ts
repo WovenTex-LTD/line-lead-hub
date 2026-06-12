@@ -1,8 +1,11 @@
-// Pure validator + types for Lina's custom-form write action. Shared by the preview
-// tool and execute-action so validation is identical on both sides. No Deno/runtime imports.
+// Pure validators + types for Lina's custom-form write actions (create + update-by-name).
+// Shared by the preview tools and execute-action so validation is identical on both sides.
+// No Deno/runtime imports.
 import type { ProposedAction, ValidationResult } from "./po.ts";
 
 const VALID_TYPES = ["text", "number", "date", "dropdown", "textarea", "checkbox"];
+// Roles a custom form can be tagged to (it shows in that role's catalogue).
+const VALID_FORM_ROLES = ["sewing", "cutting", "finishing", "qc", "storage", "worker"];
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
 function slug(label: string): string {
@@ -15,16 +18,14 @@ interface NormalizedField {
   section_label: string | null; section_order: number; sort_order: number;
 }
 
-export function validateCreateCustomForm(input: Record<string, unknown>): ValidationResult {
-  const name = str(input.name);
-  if (!name) return { ok: false, error: "What should the form be called?" };
-  const rawFields = Array.isArray(input.fields) ? (input.fields as Record<string, unknown>[]) : [];
-  if (rawFields.length === 0) return { ok: false, error: `What fields should "${name}" have?` };
-
+// Validate + normalize the field list (shared by create and update). Does NOT check emptiness;
+// callers do that so the message can name the form.
+function normalizeFields(input: unknown): { ok: true; fields: NormalizedField[] } | { ok: false; error: string } {
+  const rawFields = Array.isArray(input) ? (input as Record<string, unknown>[]) : [];
   const usedKeys = new Set<string>();
   const fields: NormalizedField[] = [];
   let sectionOrder = -1;
-  let lastSection: string | null = " ";
+  let lastSection: string | null = " "; // sentinel so the first section bumps the order
 
   for (let i = 0; i < rawFields.length; i++) {
     const f = rawFields[i];
@@ -56,11 +57,42 @@ export function validateCreateCustomForm(input: Record<string, unknown>): Valida
       options, section_label: section, section_order: Math.max(0, sectionOrder), sort_order: i,
     });
   }
+  return { ok: true, fields };
+}
+
+export function validateCreateCustomForm(input: Record<string, unknown>): ValidationResult {
+  const name = str(input.name);
+  if (!name) return { ok: false, error: "What should the form be called?" };
+  const target_role = str(input.target_role);
+  if (!target_role) return { ok: false, error: `Which role is "${name}" for? (one of: ${VALID_FORM_ROLES.join(", ")})` };
+  if (!VALID_FORM_ROLES.includes(target_role)) {
+    return { ok: false, error: `"${target_role}" isn't a role I can assign a form to. Use one of: ${VALID_FORM_ROLES.join(", ")}.` };
+  }
+  const rawFields = Array.isArray(input.fields) ? (input.fields as unknown[]) : [];
+  if (rawFields.length === 0) return { ok: false, error: `What fields should "${name}" have?` };
+  const norm = normalizeFields(input.fields);
+  if (!norm.ok) return norm;
 
   const action: ProposedAction = {
     kind: "create_custom_form",
-    humanSummary: `Create form "${name}" with ${fields.length} field${fields.length === 1 ? "" : "s"}`,
-    payload: { name, description: str(input.description) || null, allowed_fill_roles: [], fields },
+    humanSummary: `Create ${target_role} form "${name}" with ${norm.fields.length} field${norm.fields.length === 1 ? "" : "s"}`,
+    payload: { name, description: str(input.description) || null, target_role, allowed_fill_roles: [], fields: norm.fields },
+  };
+  return { ok: true, action };
+}
+
+export function validateUpdateCustomForm(input: Record<string, unknown>): ValidationResult {
+  const name = str(input.name);
+  if (!name) return { ok: false, error: "Which form should I update? Tell me its name." };
+  const rawFields = Array.isArray(input.fields) ? (input.fields as unknown[]) : [];
+  if (rawFields.length === 0) return { ok: false, error: `What should "${name}" contain now? List the fields it should have.` };
+  const norm = normalizeFields(input.fields);
+  if (!norm.ok) return norm;
+
+  const action: ProposedAction = {
+    kind: "update_custom_form",
+    humanSummary: `Update form "${name}" to ${norm.fields.length} field${norm.fields.length === 1 ? "" : "s"}`,
+    payload: { name, fields: norm.fields },
   };
   return { ok: true, action };
 }

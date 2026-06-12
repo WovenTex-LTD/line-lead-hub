@@ -12,6 +12,7 @@ import {
   createPoTool, updatePoTool, assignPoLinesTool,
   setPoStatusTool, setPoExFactoryTool, archivePoTool,
   proposeCreateFormTool,
+  proposeUpdateFormTool,
 } from "./actions-tools.ts";
 
 export const ALL_TOOLS: ToolDefinition[] = [
@@ -214,11 +215,12 @@ export const ALL_TOOLS: ToolDefinition[] = [
   },
   {
     name: "propose_create_form",
-    description: "Create a new custom digital form from a description or an uploaded paper form image. Admin/owner only. Use when the user uploads a photo/PDF of a form, or asks to build a new form/checklist. Extract a name and the list of fields. This PROPOSES the form for the user to approve — it does not create it directly.",
+    description: "Create a NEW custom digital form from a description or an uploaded paper form image. Admin/owner only. Use when the user wants to add a new form/checklist (it appears in a chosen role's catalogue alongside that role's read-only default form). Extract a name, the role it is for, and the list of fields. This PROPOSES the form for the user to approve — it does not create it directly. To CHANGE an existing custom form, use propose_update_form instead so a duplicate isn't created.",
     input_schema: {
       type: "object",
       properties: {
         name: { type: "string", description: "The form's title." },
+        target_role: { type: "string", enum: ["sewing", "cutting", "finishing", "qc", "storage", "worker"], description: "Which role/department this form belongs to. Ask the user if unclear." },
         description: { type: "string" },
         fields: {
           type: "array",
@@ -236,10 +238,38 @@ export const ALL_TOOLS: ToolDefinition[] = [
           },
         },
       },
-      required: ["name", "fields"],
+      required: ["name", "target_role", "fields"],
     },
     allowedRoles: ["admin", "owner", "superadmin"],
     execute: proposeCreateFormTool,
+  },
+  {
+    name: "propose_update_form",
+    description: "Update an EXISTING custom form (one Lina previously created), identified by its exact name. Admin/owner only. Use when the user asks to change/edit a form they already made (e.g. 'add a field to the X form'). Provide the form's name and the FULL new list of fields it should have (the form's fields are replaced with this list). Never use this for the read-only default production forms. This PROPOSES the change for the user to approve.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "The exact name of the existing custom form to update." },
+        fields: {
+          type: "array",
+          description: "The complete new field list, in order (replaces the form's current fields).",
+          items: {
+            type: "object",
+            properties: {
+              label: { type: "string" },
+              type: { type: "string", enum: ["text", "number", "date", "dropdown", "textarea", "checkbox"] },
+              required: { type: "boolean" },
+              section: { type: "string" },
+              options: { type: "array", items: { type: "string" } },
+            },
+            required: ["label", "type"],
+          },
+        },
+      },
+      required: ["name", "fields"],
+    },
+    allowedRoles: ["admin", "owner", "superadmin"],
+    execute: proposeUpdateFormTool,
   },
 ];
 

@@ -7,7 +7,7 @@ import {
   validateSetPoStatus, validateSetPoExFactory, validateArchivePo,
   type ValidationResult,
 } from "../actions/po.ts";
-import { validateCreateCustomForm } from "../actions/forms.ts";
+import { validateCreateCustomForm, validateUpdateCustomForm } from "../actions/forms.ts";
 
 const ADMIN_ROLES = ["admin", "owner", "superadmin"];
 const DENY = "You don't have access to make that change. It requires an admin or owner role. Please contact your administrator.";
@@ -50,4 +50,8 @@ export async function archivePoTool(ctx: ToolContext, input: Record<string, unkn
 export async function proposeCreateFormTool(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
   if (!gate(ctx)) return DENY;
   return propose(ctx, validateCreateCustomForm(input));
+}
+export async function proposeUpdateFormTool(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  if (!gate(ctx)) return DENY;
+  return propose(ctx, validateUpdateCustomForm(input));
 }

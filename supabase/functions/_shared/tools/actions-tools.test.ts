@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createPoTool, archivePoTool, proposeCreateFormTool } from "./actions-tools";
+import { createPoTool, archivePoTool, proposeCreateFormTool, proposeUpdateFormTool } from "./actions-tools";
 import type { ToolContext } from "./types";
 
 function ctx(role: string) {
@@ -41,16 +41,33 @@ describe("PO preview tools", () => {
 });
 
 describe("propose_create_form tool", () => {
-  it("admin proposes a form (no write)", async () => {
+  it("admin proposes a role-tagged form (no write)", async () => {
     const { c, proposed } = ctx("admin");
-    const out = await proposeCreateFormTool(c, { name: "QA", fields: [{ label: "Op", type: "text" }] });
+    const out = await proposeCreateFormTool(c, { name: "QA", target_role: "cutting", fields: [{ label: "Op", type: "text" }] });
     expect(proposed.length).toBe(1);
     expect(proposed[0].kind).toBe("create_custom_form");
+    expect(proposed[0].payload.target_role).toBe("cutting");
     expect(out.toLowerCase()).toContain("approve");
   });
   it("worker is denied", async () => {
     const { c, proposed } = ctx("worker");
-    const out = await proposeCreateFormTool(c, { name: "QA", fields: [{ label: "Op", type: "text" }] });
+    const out = await proposeCreateFormTool(c, { name: "QA", target_role: "cutting", fields: [{ label: "Op", type: "text" }] });
+    expect(proposed.length).toBe(0);
+    expect(out.toLowerCase()).toContain("don't have access");
+  });
+});
+
+describe("propose_update_form tool", () => {
+  it("admin proposes an update to a named form (no write)", async () => {
+    const { c, proposed } = ctx("admin");
+    const out = await proposeUpdateFormTool(c, { name: "QA", fields: [{ label: "Op", type: "text" }] });
+    expect(proposed.length).toBe(1);
+    expect(proposed[0].kind).toBe("update_custom_form");
+    expect(out.toLowerCase()).toContain("approve");
+  });
+  it("worker is denied", async () => {
+    const { c, proposed } = ctx("worker");
+    const out = await proposeUpdateFormTool(c, { name: "QA", fields: [{ label: "Op", type: "text" }] });
     expect(proposed.length).toBe(0);
     expect(out.toLowerCase()).toContain("don't have access");
   });

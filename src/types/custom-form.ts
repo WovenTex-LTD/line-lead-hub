@@ -25,6 +25,7 @@ export interface CustomFormTemplate {
   description: string | null;
   status: "active" | "archived";
   version: number;
+  target_role: string | null;
   allowed_fill_roles: string[];
   created_by: string | null;
   created_at: string;
