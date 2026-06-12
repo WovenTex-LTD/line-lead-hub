@@ -11,9 +11,11 @@ interface Props {
   error?: string;
   onChange: (key: string, value: unknown) => void;
   poOptions?: { value: string; label: string }[];
+  dynamicOptions?: Record<string, { value: string; label: string }[]>;
 }
 
-export function CustomFormField({ field, value, error, onChange, poOptions }: Props) {
+export function CustomFormField({ field, value, error, onChange, poOptions, dynamicOptions }: Props) {
+  const liveOptions = field.field_type === "dynamic_select" ? (dynamicOptions?.[field.source_key ?? ""] ?? []) : [];
   const err = error ? "border-destructive" : "";
   const set = (v: unknown) => onChange(field.key, v);
 
@@ -49,6 +51,20 @@ export function CustomFormField({ field, value, error, onChange, poOptions }: Pr
           <Checkbox checked={Boolean(value)} onCheckedChange={(c) => set(Boolean(c))} />
           <Label>{field.label}{field.is_required ? " *" : ""}</Label>
         </div>
+      )}
+      {field.field_type === "dynamic_select" && (
+        liveOptions.length > 0 ? (
+          <Select value={(value as string) ?? ""} onValueChange={set}>
+            <SelectTrigger className={err}><SelectValue placeholder={field.placeholder ?? "Select…"} /></SelectTrigger>
+            <SelectContent>
+              {liveOptions.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Input type="text" readOnly value="No options available yet" className="bg-muted/50 text-muted-foreground cursor-not-allowed" />
+        )
       )}
       {field.field_type === "po_select" && (
         (poOptions?.length ?? 0) > 0 ? (

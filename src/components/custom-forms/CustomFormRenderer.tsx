@@ -12,6 +12,7 @@ interface Props {
   onSubmit: (values: Record<string, unknown>) => void;
   autoContext?: AutoContext;
   poOptions?: { value: string; label: string }[];
+  dynamicOptions?: Record<string, { value: string; label: string }[]>;
 }
 
 /** User inputs + every derived field (auto-filled from context, then computed). */
@@ -45,7 +46,7 @@ function groupBySection(fields: FieldDef[]): { label: string | null; fields: Fie
   return groups;
 }
 
-export function CustomFormRenderer({ config, submitting, onSubmit, autoContext, poOptions }: Props) {
+export function CustomFormRenderer({ config, submitting, onSubmit, autoContext, poOptions, dynamicOptions }: Props) {
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const ctx = autoContext ?? {};
@@ -89,6 +90,7 @@ export function CustomFormRenderer({ config, submitting, onSubmit, autoContext, 
                 error={errors[f.key]}
                 onChange={onChange}
                 poOptions={poOptions}
+                dynamicOptions={dynamicOptions}
               />
             ))}
           </CardContent>

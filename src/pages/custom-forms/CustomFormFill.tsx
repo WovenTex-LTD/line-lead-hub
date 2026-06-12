@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useCustomFormConfig, submitCustomForm, useFactoryPOs } from "@/hooks/useCustomForms";
+import { useCustomFormConfig, submitCustomForm, useFactoryPOs, useDynamicSourceOptions } from "@/hooks/useCustomForms";
 import { CustomFormRenderer } from "@/components/custom-forms/CustomFormRenderer";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -12,6 +12,10 @@ export default function CustomFormFill() {
   const { config, loading } = useCustomFormConfig(templateId);
   const { user, profile, factory, isAdminOrHigher } = useAuth();
   const { options: poOptions } = useFactoryPOs();
+  const dynamicSources = (config?.fields ?? [])
+    .filter((f) => f.field_type === "dynamic_select" && f.source_key)
+    .map((f) => f.source_key as string);
+  const dynamicOptions = useDynamicSourceOptions(dynamicSources);
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
 
@@ -48,6 +52,7 @@ export default function CustomFormFill() {
         onSubmit={onSubmit}
         autoContext={{ userName: profile?.full_name, userEmail: user?.email, factoryName: factory?.name }}
         poOptions={poOptions}
+        dynamicOptions={dynamicOptions}
       />
     </div>
   );

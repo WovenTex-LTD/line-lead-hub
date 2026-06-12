@@ -123,6 +123,40 @@ export async function getSubmission(id: string): Promise<CustomFormSubmission | 
   return (data as CustomFormSubmission) || null;
 }
 
+/** Fetch options for each requested dynamic-select source (lines, stages, …),
+ *  returned as a source_key -> options map. Driven live so Dropdown-Settings edits
+ *  and new lines show up automatically. */
+export function useDynamicSourceOptions(sourceKeys: string[]) {
+  const { profile } = useAuth();
+  const [optionsBySource, setOptionsBySource] = useState<Record<string, { value: string; label: string }[]>>({});
+  const wanted = [...new Set(sourceKeys)].filter(Boolean).sort();
+  const cacheKey = wanted.join(",");
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!profile?.factory_id || wanted.length === 0) { setOptionsBySource({}); return; }
+      const { DYNAMIC_SOURCES } = await import("@/lib/dynamic-sources");
+      const out: Record<string, { value: string; label: string }[]> = {};
+      await Promise.all(wanted.map(async (key) => {
+        const def = DYNAMIC_SOURCES.find((d) => d.key === key);
+        if (!def) { out[key] = []; return; }
+        let q = supabase.from(def.table as never).select(def.selectCols).eq("factory_id", profile.factory_id);
+        if (def.activeOnly) q = q.eq("is_active", true);
+        const { data, error } = await q.order(def.orderCol, { ascending: true });
+        if (error) { console.error(`dynamic source ${key}:`, error.message); out[key] = []; return; }
+        const seen = new Set<string>();
+        out[key] = ((data as Record<string, unknown>[]) || [])
+          .map((r) => def.toOption(r))
+          .filter((o): o is { value: string; label: string } => !!o && !seen.has(o.value) && (seen.add(o.value), true));
+      }));
+      if (!cancelled) setOptionsBySource(out);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.factory_id, cacheKey]);
+  return optionsBySource;
+}
+
 /** The factory's active purchase orders as dropdown options for a po_select field. */
 export function useFactoryPOs() {
   const { profile } = useAuth();

@@ -4,7 +4,13 @@
 import type { ProposedAction, ValidationResult } from "./po.ts";
 import { extractRefs, isValidFormula } from "./formula.ts";
 
-const VALID_TYPES = ["text", "number", "date", "dropdown", "textarea", "checkbox", "computed", "auto", "po_select"];
+const VALID_TYPES = ["text", "number", "date", "dropdown", "textarea", "checkbox", "computed", "auto", "po_select", "dynamic_select"];
+// Live factory lists a dynamic_select can pull options from. Keep in sync with
+// DYNAMIC_SOURCE_KEYS in src/lib/dynamic-sources.ts.
+const VALID_DYNAMIC_SOURCES = [
+  "lines", "stages", "stage_progress", "milestones",
+  "blocker_types", "blocker_owners", "blocker_impacts",
+];
 // Submission-context values an "auto" field can be filled from. Keep in sync with
 // AUTO_SOURCE_KEYS in src/lib/auto-fields.ts.
 const VALID_AUTO_SOURCES = [
@@ -36,6 +42,7 @@ interface NormalizedField {
   section_label: string | null; section_order: number; sort_order: number;
   formula: string | null;      // computed fields: arithmetic referencing other field keys
   auto_source: string | null;  // auto fields: which submission-context value fills it
+  source_key: string | null;   // dynamic_select: which live factory list feeds the options
 }
 
 const normLabel = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
@@ -92,10 +99,18 @@ function normalizeFields(input: unknown): { ok: true; fields: NormalizedField[] 
         return { ok: false, error: `Auto field "${label}" has an unknown source "${auto_source}". Use one of: ${VALID_AUTO_SOURCES.join(", ")}.` };
       }
     }
+    let source_key: string | null = null;
+    if (type === "dynamic_select") {
+      source_key = str(f.source_key) || str(f.source) || null;
+      if (!source_key) return { ok: false, error: `Dropdown "${label}" needs a source_key (one of: ${VALID_DYNAMIC_SOURCES.join(", ")}).` };
+      if (!VALID_DYNAMIC_SOURCES.includes(source_key)) {
+        return { ok: false, error: `Dropdown "${label}" has an unknown source "${source_key}". Use one of: ${VALID_DYNAMIC_SOURCES.join(", ")}.` };
+      }
+    }
     fields.push({
       key, label, field_type: type, is_required: required,
       options, section_label: section, section_order: Math.max(0, sectionOrder), sort_order: i,
-      formula, auto_source,
+      formula, auto_source, source_key,
     });
   }
 

@@ -213,3 +213,33 @@ describe("po_select field", () => {
     }
   });
 });
+
+describe("dynamic_select field", () => {
+  const base = (fields: any[]) => ({ name: "Line Report", target_role: "sewing", fields });
+  it("accepts a valid source_key and stays interactive (can be required)", () => {
+    const r = validateCreateCustomForm(base([{ label: "Line", type: "dynamic_select", source_key: "lines", required: true }]));
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      const f = (r.action.payload.fields as any[])[0];
+      expect(f.field_type).toBe("dynamic_select");
+      expect(f.source_key).toBe("lines");
+      expect(f.is_required).toBe(true);
+    }
+  });
+  it("accepts 'source' as an alias", () => {
+    const r = validateCreateCustomForm(base([{ label: "Stage", type: "dynamic_select", source: "stages" }]));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect((r.action.payload.fields as any[])[0].source_key).toBe("stages");
+  });
+  it("rejects a missing or unknown source", () => {
+    expect(validateCreateCustomForm(base([{ label: "X", type: "dynamic_select" }])).ok).toBe(false);
+    const r = validateCreateCustomForm(base([{ label: "X", type: "dynamic_select", source_key: "weather" }]));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.toLowerCase()).toContain("weather");
+  });
+  it("non-dynamic fields keep source_key null", () => {
+    const r = validateCreateCustomForm(base([{ label: "Qty", type: "number" }]));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect((r.action.payload.fields as any[])[0].source_key).toBe(null);
+  });
+});

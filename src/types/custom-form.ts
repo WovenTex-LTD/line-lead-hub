@@ -1,4 +1,4 @@
-export type CustomFieldType = "text" | "number" | "date" | "dropdown" | "textarea" | "checkbox" | "computed" | "auto" | "po_select";
+export type CustomFieldType = "text" | "number" | "date" | "dropdown" | "textarea" | "checkbox" | "computed" | "auto" | "po_select" | "dynamic_select";
 
 export interface CustomFieldOption { value: string; label: string; }
 
@@ -18,6 +18,7 @@ export interface CustomFormField {
   is_active: boolean;
   formula: string | null; // computed fields only: arithmetic over other field keys
   auto_source: string | null; // auto fields only: which submission-context value fills this field
+  source_key: string | null;  // dynamic_select only: which live factory list feeds the options
 }
 
 export interface CustomFormTemplate {
