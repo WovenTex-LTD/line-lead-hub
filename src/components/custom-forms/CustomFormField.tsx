@@ -3,7 +3,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { CustomFormField as FieldDef } from "@/types/custom-form";
+import type { CustomFormField as FieldDef, PoDetail } from "@/types/custom-form";
+import { PoDetailsPanel } from "./PoDetailsPanel";
 
 interface Props {
   field: FieldDef;
@@ -11,10 +12,11 @@ interface Props {
   error?: string;
   onChange: (key: string, value: unknown) => void;
   poOptions?: { value: string; label: string }[];
+  poDetails?: Record<string, PoDetail>;
   dynamicOptions?: Record<string, { value: string; label: string }[]>;
 }
 
-export function CustomFormField({ field, value, error, onChange, poOptions, dynamicOptions }: Props) {
+export function CustomFormField({ field, value, error, onChange, poOptions, poDetails, dynamicOptions }: Props) {
   const liveOptions = field.field_type === "dynamic_select" ? (dynamicOptions?.[field.source_key ?? ""] ?? []) : [];
   const err = error ? "border-destructive" : "";
   const set = (v: unknown) => onChange(field.key, v);
@@ -79,6 +81,9 @@ export function CustomFormField({ field, value, error, onChange, poOptions, dyna
         ) : (
           <Input type="text" readOnly value="No active POs in this factory" className="bg-muted/50 text-muted-foreground cursor-not-allowed" />
         )
+      )}
+      {field.field_type === "po_select" && value && poDetails?.[value as string] && (
+        <PoDetailsPanel detail={poDetails[value as string]} />
       )}
       {(field.field_type === "computed" || field.field_type === "auto") && (
         <Input

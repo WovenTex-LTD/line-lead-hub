@@ -64,3 +64,16 @@ export interface FormSlotOverride {
   active_template_id: string | null;
   updated_at: string;
 }
+
+/** Snapshot of a selected PO's details, shown read-only on the form and stored
+ *  with the submission (under a "__po:<fieldKey>" value key). */
+export interface PoDetail {
+  po_number: string;
+  buyer?: string | null;
+  style?: string | null;
+  item?: string | null;
+  color?: string | null;
+  order_qty?: number | null;
+  planned_ex_factory?: string | null;
+  status?: string | null;
+}

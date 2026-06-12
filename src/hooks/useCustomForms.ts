@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  CustomFormConfig, CustomFormField, CustomFormTemplate, CustomFormSubmission, FormSlotOverride,
+  CustomFormConfig, CustomFormField, CustomFormTemplate, CustomFormSubmission, FormSlotOverride, PoDetail,
 } from "@/types/custom-form";
 
 function orderFields(fields: CustomFormField[]): CustomFormField[] {
@@ -157,34 +157,40 @@ export function useDynamicSourceOptions(sourceKeys: string[]) {
   return optionsBySource;
 }
 
-/** The factory's active purchase orders as dropdown options for a po_select field. */
+/** The factory's active purchase orders: dropdown options for a po_select field,
+ *  plus a po_number -> details map so the form can show the PO's info read-only. */
 export function useFactoryPOs() {
   const { profile } = useAuth();
   const [options, setOptions] = useState<{ value: string; label: string }[]>([]);
+  const [details, setDetails] = useState<Record<string, PoDetail>>({});
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (!profile?.factory_id) { setLoading(false); return; }
       const { data } = await supabase
-        .from("work_orders").select("po_number, buyer, style")
+        .from("work_orders")
+        .select("po_number, buyer, style, item, color, order_qty, planned_ex_factory, status")
         .eq("factory_id", profile.factory_id).eq("is_active", true)
         .order("po_number", { ascending: true });
       if (cancelled) return;
       const seen = new Set<string>();
       const opts: { value: string; label: string }[] = [];
-      for (const w of (data as { po_number: string; buyer: string | null; style: string | null }[]) || []) {
+      const map: Record<string, PoDetail> = {};
+      for (const w of (data as PoDetail[]) || []) {
         if (!w.po_number || seen.has(w.po_number)) continue;
         seen.add(w.po_number);
         const extra = [w.buyer, w.style].filter(Boolean).join(" · ");
         opts.push({ value: w.po_number, label: extra ? `${w.po_number} — ${extra}` : w.po_number });
+        map[w.po_number] = w;
       }
       setOptions(opts);
+      setDetails(map);
       setLoading(false);
     })();
     return () => { cancelled = true; };
   }, [profile?.factory_id]);
-  return { options, loading };
+  return { options, details, loading };
 }
 
 /** All slot overrides for the user's factory, as a slot_key -> template_id map. */

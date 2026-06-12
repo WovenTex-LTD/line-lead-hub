@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getSubmission } from "@/hooks/useCustomForms";
-import type { CustomFormSubmission } from "@/types/custom-form";
+import type { CustomFormSubmission, PoDetail } from "@/types/custom-form";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import { PoDetailsPanel } from "@/components/custom-forms/PoDetailsPanel";
 
 export default function CustomFormSubmissionView() {
   const { submissionId } = useParams();
@@ -33,7 +34,7 @@ export default function CustomFormSubmissionView() {
         <ArrowLeft className="h-4 w-4 mr-1.5" /> Back
       </Button>
       <h1 className="text-xl font-bold mb-1">Submission</h1>
-      <p className="text-sm text-muted-foreground mb-4">{new Date(sub.created_at).toLocaleString()}</p>
+      <p className="text-sm text-muted-foreground mb-4">Submitted {new Date(sub.created_at).toLocaleString()}</p>
       <Card><CardContent className="space-y-3 pt-4">
         {sub.fields_snapshot.map((f) => {
           const v = sub.values[f.key];
@@ -46,6 +47,14 @@ export default function CustomFormSubmissionView() {
           );
         })}
       </CardContent></Card>
+      {/* PO detail snapshots captured at submission time (one per po_select field). */}
+      {Object.entries(sub.values)
+        .filter(([k, v]) => k.startsWith("__po:") && v && typeof v === "object")
+        .map(([k, v]) => (
+          <div key={k} className="mt-3">
+            <PoDetailsPanel detail={v as PoDetail} />
+          </div>
+        ))}
     </div>
   );
 }

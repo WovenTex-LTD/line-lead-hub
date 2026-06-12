@@ -11,7 +11,7 @@ export default function CustomFormFill() {
   const { templateId } = useParams();
   const { config, loading } = useCustomFormConfig(templateId);
   const { user, profile, factory, isAdminOrHigher } = useAuth();
-  const { options: poOptions } = useFactoryPOs();
+  const { options: poOptions, details: poDetails } = useFactoryPOs();
   const dynamicSources = (config?.fields ?? [])
     .filter((f) => f.field_type === "dynamic_select" && f.source_key)
     .map((f) => f.source_key as string);
@@ -52,6 +52,7 @@ export default function CustomFormFill() {
         onSubmit={onSubmit}
         autoContext={{ userName: profile?.full_name, userEmail: user?.email, factoryName: factory?.name }}
         poOptions={poOptions}
+        poDetails={poDetails}
         dynamicOptions={dynamicOptions}
       />
     </div>

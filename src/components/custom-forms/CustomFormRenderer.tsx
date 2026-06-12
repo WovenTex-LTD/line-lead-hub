@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomFormField } from "./CustomFormField";
-import type { CustomFormConfig, CustomFormField as FieldDef } from "@/types/custom-form";
+import type { CustomFormConfig, CustomFormField as FieldDef, PoDetail } from "@/types/custom-form";
 import { evaluateFormula } from "@/lib/formula";
 import { resolveAutoValue, type AutoContext } from "@/lib/auto-fields";
 
@@ -12,6 +12,7 @@ interface Props {
   onSubmit: (values: Record<string, unknown>) => void;
   autoContext?: AutoContext;
   poOptions?: { value: string; label: string }[];
+  poDetails?: Record<string, PoDetail>;
   dynamicOptions?: Record<string, { value: string; label: string }[]>;
 }
 
@@ -46,7 +47,7 @@ function groupBySection(fields: FieldDef[]): { label: string | null; fields: Fie
   return groups;
 }
 
-export function CustomFormRenderer({ config, submitting, onSubmit, autoContext, poOptions, dynamicOptions }: Props) {
+export function CustomFormRenderer({ config, submitting, onSubmit, autoContext, poOptions, poDetails, dynamicOptions }: Props) {
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const ctx = autoContext ?? {};
@@ -70,7 +71,15 @@ export function CustomFormRenderer({ config, submitting, onSubmit, autoContext, 
     }
     setErrors(next);
     if (Object.keys(next).length === 0) {
-      onSubmit(buildDerived(config.fields, values, ctx, new Date())); // fresh derived incl. auto + computed
+      const finalValues = buildDerived(config.fields, values, ctx, new Date()); // fresh derived incl. auto + computed
+      // Snapshot the selected PO's details so the submission record keeps them.
+      for (const f of config.fields) {
+        if (f.field_type === "po_select") {
+          const chosen = values[f.key] as string | undefined;
+          if (chosen && poDetails?.[chosen]) finalValues[`__po:${f.key}`] = poDetails[chosen];
+        }
+      }
+      onSubmit(finalValues);
     }
   };
 
@@ -90,6 +99,7 @@ export function CustomFormRenderer({ config, submitting, onSubmit, autoContext, 
                 error={errors[f.key]}
                 onChange={onChange}
                 poOptions={poOptions}
+                poDetails={poDetails}
                 dynamicOptions={dynamicOptions}
               />
             ))}

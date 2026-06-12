@@ -24,7 +24,7 @@ export default function CustomFormSubmissions() {
           <Link key={s.id} to={`/forms/submissions/${s.id}`}>
             <Card className="transition hover:bg-accent/40">
               <CardHeader>
-                <CardTitle className="text-sm font-medium">{new Date(s.created_at).toLocaleString()}</CardTitle>
+                <CardTitle className="text-sm font-medium">Submitted {new Date(s.created_at).toLocaleString()}</CardTitle>
               </CardHeader>
             </Card>
           </Link>
