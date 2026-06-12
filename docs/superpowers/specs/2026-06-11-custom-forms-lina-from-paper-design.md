@@ -1,5 +1,7 @@
 # Custom Forms + Lina-from-Paper (Design Spec)
 
+> **Revision 2026-06-12 — Per-role catalogue model.** After implementation, the user clarified the intended UX: Lina creates **new** forms (never edits/replaces the production forms), and each form is **tagged to one role** (cutting/sewing/finishing/qc/storage/worker). The **Forms** area is a **catalogue grouped by role**: each role shows its **read-only default production form(s)** alongside the editable Lina-created forms. A custom form is edited by asking Lina **by name** (`propose_update_form`) so repeats don't duplicate. This is additive to the design below: the standalone `custom_form_*` engine stays; we added a `target_role` column, an edit-by-name tool/action, and the role-grouped catalogue UI. The production forms remain untouched. See memory `custom-forms-catalogue-model`.
+
 **Date:** 2026-06-11
 **Status:** Design approved (in conversation); pending written-spec review
 **Branch:** `Chatbot` (builds on the deployed Lina write-action foundation)
