@@ -118,7 +118,7 @@ export function useChat(): UseChatReturn {
   }, []);
 
   const sendMessage = useCallback(async (content: string, attachment?: { path: string; mime: string }) => {
-    if (!content.trim() || isLoading) return;
+    if ((!content.trim() && !attachment) || isLoading) return;
 
     setError(null);
     setIsLoading(true);
