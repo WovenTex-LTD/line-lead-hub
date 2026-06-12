@@ -10,7 +10,7 @@ import {
 import { validateCreateCustomForm } from "../actions/forms.ts";
 
 const ADMIN_ROLES = ["admin", "owner", "superadmin"];
-const DENY = "You don't have access to manage POs — that requires an admin or owner role. Please contact your administrator.";
+const DENY = "You don't have access to make that change. It requires an admin or owner role. Please contact your administrator.";
 
 function gate(ctx: ToolContext): boolean {
   return ADMIN_ROLES.includes(ctx.role);
