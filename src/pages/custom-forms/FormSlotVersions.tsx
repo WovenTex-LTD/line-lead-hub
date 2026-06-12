@@ -99,7 +99,7 @@ export default function FormSlotVersions() {
             </CardHeader>
             <CardContent className="pt-0 pb-3 flex items-center gap-2">
               <Button asChild size="sm" variant="outline">
-                <Link to={slot.defaultPath}><ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Open form</Link>
+                <Link to={`/forms/preview/${slot.key}`}><ExternalLink className="h-3.5 w-3.5 mr-1.5" /> View form</Link>
               </Button>
               {admin && !defaultIsActive && (
                 <Button size="sm" variant="secondary" disabled={saving} onClick={() => activate(null)}>
