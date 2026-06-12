@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS public.custom_form_templates (
   description TEXT,
   status      TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','archived')),
   version     INT  NOT NULL DEFAULT 1,
-  allowed_fill_roles TEXT[] NOT NULL DEFAULT '{}',  -- empty => app default (admin, owner, supervisor)
+  target_role TEXT,            -- the single role/department this form belongs to (cutting, sewing, ...)
+  allowed_fill_roles TEXT[] NOT NULL DEFAULT '{}',  -- reserved; catalogue visibility is driven by target_role
   created_by  UUID,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -109,6 +110,15 @@ CREATE POLICY "custom_form_fields_update" ON public.custom_form_fields
              AND (public.is_superadmin(auth.uid())
                   OR EXISTS (SELECT 1 FROM public.custom_form_templates t
                              WHERE t.id = template_id AND t.factory_id = public.get_user_factory_id(auth.uid()))));
+-- Fields may be deleted by an admin when re-editing a form (delete + reinsert; the unique
+-- (template_id, key) constraint rules out soft-replace). Past submissions keep a fields_snapshot.
+DROP POLICY IF EXISTS "custom_form_fields_delete" ON public.custom_form_fields;
+CREATE POLICY "custom_form_fields_delete" ON public.custom_form_fields
+  FOR DELETE TO authenticated
+  USING (public.is_admin_or_higher(auth.uid())
+         AND (public.is_superadmin(auth.uid())
+              OR EXISTS (SELECT 1 FROM public.custom_form_templates t
+                         WHERE t.id = template_id AND t.factory_id = public.get_user_factory_id(auth.uid()))));
 
 -- Submissions: insert as yourself, within your factory, for a template in your factory; read own or admin; admin update/delete.
 DROP POLICY IF EXISTS "custom_form_submissions_insert" ON public.custom_form_submissions;
