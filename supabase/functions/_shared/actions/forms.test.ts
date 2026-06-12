@@ -111,3 +111,53 @@ describe("slot_key (form versions)", () => {
     if (r.ok) expect(r.action.payload.slot_key).toBe(null);
   });
 });
+
+describe("computed fields (formulas)", () => {
+  const base = (fields: any[]) => ({ name: "Efficiency", target_role: "sewing", fields });
+  it("resolves {Label} references to field keys", () => {
+    const r = validateCreateCustomForm(base([
+      { label: "Total Minutes Produced", type: "number" },
+      { label: "Total Minutes Attended", type: "number" },
+      { label: "Daily Line Efficiency", type: "computed", formula: "{Total Minutes Produced} / {Total Minutes Attended} * 100" },
+    ]));
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      const eff = (r.action.payload.fields as any[]).find((f) => f.label === "Daily Line Efficiency");
+      expect(eff.formula).toBe("total_minutes_produced / total_minutes_attended * 100");
+      expect(eff.is_required).toBe(false); // computed is never required
+    }
+  });
+  it("rejects a computed field with no formula", () => {
+    const r = validateCreateCustomForm(base([{ label: "X", type: "computed" }]));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.toLowerCase()).toContain("formula");
+  });
+  it("rejects a reference that matches no field", () => {
+    const r = validateCreateCustomForm(base([
+      { label: "A", type: "number" },
+      { label: "Total", type: "computed", formula: "{A} + {Nonexistent}" },
+    ]));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.toLowerCase()).toContain("nonexistent");
+  });
+  it("rejects a self-referential formula", () => {
+    const r = validateCreateCustomForm(base([
+      { label: "A", type: "number" },
+      { label: "Loop", type: "computed", formula: "{Loop} + {A}" },
+    ]));
+    expect(r.ok).toBe(false);
+  });
+  it("rejects a cycle between two computed fields", () => {
+    const r = validateCreateCustomForm(base([
+      { label: "P", type: "computed", formula: "{Q} + 1" },
+      { label: "Q", type: "computed", formula: "{P} + 1" },
+    ]));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.toLowerCase()).toContain("loop");
+  });
+  it("non-computed fields keep formula null", () => {
+    const r = validateCreateCustomForm(base([{ label: "Qty", type: "number" }]));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect((r.action.payload.fields as any[])[0].formula).toBe(null);
+  });
+});

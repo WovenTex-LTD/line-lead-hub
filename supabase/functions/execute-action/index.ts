@@ -109,6 +109,7 @@ serve(async (req) => {
         key: f.key, label: f.label, field_type: f.field_type,
         is_required: f.is_required === true,
         options: f.options ?? null,
+        formula: f.formula ?? null,
         sort_order: typeof f.sort_order === "number" ? f.sort_order : 0,
       }));
       const { data: inserted, error: fErr } = await userClient
@@ -149,6 +150,7 @@ serve(async (req) => {
         key: f.key, label: f.label, field_type: f.field_type,
         is_required: f.is_required === true,
         options: f.options ?? null,
+        formula: f.formula ?? null,
         sort_order: typeof f.sort_order === "number" ? f.sort_order : 0,
       }));
       const { data: inserted, error: fErr } = await userClient

@@ -49,6 +49,14 @@ export function CustomFormField({ field, value, error, onChange }: Props) {
           <Label>{field.label}{field.is_required ? " *" : ""}</Label>
         </div>
       )}
+      {field.field_type === "computed" && (
+        <Input
+          type="text" readOnly tabIndex={-1}
+          value={value === null || value === undefined || value === "" ? "—" : String(value)}
+          className="bg-muted/50 text-muted-foreground cursor-not-allowed"
+          aria-label={`${field.label} (calculated)`}
+        />
+      )}
       {field.help_text && <p className="text-xs text-muted-foreground">{field.help_text}</p>}
       {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
