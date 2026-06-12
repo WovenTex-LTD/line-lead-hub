@@ -10,9 +10,10 @@ interface Props {
   value: unknown;
   error?: string;
   onChange: (key: string, value: unknown) => void;
+  poOptions?: { value: string; label: string }[];
 }
 
-export function CustomFormField({ field, value, error, onChange }: Props) {
+export function CustomFormField({ field, value, error, onChange, poOptions }: Props) {
   const err = error ? "border-destructive" : "";
   const set = (v: unknown) => onChange(field.key, v);
 
@@ -48,6 +49,20 @@ export function CustomFormField({ field, value, error, onChange }: Props) {
           <Checkbox checked={Boolean(value)} onCheckedChange={(c) => set(Boolean(c))} />
           <Label>{field.label}{field.is_required ? " *" : ""}</Label>
         </div>
+      )}
+      {field.field_type === "po_select" && (
+        (poOptions?.length ?? 0) > 0 ? (
+          <Select value={(value as string) ?? ""} onValueChange={set}>
+            <SelectTrigger className={err}><SelectValue placeholder={field.placeholder ?? "Select a PO…"} /></SelectTrigger>
+            <SelectContent>
+              {poOptions!.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Input type="text" readOnly value="No active POs in this factory" className="bg-muted/50 text-muted-foreground cursor-not-allowed" />
+        )
       )}
       {(field.field_type === "computed" || field.field_type === "auto") && (
         <Input

@@ -123,6 +123,36 @@ export async function getSubmission(id: string): Promise<CustomFormSubmission | 
   return (data as CustomFormSubmission) || null;
 }
 
+/** The factory's active purchase orders as dropdown options for a po_select field. */
+export function useFactoryPOs() {
+  const { profile } = useAuth();
+  const [options, setOptions] = useState<{ value: string; label: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!profile?.factory_id) { setLoading(false); return; }
+      const { data } = await supabase
+        .from("work_orders").select("po_number, buyer, style")
+        .eq("factory_id", profile.factory_id).eq("is_active", true)
+        .order("po_number", { ascending: true });
+      if (cancelled) return;
+      const seen = new Set<string>();
+      const opts: { value: string; label: string }[] = [];
+      for (const w of (data as { po_number: string; buyer: string | null; style: string | null }[]) || []) {
+        if (!w.po_number || seen.has(w.po_number)) continue;
+        seen.add(w.po_number);
+        const extra = [w.buyer, w.style].filter(Boolean).join(" · ");
+        opts.push({ value: w.po_number, label: extra ? `${w.po_number} — ${extra}` : w.po_number });
+      }
+      setOptions(opts);
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [profile?.factory_id]);
+  return { options, loading };
+}
+
 /** All slot overrides for the user's factory, as a slot_key -> template_id map. */
 export function useSlotOverrides() {
   const { profile } = useAuth();

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useCustomFormConfig, submitCustomForm } from "@/hooks/useCustomForms";
+import { useCustomFormConfig, submitCustomForm, useFactoryPOs } from "@/hooks/useCustomForms";
 import { CustomFormRenderer } from "@/components/custom-forms/CustomFormRenderer";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ export default function CustomFormFill() {
   const { templateId } = useParams();
   const { config, loading } = useCustomFormConfig(templateId);
   const { user, profile, factory, isAdminOrHigher } = useAuth();
+  const { options: poOptions } = useFactoryPOs();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
 
@@ -46,6 +47,7 @@ export default function CustomFormFill() {
         submitting={submitting}
         onSubmit={onSubmit}
         autoContext={{ userName: profile?.full_name, userEmail: user?.email, factoryName: factory?.name }}
+        poOptions={poOptions}
       />
     </div>
   );

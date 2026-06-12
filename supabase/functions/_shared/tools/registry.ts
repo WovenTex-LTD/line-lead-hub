@@ -232,7 +232,7 @@ export const ALL_TOOLS: ToolDefinition[] = [
             type: "object",
             properties: {
               label: { type: "string" },
-              type: { type: "string", enum: ["text", "number", "date", "dropdown", "textarea", "checkbox", "computed", "auto"], description: "Use \"computed\" for a field auto-calculated by a formula over OTHER fields; \"auto\" for a field auto-filled from submission context (date/time, the person filling it, the factory)." },
+              type: { type: "string", enum: ["text", "number", "date", "dropdown", "textarea", "checkbox", "computed", "auto", "po_select"], description: "Use \"computed\" for a field auto-calculated by a formula over OTHER fields; \"auto\" for a field auto-filled from submission context (date/time, the person filling it, the factory); \"po_select\" for a dropdown that lets the person pick one of the factory's purchase orders." },
               required: { type: "boolean" },
               section: { type: "string", description: "Optional group/section heading this field belongs under." },
               options: { type: "array", items: { type: "string" }, description: "Choices for a dropdown field." },
@@ -262,7 +262,7 @@ export const ALL_TOOLS: ToolDefinition[] = [
             type: "object",
             properties: {
               label: { type: "string" },
-              type: { type: "string", enum: ["text", "number", "date", "dropdown", "textarea", "checkbox", "computed", "auto"], description: "Use \"computed\" for a formula field, \"auto\" for a context-filled field." },
+              type: { type: "string", enum: ["text", "number", "date", "dropdown", "textarea", "checkbox", "computed", "auto", "po_select"], description: "Use \"computed\" for a formula field, \"auto\" for a context-filled field, \"po_select\" for a purchase-order picker." },
               required: { type: "boolean" },
               section: { type: "string" },
               options: { type: "array", items: { type: "string" } },

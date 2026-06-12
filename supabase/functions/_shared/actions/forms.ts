@@ -4,7 +4,7 @@
 import type { ProposedAction, ValidationResult } from "./po.ts";
 import { extractRefs, isValidFormula } from "./formula.ts";
 
-const VALID_TYPES = ["text", "number", "date", "dropdown", "textarea", "checkbox", "computed", "auto"];
+const VALID_TYPES = ["text", "number", "date", "dropdown", "textarea", "checkbox", "computed", "auto", "po_select"];
 // Submission-context values an "auto" field can be filled from. Keep in sync with
 // AUTO_SOURCE_KEYS in src/lib/auto-fields.ts.
 const VALID_AUTO_SOURCES = [

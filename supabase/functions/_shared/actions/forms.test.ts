@@ -198,3 +198,18 @@ describe("auto fields (context-filled)", () => {
     if (r.ok) expect((r.action.payload.fields as any[])[0].auto_source).toBe(null);
   });
 });
+
+describe("po_select field", () => {
+  it("accepts a po_select field and allows it to be required", () => {
+    const r = validateCreateCustomForm({
+      name: "Line Report", target_role: "sewing",
+      fields: [{ label: "PO Number", type: "po_select", required: true }],
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      const f = (r.action.payload.fields as any[])[0];
+      expect(f.field_type).toBe("po_select");
+      expect(f.is_required).toBe(true);
+    }
+  });
+});

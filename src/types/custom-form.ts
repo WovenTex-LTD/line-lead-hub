@@ -1,4 +1,4 @@
-export type CustomFieldType = "text" | "number" | "date" | "dropdown" | "textarea" | "checkbox" | "computed" | "auto";
+export type CustomFieldType = "text" | "number" | "date" | "dropdown" | "textarea" | "checkbox" | "computed" | "auto" | "po_select";
 
 export interface CustomFieldOption { value: string; label: string; }
 
