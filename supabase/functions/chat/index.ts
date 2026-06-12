@@ -153,16 +153,23 @@ serve(async (req) => {
       content: m.content as string,
     }));
 
+    // Lina requires a factory to scope every tool query — fail safely if absent. Checked
+    // here (before the attachment fetch) so the path guard below has a real factory id.
+    if (!profile?.factory_id) {
+      throw new Error("Your account isn't linked to a factory yet, so I can't pull production data. Please contact your administrator.");
+    }
+
     // If the user attached an image/PDF, fetch it and attach it to the CURRENT user turn
     // (the last user item in conversationHistory) as a Claude vision content block.
     const ALLOWED_VISION_MIME = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
+    const MAX_VISION_BYTES = 10 * 1024 * 1024; // 10 MB cap on the base64'd payload / edge memory
     // The download uses the service client (bypasses storage RLS), so confirm the path
     // is inside THIS user's factory folder before fetching (defense in depth).
-    const attachmentInFactory = !!attachment?.path && attachment.path.startsWith(`${profile?.factory_id}/`);
+    const attachmentInFactory = !!attachment?.path && attachment.path.startsWith(`${profile.factory_id}/`);
     if (attachment?.path && attachmentInFactory && ALLOWED_VISION_MIME.includes(attachment.mime)) {
       try {
         const dl = await supabaseAdmin.storage.from("lina-uploads").download(attachment.path);
-        if (dl.data) {
+        if (dl.data && dl.data.size <= MAX_VISION_BYTES) {
           const bytes = new Uint8Array(await dl.data.arrayBuffer());
           const b64 = encodeBase64(bytes);
           const mime = attachment.mime;
@@ -177,6 +184,8 @@ serve(async (req) => {
             }
           }
           logStep("Attached vision block", { mime, bytes: bytes.length });
+        } else if (dl.data) {
+          logStep("Attachment too large, skipped", { size: dl.data.size });
         }
       } catch (e) {
         logStep("Attachment fetch failed", { error: e instanceof Error ? e.message : String(e) });
@@ -202,11 +211,6 @@ serve(async (req) => {
       });
     } catch (_e) {
       // fall back to the date string
-    }
-
-    // Lina requires a factory to scope every tool query — fail safely if absent.
-    if (!profile?.factory_id) {
-      throw new Error("Your account isn't linked to a factory yet, so I can't pull production data. Please contact your administrator.");
     }
 
     // Build the role-filtered tool set and Lina's persona prompt.

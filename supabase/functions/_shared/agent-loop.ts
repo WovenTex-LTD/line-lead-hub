@@ -56,6 +56,11 @@ export async function runAgentLoop(opts: {
     if (turn.text) finalText = turn.text;
 
     if (turn.stopReason !== "tool_use" || turn.toolUses.length === 0) {
+      // If the model ran out of output budget before producing a usable answer
+      // (e.g. extracting a very large form), say so instead of returning empty text.
+      if (turn.stopReason === "max_tokens" && !finalText) {
+        finalText = "That was a lot to take in at once. Could you try a smaller form, or split it into a couple of parts?";
+      }
       return { finalText, toolsUsed, turns, totalUsage };
     }
 

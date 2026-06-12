@@ -67,7 +67,7 @@ export function createAnthropicCaller(
   return async (messages: MessageParam[]): Promise<ModelTurn> => {
     const body = {
       model: MODEL,
-      max_tokens: 2048,
+      max_tokens: 8192,
       thinking: { type: "adaptive" as const },
       system: [
         { type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } },
