@@ -1,7 +1,7 @@
 // Claude LLM Helper — agentic loop helpers
 // Single-shot chat path removed; all responses go through the agent loop.
 
-import type { ModelTurn } from "./agent-loop.ts";
+import type { ModelTurn, MessageParam } from "./agent-loop.ts";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const MODEL = "claude-sonnet-4-6";
@@ -60,11 +60,11 @@ interface AnthropicTool {
 export function createAnthropicCaller(
   systemPrompt: string,
   tools: AnthropicTool[],
-): (messages: unknown[]) => Promise<ModelTurn> {
+): (messages: MessageParam[]) => Promise<ModelTurn> {
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured");
 
-  return async (messages: unknown[]): Promise<ModelTurn> => {
+  return async (messages: MessageParam[]): Promise<ModelTurn> => {
     const body = {
       model: MODEL,
       max_tokens: 2048,

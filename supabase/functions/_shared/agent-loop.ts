@@ -1,6 +1,14 @@
 // Manual Claude tool-calling loop. Pure: callModel and executeTool are injected.
 // This is the insertion point for future confirmation-gated write actions.
 
+/** A single message in the conversation history.
+ *  content is widened to `string | unknown[]` so callers can inject
+ *  multi-block vision payloads (e.g. image / document content blocks). */
+export interface MessageParam {
+  role: "user" | "assistant";
+  content: string | unknown[];
+}
+
 export interface ToolUseRequest {
   id: string;
   name: string;
@@ -15,7 +23,7 @@ export interface ModelTurn {
   usage: { inputTokens: number; outputTokens: number };
 }
 
-export type ModelCaller = (messages: unknown[]) => Promise<ModelTurn>;
+export type ModelCaller = (messages: MessageParam[]) => Promise<ModelTurn>;
 export type ToolExecutor = (name: string, input: Record<string, unknown>) => Promise<string>;
 
 export interface AgentResult {
@@ -28,13 +36,13 @@ export interface AgentResult {
 export const DEFAULT_MAX_TURNS = 6;
 
 export async function runAgentLoop(opts: {
-  initialMessages: unknown[];
+  initialMessages: MessageParam[];
   callModel: ModelCaller;
   executeTool: ToolExecutor;
   maxTurns?: number;
 }): Promise<AgentResult> {
   const maxTurns = opts.maxTurns ?? DEFAULT_MAX_TURNS;
-  const messages: unknown[] = [...opts.initialMessages];
+  const messages: MessageParam[] = [...opts.initialMessages];
   const toolsUsed: { name: string; input: Record<string, unknown> }[] = [];
   const totalUsage = { inputTokens: 0, outputTokens: 0 };
   let finalText = "";

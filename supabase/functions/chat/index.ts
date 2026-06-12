@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { encodeBase64 } from "https://deno.land/std@0.190.0/encoding/base64.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { getCorsHeaders } from "../_shared/security.ts";
@@ -8,12 +9,14 @@ import { buildLinaSystemPrompt } from "../_shared/persona.ts";
 import { getToolsForRole, toAnthropicTools, dispatchTool } from "../_shared/tools/registry.ts";
 import { getTodayForFactory } from "../_shared/live-data.ts";
 import { runAgentLoop } from "../_shared/agent-loop.ts";
+import type { MessageParam } from "../_shared/agent-loop.ts";
 import type { ToolContext, ExportRequest } from "../_shared/tools/types.ts";
 
 interface ChatRequest {
   message: string;
   conversation_id?: string;
   language?: "en" | "bn" | "zh";
+  attachment?: { path: string; mime: string } | null;
 }
 
 const logStep = (step: string, details?: Record<string, unknown>) => {
@@ -88,7 +91,7 @@ serve(async (req) => {
 
     // Parse request
     const body: ChatRequest = await req.json();
-    const { message, conversation_id, language: requestedLanguage } = body;
+    const { message, conversation_id, language: requestedLanguage, attachment } = body;
 
     if (!message || message.trim().length === 0) {
       throw new Error("Message is required");
@@ -143,12 +146,38 @@ serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(10);
 
-    const conversationHistory = (historyData || [])
+    const conversationHistory: MessageParam[] = (historyData || [])
       .reverse()
       .map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content as string,
     }));
+
+    // If the user attached an image/PDF, fetch it and attach it to the CURRENT user turn
+    // (the last user item in conversationHistory) as a Claude vision content block.
+    if (attachment?.path) {
+      try {
+        const dl = await supabaseAdmin.storage.from("lina-uploads").download(attachment.path);
+        if (dl.data) {
+          const bytes = new Uint8Array(await dl.data.arrayBuffer());
+          const b64 = encodeBase64(bytes);
+          const mime = attachment.mime || "image/jpeg";
+          const block = mime === "application/pdf"
+            ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: b64 } }
+            : { type: "image", source: { type: "base64", media_type: mime, data: b64 } };
+          for (let i = conversationHistory.length - 1; i >= 0; i--) {
+            if (conversationHistory[i].role === "user") {
+              const text = conversationHistory[i].content as string;
+              conversationHistory[i].content = [block, { type: "text", text }];
+              break;
+            }
+          }
+          logStep("Attached vision block", { mime, bytes: bytes.length });
+        }
+      } catch (e) {
+        logStep("Attachment fetch failed", { error: e instanceof Error ? e.message : String(e) });
+      }
+    }
 
     // Resolve "today" in the factory's timezone for date-scoped tools.
     const today = getTodayForFactory(factoryTimezone);
