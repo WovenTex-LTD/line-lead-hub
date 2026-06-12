@@ -155,13 +155,17 @@ serve(async (req) => {
 
     // If the user attached an image/PDF, fetch it and attach it to the CURRENT user turn
     // (the last user item in conversationHistory) as a Claude vision content block.
-    if (attachment?.path) {
+    const ALLOWED_VISION_MIME = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
+    // The download uses the service client (bypasses storage RLS), so confirm the path
+    // is inside THIS user's factory folder before fetching (defense in depth).
+    const attachmentInFactory = !!attachment?.path && attachment.path.startsWith(`${profile?.factory_id}/`);
+    if (attachment?.path && attachmentInFactory && ALLOWED_VISION_MIME.includes(attachment.mime)) {
       try {
         const dl = await supabaseAdmin.storage.from("lina-uploads").download(attachment.path);
         if (dl.data) {
           const bytes = new Uint8Array(await dl.data.arrayBuffer());
           const b64 = encodeBase64(bytes);
-          const mime = attachment.mime || "image/jpeg";
+          const mime = attachment.mime;
           const block = mime === "application/pdf"
             ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: b64 } }
             : { type: "image", source: { type: "base64", media_type: mime, data: b64 } };
