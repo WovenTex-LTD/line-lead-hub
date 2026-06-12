@@ -6,7 +6,7 @@ import {
   validateSetPoStatus, validateSetPoExFactory, validateArchivePo,
   type ProposedAction, type ValidationResult,
 } from "../_shared/actions/po.ts";
-import { validateCreateCustomForm } from "../_shared/actions/forms.ts";
+import { validateCreateCustomForm, validateUpdateCustomForm } from "../_shared/actions/forms.ts";
 
 const log = (s: string, d?: unknown) => console.log(`[EXECUTE-ACTION] ${s}${d ? " " + JSON.stringify(d) : ""}`);
 
@@ -19,6 +19,7 @@ function revalidate(kind: string, payload: Record<string, unknown>): ValidationR
     case "set_po_ex_factory": return validateSetPoExFactory(payload);
     case "archive_po": return validateArchivePo(payload);
     case "create_custom_form": return validateCreateCustomForm(payload);
+    case "update_custom_form": return validateUpdateCustomForm(payload);
     default: return { ok: false, error: `Unknown action: ${kind}` };
   }
 }
@@ -69,7 +70,7 @@ serve(async (req) => {
     if (kind === "create_custom_form") {
       const { data: tpl, error: tplErr } = await userClient
         .from("custom_form_templates")
-        .insert({ factory_id: factoryId, name: p.name, description: p.description ?? null, created_by: user.id })
+        .insert({ factory_id: factoryId, name: p.name, description: p.description ?? null, target_role: p.target_role ?? null, created_by: user.id })
         .select("id")
         .single();
       if (tplErr || !tpl) return json({ ok: false, error: rlsMsg(tplErr) });
@@ -91,6 +92,44 @@ serve(async (req) => {
       }
       await admin.from("audit_log").insert({
         factory_id: factoryId, user_id: user.id, action: "INSERT",
+        table_name: "custom_form_templates", record_id: tpl.id,
+        old_data: null, new_data: { name: p.name, field_count: rows.length },
+      });
+      log("done", { kind, recordId: tpl.id });
+      return json({ ok: true, summary: action.humanSummary, recordId: tpl.id });
+    }
+
+    // Custom-form update (edit-by-name): replace the existing form's field set. Returns early.
+    if (kind === "update_custom_form") {
+      const { data: tpl, error: findErr } = await userClient
+        .from("custom_form_templates").select("id, version")
+        .eq("factory_id", factoryId).eq("name", p.name).eq("status", "active")
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (findErr) return json({ ok: false, error: rlsMsg(findErr) });
+      if (!tpl) return json({ ok: false, error: `I couldn't find an active form named "${p.name}".` });
+
+      // Replace fields (delete + reinsert; the unique (template_id, key) constraint rules out soft-replace).
+      const { error: delErr } = await userClient.from("custom_form_fields").delete().eq("template_id", tpl.id);
+      if (delErr) return json({ ok: false, error: rlsMsg(delErr) });
+      const fields = Array.isArray(p.fields) ? (p.fields as Record<string, unknown>[]) : [];
+      const rows = fields.map((f) => ({
+        template_id: tpl.id,
+        section_label: f.section_label ?? null,
+        section_order: typeof f.section_order === "number" ? f.section_order : 0,
+        key: f.key, label: f.label, field_type: f.field_type,
+        is_required: f.is_required === true,
+        options: f.options ?? null,
+        sort_order: typeof f.sort_order === "number" ? f.sort_order : 0,
+      }));
+      const { data: inserted, error: fErr } = await userClient
+        .from("custom_form_fields").insert(rows).select("id");
+      if (fErr || !inserted?.length) {
+        return json({ ok: false, error: rlsMsg(fErr) || "The form's fields could not be updated." });
+      }
+      await userClient.from("custom_form_templates")
+        .update({ version: (typeof tpl.version === "number" ? tpl.version : 1) + 1 }).eq("id", tpl.id);
+      await admin.from("audit_log").insert({
+        factory_id: factoryId, user_id: user.id, action: "UPDATE",
         table_name: "custom_form_templates", record_id: tpl.id,
         old_data: null, new_data: { name: p.name, field_count: rows.length },
       });
