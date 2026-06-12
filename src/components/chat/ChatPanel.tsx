@@ -1,5 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, RotateCcw, AlertCircle, History } from "lucide-react";
+import { Send, Loader2, RotateCcw, AlertCircle, History, Paperclip, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,10 +40,28 @@ export function ChatPanel() {
     runAction,
   } = useChat();
 
+  const { profile } = useAuth();
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const shouldAutoScroll = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [attachment, setAttachment] = useState<{ path: string; mime: string; name: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handlePickFile = () => fileInputRef.current?.click();
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !profile?.factory_id) return;
+    if (file.size > 50 * 1024 * 1024) { toast.error("File is too large (max 50 MB)."); return; }
+    setUploading(true);
+    const path = `${profile.factory_id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+    const { error } = await supabase.storage.from("lina-uploads").upload(path, file, { contentType: file.type, upsert: false });
+    setUploading(false);
+    if (error) { toast.error("Upload failed: " + error.message); return; }
+    setAttachment({ path, mime: file.type, name: file.name });
+  };
 
   // Only auto-scroll when the user sends a message (so their message + loading
   // dots are visible). Do NOT scroll when the bot response arrives.
@@ -57,11 +78,13 @@ export function ChatPanel() {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!input.trim() || isLoading) return;
-    const message = input;
+    if ((!input.trim() && !attachment) || isLoading) return;
+    const message = input.trim() || "Please digitize this form.";
+    const att = attachment ? { path: attachment.path, mime: attachment.mime } : undefined;
     setInput("");
+    setAttachment(null);
     shouldAutoScroll.current = true;
-    await sendMessage(message);
+    await sendMessage(message, att);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -192,6 +215,13 @@ export function ChatPanel() {
           </div>
         </div>
 
+        <input ref={fileInputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFileChange} />
+        {attachment && (
+          <div className="flex items-center gap-2 rounded-md bg-muted px-2 py-1 text-xs">
+            <span className="truncate max-w-[200px]">{attachment.name}</span>
+            <button type="button" onClick={() => setAttachment(null)}><X className="h-3 w-3" /></button>
+          </div>
+        )}
         <form
           onSubmit={handleSubmit}
           className="group flex items-end gap-2 rounded-2xl border border-border bg-background p-1.5 pl-3 shadow-premium-sm transition-all duration-200 focus-within:border-primary/50 focus-within:shadow-glow"
@@ -206,14 +236,17 @@ export function ChatPanel() {
             disabled={isLoading}
             rows={1}
           />
+          <Button type="button" variant="ghost" size="icon" onClick={handlePickFile} disabled={uploading} title="Attach a form image or PDF">
+            <Paperclip className="h-4 w-4" />
+          </Button>
           <Button
             type="submit"
             size="icon"
-            disabled={isLoading || !input.trim()}
+            disabled={isLoading || (!input.trim() && !attachment)}
             aria-label="Send message"
             className={cn(
               "h-9 w-9 shrink-0 rounded-xl bg-gradient-to-br from-primary to-primary/80 transition-all duration-200",
-              input.trim() && !isLoading
+              (input.trim() || attachment) && !isLoading
                 ? "shadow-glow hover:scale-105 active:scale-95"
                 : "opacity-50"
             )}

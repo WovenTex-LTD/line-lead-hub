@@ -84,7 +84,7 @@ export interface UseChatReturn {
   conversationId: string | null;
   language: "en" | "bn" | "zh";
   setLanguage: (lang: "en" | "bn" | "zh") => void;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, attachment?: { path: string; mime: string }) => Promise<void>;
   submitFeedback: (messageId: string, feedback: "thumbs_up" | "thumbs_down", comment?: string) => Promise<void>;
   runAction: (action: PendingAction) => Promise<{ ok: boolean; summary?: string; error?: string }>;
   clearConversation: () => void;
@@ -117,7 +117,7 @@ export function useChat(): UseChatReturn {
     localStorage.setItem("chat-language", lang);
   }, []);
 
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string, attachment?: { path: string; mime: string }) => {
     if (!content.trim() || isLoading) return;
 
     setError(null);
@@ -162,6 +162,7 @@ export function useChat(): UseChatReturn {
           message: content,
           conversation_id: conversationId,
           language,
+          attachment: attachment ?? null,
         },
         headers: {
           Authorization: `Bearer ${accessToken}`,
