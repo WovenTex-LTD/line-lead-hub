@@ -32,7 +32,7 @@ export default function CustomFormFill() {
         )}
       </div>
       {config.template.description && <p className="text-sm text-muted-foreground mb-4">{config.template.description}</p>}
-      <CustomFormRenderer config={config} submitting={submitting} onSubmit={onSubmit} />
+      <CustomFormRenderer key={config.template.id} config={config} submitting={submitting} onSubmit={onSubmit} />
     </div>
   );
 }

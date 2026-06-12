@@ -46,7 +46,7 @@ export function CustomFormRenderer({ config, submitting, onSubmit }: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {sections.map((section, i) => (
-        <Card key={i}>
+        <Card key={`${section.label ?? ""}__${i}`}>
           {section.label && <CardHeader><CardTitle className="text-base">{section.label}</CardTitle></CardHeader>}
           <CardContent className="space-y-4 pt-4">
             {section.fields.map((f) => (

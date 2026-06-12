@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -13,12 +13,14 @@ function orderFields(fields: CustomFormField[]): CustomFormField[] {
 
 /** Templates in the user's factory the current user is allowed to FILL. */
 export function useFillableForms() {
-  const { profile, roles, isAdminOrHigher } = useAuth();
+  const { profile, roles } = useAuth();
   const [templates, setTemplates] = useState<CustomFormTemplate[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const admin = useMemo(() => roles.some((r) => ["admin", "owner", "superadmin"].includes(r.role)), [roles]);
+
   const fetchTemplates = useCallback(async () => {
-    if (!profile?.factory_id) return;
+    if (!profile?.factory_id) { setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase
       .from("custom_form_templates" as never)
@@ -29,7 +31,6 @@ export function useFillableForms() {
     if (error) { console.error("custom forms list:", error); setLoading(false); return; }
 
     const myRoles = new Set(roles.map((r) => r.role));
-    const admin = isAdminOrHigher();
     const fillable = (data as CustomFormTemplate[]).filter((t) => {
       if (admin) return true;
       const allowed = t.allowed_fill_roles?.length ? t.allowed_fill_roles : DEFAULT_FILL_ROLES;
@@ -37,7 +38,7 @@ export function useFillableForms() {
     });
     setTemplates(fillable);
     setLoading(false);
-  }, [profile?.factory_id, roles, isAdminOrHigher]);
+  }, [profile?.factory_id, roles, admin]);
 
   useEffect(() => { fetchTemplates(); }, [fetchTemplates]);
   return { templates, loading, refresh: fetchTemplates };
@@ -49,7 +50,7 @@ export function useAllForms() {
   const [templates, setTemplates] = useState<CustomFormTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const fetchAll = useCallback(async () => {
-    if (!profile?.factory_id) return;
+    if (!profile?.factory_id) { setLoading(false); return; }
     setLoading(true);
     const { data } = await supabase
       .from("custom_form_templates" as never).select("*")

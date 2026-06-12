@@ -8,7 +8,15 @@ export default function CustomFormSubmissionView() {
   const { submissionId } = useParams();
   const [sub, setSub] = useState<CustomFormSubmission | null>(null);
   const [loading, setLoading] = useState(true);
-  useEffect(() => { (async () => { if (submissionId) setSub(await getSubmission(submissionId)); setLoading(false); })(); }, [submissionId]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!submissionId) { setLoading(false); return; }
+      const result = await getSubmission(submissionId);
+      if (!cancelled) { setSub(result); setLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [submissionId]);
 
   if (loading) return <div className="container max-w-2xl py-4 px-4"><p className="text-muted-foreground">Loading…</p></div>;
   if (!sub) return <div className="container max-w-2xl py-4 px-4"><p>Submission not found.</p></div>;

@@ -210,7 +210,7 @@ export function useChat(): UseChatReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [conversationId, language, isLoading]);
+  }, [conversationId, language]);
 
   const runAction = useCallback(
     async (action: PendingAction): Promise<{ ok: boolean; summary?: string; error?: string }> => {

@@ -78,7 +78,7 @@ export function ChatPanel() {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if ((!input.trim() && !attachment) || isLoading) return;
+    if ((!input.trim() && !attachment) || isLoading || uploading) return;
     const message = input.trim() || "Please digitize this form.";
     const att = attachment ? { path: attachment.path, mime: attachment.mime } : undefined;
     setInput("");
@@ -219,7 +219,7 @@ export function ChatPanel() {
         {attachment && (
           <div className="flex items-center gap-2 rounded-md bg-muted px-2 py-1 text-xs">
             <span className="truncate max-w-[200px]">{attachment.name}</span>
-            <button type="button" onClick={() => setAttachment(null)}><X className="h-3 w-3" /></button>
+            <button type="button" onClick={() => { if (attachment) supabase.storage.from("lina-uploads").remove([attachment.path]); setAttachment(null); }}><X className="h-3 w-3" /></button>
           </div>
         )}
         <form
@@ -242,11 +242,11 @@ export function ChatPanel() {
           <Button
             type="submit"
             size="icon"
-            disabled={isLoading || (!input.trim() && !attachment)}
+            disabled={isLoading || uploading || (!input.trim() && !attachment)}
             aria-label="Send message"
             className={cn(
               "h-9 w-9 shrink-0 rounded-xl bg-gradient-to-br from-primary to-primary/80 transition-all duration-200",
-              (input.trim() || attachment) && !isLoading
+              (input.trim() || attachment) && !isLoading && !uploading
                 ? "shadow-glow hover:scale-105 active:scale-95"
                 : "opacity-50"
             )}

@@ -25,7 +25,7 @@ export function CustomFormField({ field, value, error, onChange }: Props) {
         <Input type="text" value={(value as string) ?? ""} placeholder={field.placeholder ?? ""} className={err} onChange={(e) => set(e.target.value)} />
       )}
       {field.field_type === "number" && (
-        <Input type="number" value={(value as string) ?? ""} placeholder={field.placeholder ?? ""} className={err} onChange={(e) => set(e.target.value === "" ? "" : Number(e.target.value))} />
+        <Input type="number" value={(value as string) ?? ""} placeholder={field.placeholder ?? ""} className={err} onChange={(e) => set(e.target.value === "" ? null : Number(e.target.value))} />
       )}
       {field.field_type === "date" && (
         <Input type="date" value={(value as string) ?? ""} className={err} onChange={(e) => set(e.target.value)} />
