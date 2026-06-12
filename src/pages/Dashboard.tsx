@@ -1,3 +1,4 @@
+import { CustomSubmissionModal } from "@/components/custom-forms/CustomSubmissionModal";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -97,6 +98,7 @@ interface TargetSubmission {
 
 interface EndOfDaySubmission {
   id: string;
+  customSubmissionId?: string | null; // set when this row came from a custom form
   type: 'sewing' | 'finishing';
   line_uuid: string;
   line_id: string;
@@ -269,6 +271,7 @@ export default function Dashboard() {
   const [activeBlockers, setActiveBlockers] = useState<ActiveBlocker[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
+  const [customModal, setCustomModal] = useState<{ id: string; title: string } | null>(null);
   const [selectedTarget, setSelectedTarget] = useState<TargetSubmission | null>(null);
   const [selectedCutting, setSelectedCutting] = useState<CuttingSubmission | null>(null);
   const [selectedCuttingTarget, setSelectedCuttingTarget] = useState<CuttingTarget | null>(null);
@@ -595,6 +598,7 @@ export default function Dashboard() {
         })
         .map(u => ({
           id: u.id,
+          customSubmissionId: (u as any).custom_data?.custom_submission_id ?? null,
           type: 'sewing' as const,
           line_uuid: u.line_id,
           line_id: u.lines?.line_id || 'Unknown',
@@ -1300,6 +1304,11 @@ export default function Dashboard() {
               setSewingViewOpen(true);
             }}
             onEodClick={(eod) => {
+              // A row from a custom form opens a detail driven by the form's own fields.
+              if ((eod as EndOfDaySubmission).customSubmissionId) {
+                setCustomModal({ id: (eod as EndOfDaySubmission).customSubmissionId as string, title: eod.line_name });
+                return;
+              }
               setSewingViewSource({ type: 'actual', id: eod.id });
               setSewingViewOpen(true);
             }}
@@ -1744,6 +1753,12 @@ export default function Dashboard() {
         target={selectedTarget ? { ...selectedTarget, submitted_at: selectedTarget.submitted_at || '' } : null}
         open={targetModalOpen}
         onOpenChange={setTargetModalOpen}
+      />
+
+      <CustomSubmissionModal
+        submissionId={customModal?.id ?? null}
+        title={customModal?.title}
+        onClose={() => setCustomModal(null)}
       />
 
       {(() => {
