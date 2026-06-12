@@ -10,7 +10,7 @@ import { ArrowLeft } from "lucide-react";
 export default function CustomFormFill() {
   const { templateId } = useParams();
   const { config, loading } = useCustomFormConfig(templateId);
-  const { user, isAdminOrHigher } = useAuth();
+  const { user, profile, factory, isAdminOrHigher } = useAuth();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
 
@@ -40,7 +40,13 @@ export default function CustomFormFill() {
         )}
       </div>
       {config.template.description && <p className="text-sm text-muted-foreground mb-4">{config.template.description}</p>}
-      <CustomFormRenderer key={config.template.id} config={config} submitting={submitting} onSubmit={onSubmit} />
+      <CustomFormRenderer
+        key={config.template.id}
+        config={config}
+        submitting={submitting}
+        onSubmit={onSubmit}
+        autoContext={{ userName: profile?.full_name, userEmail: user?.email, factoryName: factory?.name }}
+      />
     </div>
   );
 }

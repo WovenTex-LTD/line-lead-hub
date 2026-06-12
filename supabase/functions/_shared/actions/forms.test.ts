@@ -161,3 +161,40 @@ describe("computed fields (formulas)", () => {
     if (r.ok) expect((r.action.payload.fields as any[])[0].formula).toBe(null);
   });
 });
+
+describe("auto fields (context-filled)", () => {
+  const base = (fields: any[]) => ({ name: "Report", target_role: "sewing", fields });
+  it("accepts a valid auto_source and forces non-required", () => {
+    const r = validateCreateCustomForm(base([
+      { label: "Date", type: "auto", auto_source: "submission_date", required: true },
+      { label: "Filled By", type: "auto", auto_source: "user_name" },
+    ]));
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      const f = r.action.payload.fields as any[];
+      expect(f[0].auto_source).toBe("submission_date");
+      expect(f[0].is_required).toBe(false);
+      expect(f[1].auto_source).toBe("user_name");
+    }
+  });
+  it("accepts 'source' as an alias for auto_source", () => {
+    const r = validateCreateCustomForm(base([{ label: "Month", type: "auto", source: "current_month" }]));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect((r.action.payload.fields as any[])[0].auto_source).toBe("current_month");
+  });
+  it("rejects an auto field with no source", () => {
+    const r = validateCreateCustomForm(base([{ label: "X", type: "auto" }]));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.toLowerCase()).toContain("auto_source");
+  });
+  it("rejects an unknown auto source", () => {
+    const r = validateCreateCustomForm(base([{ label: "X", type: "auto", auto_source: "weather" }]));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.toLowerCase()).toContain("weather");
+  });
+  it("non-auto fields keep auto_source null", () => {
+    const r = validateCreateCustomForm(base([{ label: "Qty", type: "number" }]));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect((r.action.payload.fields as any[])[0].auto_source).toBe(null);
+  });
+});

@@ -1,4 +1,4 @@
-export type CustomFieldType = "text" | "number" | "date" | "dropdown" | "textarea" | "checkbox" | "computed";
+export type CustomFieldType = "text" | "number" | "date" | "dropdown" | "textarea" | "checkbox" | "computed" | "auto";
 
 export interface CustomFieldOption { value: string; label: string; }
 
@@ -17,6 +17,7 @@ export interface CustomFormField {
   sort_order: number;
   is_active: boolean;
   formula: string | null; // computed fields only: arithmetic over other field keys
+  auto_source: string | null; // auto fields only: which submission-context value fills this field
 }
 
 export interface CustomFormTemplate {

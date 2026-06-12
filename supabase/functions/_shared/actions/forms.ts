@@ -4,7 +4,13 @@
 import type { ProposedAction, ValidationResult } from "./po.ts";
 import { extractRefs, isValidFormula } from "./formula.ts";
 
-const VALID_TYPES = ["text", "number", "date", "dropdown", "textarea", "checkbox", "computed"];
+const VALID_TYPES = ["text", "number", "date", "dropdown", "textarea", "checkbox", "computed", "auto"];
+// Submission-context values an "auto" field can be filled from. Keep in sync with
+// AUTO_SOURCE_KEYS in src/lib/auto-fields.ts.
+const VALID_AUTO_SOURCES = [
+  "submission_date", "submission_time", "submission_datetime",
+  "current_month", "current_year", "user_name", "user_email", "factory_name",
+];
 // Roles a custom form can be tagged to (it shows in that role's catalogue).
 const VALID_FORM_ROLES = ["sewing", "cutting", "finishing", "qc", "storage", "worker"];
 // Default production form slots a custom form can be a VERSION of. The slot key
@@ -28,7 +34,8 @@ interface NormalizedField {
   key: string; label: string; field_type: string; is_required: boolean;
   options: { value: string; label: string }[] | null;
   section_label: string | null; section_order: number; sort_order: number;
-  formula: string | null; // computed fields: arithmetic referencing other field keys
+  formula: string | null;      // computed fields: arithmetic referencing other field keys
+  auto_source: string | null;  // auto fields: which submission-context value fills it
 }
 
 const normLabel = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
@@ -69,18 +76,26 @@ function normalizeFields(input: unknown): { ok: true; fields: NormalizedField[] 
     // (section_label/is_required), so execute-action's server-side re-validation of an
     // already-normalized payload preserves these instead of dropping them.
     const section = str(f.section) || str(f.section_label) || null;
-    // Computed fields are derived, never user-entered, so never required.
-    const required = type !== "computed" && (f.required === true || f.is_required === true);
+    // Computed and auto fields are derived, never user-entered, so never required.
+    const required = type !== "computed" && type !== "auto" && (f.required === true || f.is_required === true);
     if (section !== lastSection) { sectionOrder++; lastSection = section; }
     // Carry the RAW formula (may reference fields as {Label}); resolved in the 2nd pass.
     const formula = type === "computed" ? (str(f.formula) || null) : null;
     if (type === "computed" && !formula) {
       return { ok: false, error: `Computed field "${label}" needs a formula (e.g. "{Total Minutes Produced} / {Total Minutes Attended} * 100").` };
     }
+    let auto_source: string | null = null;
+    if (type === "auto") {
+      auto_source = str(f.auto_source) || str(f.source) || null;
+      if (!auto_source) return { ok: false, error: `Auto field "${label}" needs an auto_source (one of: ${VALID_AUTO_SOURCES.join(", ")}).` };
+      if (!VALID_AUTO_SOURCES.includes(auto_source)) {
+        return { ok: false, error: `Auto field "${label}" has an unknown source "${auto_source}". Use one of: ${VALID_AUTO_SOURCES.join(", ")}.` };
+      }
+    }
     fields.push({
       key, label, field_type: type, is_required: required,
       options, section_label: section, section_order: Math.max(0, sectionOrder), sort_order: i,
-      formula,
+      formula, auto_source,
     });
   }
 
