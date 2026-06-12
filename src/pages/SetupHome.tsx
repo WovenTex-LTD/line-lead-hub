@@ -14,6 +14,7 @@ import {
   Rows3,
   Receipt,
   ListOrdered,
+  ClipboardList,
   Clock,
   ChevronRight,
   AlertTriangle,
@@ -255,6 +256,19 @@ export default function SetupHome() {
               <h3 className="text-sm font-semibold">Add Work Orders</h3>
               <p className="text-xs text-muted-foreground mt-0.5">Create and manage purchase orders, assign to lines, import from CSV</p>
               <p className="text-xs font-mono font-semibold text-muted-foreground mt-1.5">{stats.activeWorkOrdersCount} active of {stats.workOrdersCount}</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors shrink-0" />
+          </div>
+        </Link>
+
+        <Link to="/forms">
+          <div className="group flex items-center gap-4 p-4 sm:p-5 rounded-xl border border-border/50 hover:border-border bg-card hover:bg-muted/20 transition-all duration-200 cursor-pointer">
+            <div className="h-11 w-11 rounded-lg bg-gradient-to-br from-teal-500 to-emerald-600 shadow-md shadow-teal-500/20 flex items-center justify-center shrink-0 group-hover:shadow-lg transition-shadow">
+              <ClipboardList className="h-5 w-5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-semibold">Forms</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Each department's default forms plus the custom forms Lina creates for you</p>
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors shrink-0" />
           </div>
