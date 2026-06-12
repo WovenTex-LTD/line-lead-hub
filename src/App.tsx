@@ -254,7 +254,7 @@ function AppRoutes() {
         {/* Custom Forms module routes */}
         <Route path="/forms" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker','admin','owner','sewing','finishing','cutting','qc','storage']}><CustomFormsList /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/forms/preview/:slotKey" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker','admin','owner','sewing','finishing','cutting','qc','storage']}><DefaultFormPreview /></ProtectedRoute></SubscriptionGate>} />
-        <Route path="/forms/versions/:ref" element{<SubscriptionGate><ProtectedRoute allowedRoles={['worker','admin','owner','sewing','finishing','cutting','qc','storage']}><FormSlotVersions /></ProtectedRoute></SubscriptionGate>} />
+        <Route path="/forms/versions/:ref" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker','admin','owner','sewing','finishing','cutting','qc','storage']}><FormSlotVersions /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/forms/:templateId" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker','admin','owner','sewing','finishing','cutting','qc','storage']}><CustomFormFill /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/forms/:templateId/submissions" element={<SubscriptionGate><ProtectedRoute adminOnly><CustomFormSubmissions /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/forms/submissions/:submissionId" element={<SubscriptionGate><ProtectedRoute adminOnly><CustomFormSubmissionView /></ProtectedRoute></SubscriptionGate>} />
