@@ -1,3 +1,4 @@
+import { CustomSubmissionModal } from "@/components/custom-forms/CustomSubmissionModal";
 import { searchNorm } from "@/lib/normalize-name";
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -181,6 +182,7 @@ export default function AllSubmissions() {
   // Modal state
   const [selectedTarget, setSelectedTarget] = useState<any>(null);
   const [selectedActual, setSelectedActual] = useState<any>(null);
+  const [customModal, setCustomModal] = useState<{ id: string; title: string } | null>(null);
   const [targetModalOpen, setTargetModalOpen] = useState(false);
   const [actualModalOpen, setActualModalOpen] = useState(false);
   const [sewingViewOpen, setSewingViewOpen] = useState(false);
@@ -488,6 +490,11 @@ export default function AllSubmissions() {
   };
 
   const handleActualClick = (actual: SewingActual | FinishingActual) => {
+    const customId = (actual as any).custom_data?.custom_submission_id;
+    if (customId) {
+      setCustomModal({ id: customId, title: actual.lines?.name || actual.lines?.line_id || 'Submission' });
+      return;
+    }
     if (department === 'sewing') {
       setSewingViewSource({ type: 'actual', id: actual.id });
       setSewingViewOpen(true);
@@ -1012,6 +1019,12 @@ export default function AllSubmissions() {
         onOpenChange={setActualModalOpen}
         onDeleted={fetchSubmissions}
         onUpdated={fetchSubmissions}
+      />
+
+      <CustomSubmissionModal
+        submissionId={customModal?.id ?? null}
+        title={customModal?.title}
+        onClose={() => setCustomModal(null)}
       />
 
       {/* Sewing Submission View */}
