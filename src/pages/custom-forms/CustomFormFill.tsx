@@ -26,8 +26,15 @@ export default function CustomFormFill() {
     setSubmitting(true);
     const res = await submitCustomForm(config, values, user?.id);
     setSubmitting(false);
-    if (res.ok) { toast.success("Submitted"); navigate("/forms"); }
-    else toast.error(res.error || "Submission failed");
+    if (res.ok) {
+      toast.success("Submitted");
+      // Land on the record so it's clearly saved and viewable. Admins go to the
+      // form's submissions list; others (who can't open that admin view) go back.
+      if (isAdminOrHigher()) navigate(`/forms/${config.template.id}/submissions`);
+      else navigate("/forms");
+    } else {
+      toast.error(res.error || "Submission failed");
+    }
   };
 
   return (
