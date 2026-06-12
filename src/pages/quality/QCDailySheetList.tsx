@@ -134,7 +134,7 @@ export default function QCDailySheetList() {
     if (tab === "today") list = list.filter((r) => r.inspection_date === today);
     else if (tab !== "all") list = list.filter((r) => r.status === tab);
     if (search) {
-      const q = search.toLowerCase();
+      const q = search.trim().toLowerCase();
       list = list.filter(
         (r) =>
           r.po_number.toLowerCase().includes(q) ||

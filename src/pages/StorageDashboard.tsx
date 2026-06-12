@@ -265,7 +265,7 @@ export default function StorageDashboard() {
     // First pass: standard filtering
     const directMatches = binCards.filter(card => {
       if (searchTerm) {
-        const term = searchTerm.toLowerCase();
+        const term = searchTerm.trim().toLowerCase();
         let matchesSearch = (
           card.work_orders.po_number.toLowerCase().includes(term) ||
           card.work_orders.buyer.toLowerCase().includes(term) ||

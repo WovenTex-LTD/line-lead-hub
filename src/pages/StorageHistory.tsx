@@ -180,7 +180,7 @@ export default function StorageHistory() {
     const directMatches = binCards.filter(card => {
       // Text search — also match any PO in the same group + group_name
       if (searchTerm) {
-        const term = searchTerm.toLowerCase();
+        const term = searchTerm.trim().toLowerCase();
         let matchesSearch = (
           card.work_orders.po_number.toLowerCase().includes(term) ||
           card.work_orders.buyer.toLowerCase().includes(term) ||

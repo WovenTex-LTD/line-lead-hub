@@ -202,7 +202,7 @@ export function CuttingSubmissionsTable({
 
   const filteredSubmissions = useMemo(() => {
     if (!searchTerm) return submissions;
-    const term = searchTerm.toLowerCase();
+    const term = searchTerm.trim().toLowerCase();
     return submissions.filter(s =>
       (s.lines?.name || s.lines?.line_id || "").toLowerCase().includes(term) ||
       (s.work_orders?.po_number || s.po_no || "").toLowerCase().includes(term) ||

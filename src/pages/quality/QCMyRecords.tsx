@@ -259,7 +259,7 @@ export default function QCMyRecords() {
     if (tab === "tracker" || tab === "sheet") list = list.filter((r) => r.kind === tab);
     else if (tab !== "all") list = list.filter((r) => r.status === tab);
     if (search) {
-      const q = search.toLowerCase();
+      const q = search.trim().toLowerCase();
       list = list.filter(
         (r) =>
           r.po_number.toLowerCase().includes(q) ||

@@ -308,7 +308,7 @@ export default function AllSubmissions() {
   // Filter functions
   const filterBySearch = <T extends { lines?: { line_id: string; name: string | null } | null; work_orders?: { po_number: string; buyer?: string } | null }>(items: T[]) => {
     if (!searchTerm) return items;
-    const term = searchTerm.toLowerCase();
+    const term = searchTerm.trim().toLowerCase();
     return items.filter(item =>
       (item.lines?.name || item.lines?.line_id || '').toLowerCase().includes(term) ||
       (item.work_orders?.po_number || '').toLowerCase().includes(term) ||

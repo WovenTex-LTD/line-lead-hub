@@ -341,7 +341,7 @@ function CheckboxList({ options, selected, onToggle, maxVisible = 8 }: CheckboxL
     () =>
       search.trim()
         ? options.filter((o) =>
-            o.label.toLowerCase().includes(search.toLowerCase())
+            o.label.toLowerCase().includes(search.trim().toLowerCase())
           )
         : options,
     [options, search]

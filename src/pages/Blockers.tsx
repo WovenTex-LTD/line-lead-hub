@@ -90,7 +90,7 @@ export default function Blockers() {
   // Important: we do NOT populate the search input, so the full blocker list stays visible.
   useEffect(() => {
     if (!loading && blockers.length > 0 && deepLinkSearch) {
-      const q = deepLinkSearch.toLowerCase();
+      const q = deepLinkSearch.trim().toLowerCase();
       const matchingBlocker = blockers.find((b) =>
         b.line_name.toLowerCase().includes(q) || (b.description || "").toLowerCase().includes(q)
       );
@@ -292,9 +292,9 @@ export default function Blockers() {
   }
 
   const filteredBlockers = blockers.filter(b => {
-    const matchesSearch = b.line_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (b.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (b.po_number || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = b.line_name.toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
+      (b.description || '').toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
+      (b.po_number || '').toLowerCase().includes(searchTerm.trim().toLowerCase());
     const matchesImpact = filterImpact === 'all' || b.impact === filterImpact;
     const matchesTab = activeTab === 'all' || b.status === activeTab;
     return matchesSearch && matchesImpact && matchesTab;

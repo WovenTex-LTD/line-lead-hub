@@ -179,9 +179,9 @@ export default function UsersPage() {
   };
 
   const filteredUsers = users.filter(user =>
-    user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (user.role || '').toLowerCase().includes(searchTerm.toLowerCase())
+    user.full_name.toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
+    user.email.toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
+    (user.role || '').toLowerCase().includes(searchTerm.trim().toLowerCase())
   );
 
   const getRoleBadgeClass = (role: string | null) => {

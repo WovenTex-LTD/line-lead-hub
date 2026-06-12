@@ -172,7 +172,7 @@ export default function ErrorLogs() {
   // Client-side search filtering on the current page
   const filteredLogs = useMemo(() => {
     if (!searchTerm.trim()) return logs;
-    const q = searchTerm.toLowerCase();
+    const q = searchTerm.trim().toLowerCase();
     return logs.filter(
       (l) =>
         l.message.toLowerCase().includes(q) ||

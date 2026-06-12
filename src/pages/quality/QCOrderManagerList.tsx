@@ -111,7 +111,7 @@ export default function QCOrderManagerList() {
     let list = rows;
     if (tab !== "all") list = list.filter((r) => effectiveTrackerStatus(r) === tab);
     if (search) {
-      const q = search.toLowerCase();
+      const q = search.trim().toLowerCase();
       list = list.filter(
         (r) =>
           r.po_number.toLowerCase().includes(q) ||

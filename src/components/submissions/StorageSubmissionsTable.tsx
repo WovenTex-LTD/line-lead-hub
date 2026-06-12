@@ -203,7 +203,7 @@ export function StorageSubmissionsTable({
 
   const filteredCards = useMemo(() => {
     if (!searchTerm) return binCards;
-    const term = searchTerm.toLowerCase();
+    const term = searchTerm.trim().toLowerCase();
     return binCards.filter(card =>
       card.work_orders.po_number.toLowerCase().includes(term) ||
       card.work_orders.buyer.toLowerCase().includes(term) ||

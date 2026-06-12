@@ -221,7 +221,7 @@ export default function SewingMySubmissions() {
 
     // Search filter
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+      const query = searchQuery.trim().toLowerCase();
       result = result.filter(
         (item) =>
           item.work_order?.po_number?.toLowerCase().includes(query) ||

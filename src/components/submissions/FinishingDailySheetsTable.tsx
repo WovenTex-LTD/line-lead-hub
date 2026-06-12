@@ -164,7 +164,7 @@ export function FinishingDailySheetsTable({
       const matchesTab = activeTab === "targets" ? log.log_type === "TARGET" : log.log_type === "OUTPUT";
       if (!matchesTab) return false;
       if (!searchTerm) return true;
-      const search = searchTerm.toLowerCase();
+      const search = searchTerm.trim().toLowerCase();
       return (
         (log.po_number?.toLowerCase() || "").includes(search) ||
         (log.style?.toLowerCase() || "").includes(search) ||

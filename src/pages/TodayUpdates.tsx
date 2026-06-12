@@ -413,39 +413,39 @@ export default function TodayUpdates() {
   }
 
   const filteredSewing = sewingUpdates.filter(u => 
-    (u.lines?.name || u.lines?.line_id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (u.work_orders?.po_number || '').toLowerCase().includes(searchTerm.toLowerCase())
+    (u.lines?.name || u.lines?.line_id || '').toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
+    (u.work_orders?.po_number || '').toLowerCase().includes(searchTerm.trim().toLowerCase())
   );
 
   const filteredFinishing = finishingDailyLogs.filter(s =>
-    (s.work_orders?.po_number || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (s.work_orders?.buyer || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (s.work_orders?.style || '').toLowerCase().includes(searchTerm.toLowerCase())
+    (s.work_orders?.po_number || '').toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
+    (s.work_orders?.buyer || '').toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
+    (s.work_orders?.style || '').toLowerCase().includes(searchTerm.trim().toLowerCase())
   );
 
   const filteredCutting = cuttingActuals.filter(c =>
-    (c.lines?.name || c.lines?.line_id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (c.work_orders?.po_number || '').toLowerCase().includes(searchTerm.toLowerCase())
+    (c.lines?.name || c.lines?.line_id || '').toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
+    (c.work_orders?.po_number || '').toLowerCase().includes(searchTerm.trim().toLowerCase())
   );
 
   const filteredCuttingTargets = cuttingTargets.filter(t =>
-    (t.lines?.name || t.lines?.line_id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (t.work_orders?.po_number || '').toLowerCase().includes(searchTerm.toLowerCase())
+    (t.lines?.name || t.lines?.line_id || '').toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
+    (t.work_orders?.po_number || '').toLowerCase().includes(searchTerm.trim().toLowerCase())
   );
 
   const filteredSewingTargets = sewingTargets.filter(t =>
-    (t.lines?.name || t.lines?.line_id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (t.work_orders?.po_number || '').toLowerCase().includes(searchTerm.toLowerCase())
+    (t.lines?.name || t.lines?.line_id || '').toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
+    (t.work_orders?.po_number || '').toLowerCase().includes(searchTerm.trim().toLowerCase())
   );
 
   const filteredSewingActuals = sewingActuals.filter(a =>
-    (a.lines?.name || a.lines?.line_id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (a.work_orders?.po_number || '').toLowerCase().includes(searchTerm.toLowerCase())
+    (a.lines?.name || a.lines?.line_id || '').toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
+    (a.work_orders?.po_number || '').toLowerCase().includes(searchTerm.trim().toLowerCase())
   );
 
   const filteredStorage = (storageTransactions || []).filter(s =>
-    (s.storage_bin_cards?.work_orders?.po_number || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (s.storage_bin_cards?.style || '').toLowerCase().includes(searchTerm.toLowerCase())
+    (s.storage_bin_cards?.work_orders?.po_number || '').toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
+    (s.storage_bin_cards?.style || '').toLowerCase().includes(searchTerm.trim().toLowerCase())
   );
 
   // Group storage transactions by po_set_signature or batch_id

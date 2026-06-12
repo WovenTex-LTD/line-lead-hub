@@ -541,7 +541,7 @@ export function useLinePerformance() {
     const { searchTerm, unitFilter, floorFilter } = filters;
 
     if (searchTerm) {
-      const term = searchTerm.toLowerCase();
+      const term = searchTerm.trim().toLowerCase();
       result = result.filter(
         (l) =>
           (l.name || l.lineId).toLowerCase().includes(term) ||

@@ -683,10 +683,10 @@ export default function WorkOrders() {
   }
 
   const filteredWorkOrders = workOrders.filter(wo => 
-    wo.po_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    wo.buyer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    wo.style.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (wo.item && wo.item.toLowerCase().includes(searchQuery.toLowerCase()))
+    wo.po_number.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+    wo.buyer.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+    wo.style.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+    (wo.item && wo.item.toLowerCase().includes(searchQuery.trim().toLowerCase()))
   );
 
   if (loading) {

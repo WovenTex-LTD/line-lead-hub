@@ -547,7 +547,7 @@ export function usePOControlRoom(filters: POFilters = EMPTY_FILTERS) {
     }
 
     if (searchTerm) {
-      const q = searchTerm.toLowerCase();
+      const q = searchTerm.trim().toLowerCase();
       list = list.filter(
         (po) =>
           po.po_number.toLowerCase().includes(q) ||
@@ -637,7 +637,7 @@ export function usePOControlRoom(filters: POFilters = EMPTY_FILTERS) {
     }
 
     if (searchTerm) {
-      const q = searchTerm.toLowerCase();
+      const q = searchTerm.trim().toLowerCase();
       list = list.filter((so) => {
         if (so.buyer.toLowerCase().includes(q)) return true;
         if (so.style_name.toLowerCase().includes(q)) return true;
@@ -659,7 +659,7 @@ export function usePOControlRoom(filters: POFilters = EMPTY_FILTERS) {
   const clusteredRunning = useMemo((): Map<POCluster, POControlRoomData[]> => {
     let running = baseOrders.filter((po) => po.workflowState === "running");
     if (searchTerm) {
-      const q = searchTerm.toLowerCase();
+      const q = searchTerm.trim().toLowerCase();
       running = running.filter(
         (po) =>
           po.po_number.toLowerCase().includes(q) ||

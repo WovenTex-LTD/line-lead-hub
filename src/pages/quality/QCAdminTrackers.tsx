@@ -150,7 +150,7 @@ export default function QCAdminTrackers() {
       );
     }
     if (search) {
-      const q = search.toLowerCase();
+      const q = search.trim().toLowerCase();
       list = list.filter(
         (r) =>
           r.po_number.toLowerCase().includes(q) ||
