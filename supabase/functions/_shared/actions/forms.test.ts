@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateCreateCustomForm, validateUpdateCustomForm, applyFormEdits } from "./forms";
+import { validateCreateCustomForm, validateUpdateCustomForm, applyFormEdits, resolveProductionMapping } from "./forms";
 
 describe("validateCreateCustomForm", () => {
   it("requires a name", () => {
@@ -298,6 +298,34 @@ describe("applyFormEdits (diff-based editing)", () => {
   });
   it("refuses to remove the last field", () => {
     const r = applyFormEdits([{ label: "Only", type: "text" }], { remove: ["Only"] });
+    expect(r.ok).toBe(false);
+  });
+});
+
+describe("resolveProductionMapping", () => {
+  const fields = [
+    { label: "Line output (Production)", key: "line_output_production" },
+    { label: "Daily Manpower", key: "daily_manpower" },
+    { label: "Worked Hours", key: "worked_hours" },
+  ];
+  it("resolves friendly keys to field keys for the slot", () => {
+    const r = resolveProductionMapping("sewing_end_of_day", {
+      good_output: "Line output (Production)", manpower: "Daily Manpower", hours: "Worked Hours",
+    }, fields);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.mapping).toEqual({ good_output: "line_output_production", manpower: "daily_manpower", hours: "worked_hours" });
+  });
+  it("rejects a target key not valid for the slot", () => {
+    const r = resolveProductionMapping("sewing_end_of_day", { qc_pass: "Worked Hours" }, fields);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.toLowerCase()).toContain("qc_pass");
+  });
+  it("rejects a mapping to a field that isn't on the form", () => {
+    const r = resolveProductionMapping("sewing_end_of_day", { manpower: "Nonexistent Field" }, fields);
+    expect(r.ok).toBe(false);
+  });
+  it("rejects when the slot has no production target", () => {
+    const r = resolveProductionMapping(null, { manpower: "Daily Manpower" }, fields);
     expect(r.ok).toBe(false);
   });
 });

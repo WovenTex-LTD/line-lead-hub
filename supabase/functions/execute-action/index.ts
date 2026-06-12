@@ -96,7 +96,7 @@ serve(async (req) => {
     if (kind === "create_custom_form") {
       const { data: tpl, error: tplErr } = await userClient
         .from("custom_form_templates")
-        .insert({ factory_id: factoryId, name: p.name, description: p.description ?? null, target_role: p.target_role ?? null, slot_key: p.slot_key ?? null, created_by: user.id })
+        .insert({ factory_id: factoryId, name: p.name, description: p.description ?? null, target_role: p.target_role ?? null, slot_key: p.slot_key ?? null, production_mapping: p.production_mapping ?? null, created_by: user.id })
         .select("id")
         .single();
       if (tplErr || !tpl) return json({ ok: false, error: rlsMsg(tplErr) });
@@ -162,8 +162,11 @@ serve(async (req) => {
       if (fErr || !inserted?.length) {
         return json({ ok: false, error: rlsMsg(fErr) || "The form's fields could not be updated." });
       }
-      await userClient.from("custom_form_templates")
-        .update({ version: (typeof tpl.version === "number" ? tpl.version : 1) + 1 }).eq("id", tpl.id);
+      {
+        const tplUpdate: Record<string, unknown> = { version: (typeof tpl.version === "number" ? tpl.version : 1) + 1 };
+        if (p.production_mapping !== undefined) tplUpdate.production_mapping = p.production_mapping ?? null;
+        await userClient.from("custom_form_templates").update(tplUpdate).eq("id", tpl.id);
+      }
       await admin.from("audit_log").insert({
         factory_id: factoryId, user_id: user.id, action: "UPDATE",
         table_name: "custom_form_templates", record_id: tpl.id,

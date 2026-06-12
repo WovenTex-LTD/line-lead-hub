@@ -30,6 +30,7 @@ export interface CustomFormTemplate {
   version: number;
   target_role: string | null;
   slot_key: string | null;
+  production_mapping: Record<string, string> | null; // friendly target key -> field key
   allowed_fill_roles: string[];
   created_by: string | null;
   created_at: string;

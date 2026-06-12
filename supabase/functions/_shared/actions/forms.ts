@@ -196,7 +196,7 @@ export function validateCreateCustomForm(input: Record<string, unknown>): Valida
     humanSummary: slot_key
       ? `Create "${name}" as a new version of ${SLOT_LABEL(slot_key)} (${norm.fields.length} field${norm.fields.length === 1 ? "" : "s"})`
       : `Create ${target_role} form "${name}" with ${norm.fields.length} field${norm.fields.length === 1 ? "" : "s"}`,
-    payload: { name, description: str(input.description) || null, target_role, slot_key, allowed_fill_roles: [], fields: norm.fields },
+    payload: { name, description: str(input.description) || null, target_role, slot_key, allowed_fill_roles: [], fields: norm.fields, ...(input.production_mapping && typeof input.production_mapping === "object" ? { production_mapping: input.production_mapping } : {}) },
   };
   return { ok: true, action };
 }
@@ -212,7 +212,7 @@ export function validateUpdateCustomForm(input: Record<string, unknown>): Valida
   const action: ProposedAction = {
     kind: "update_custom_form",
     humanSummary: `Update form "${name}" to ${norm.fields.length} field${norm.fields.length === 1 ? "" : "s"}`,
-    payload: { name, fields: norm.fields },
+    payload: { name, fields: norm.fields, ...(input.production_mapping && typeof input.production_mapping === "object" ? { production_mapping: input.production_mapping } : {}) },
   };
   return { ok: true, action };
 }
@@ -311,4 +311,42 @@ export function summarizeFormEdits(name: string, ops: FormEditOps): string {
   if (ops.rename?.length) parts.push(`rename ${ops.rename.map((r) => `"${r.from}" → "${r.to}"`).join(", ")}`);
   if (ops.set?.length) parts.push(`update ${ops.set.map((s) => `"${s.field}"`).join(", ")}`);
   return `Edit form "${name}": ${parts.join("; ") || "no changes"}`;
+}
+
+// ── Production mapping ──────────────────────────────────────────────────────
+// Friendly target keys a custom slot-form can map its fields onto (mirror of
+// SLOT_PRODUCTION in src/lib/production-slots.ts). Line and PO are auto-detected
+// from the form's picker fields, so they're not listed here.
+export const PRODUCTION_SLOT_TARGETS: Record<string, string[]> = {
+  sewing_morning_targets: ["per_hour_target", "manpower", "hours", "ot_hours"],
+  sewing_end_of_day: ["good_output", "reject", "rework", "manpower", "hours", "ot_hours"],
+  cutting_morning_targets: ["manpower", "marker_capacity", "lay_capacity", "cutting_capacity", "day_cutting", "day_input", "hours"],
+  cutting_end_of_day: ["day_cutting", "day_input", "manpower", "marker_capacity", "lay_capacity", "cutting_capacity", "hours"],
+  finishing_daily_target: ["per_hour_target", "manpower", "hours", "ot_hours"],
+  finishing_daily_output: ["qc_pass", "poly", "carton", "manpower", "hours", "ot_hours"],
+};
+
+/** Resolve a production_mapping ({ friendlyKey: fieldLabel }) against a slot and the
+ *  form's (normalized) fields, returning { friendlyKey: fieldKey }. Validates the
+ *  target keys and that each referenced field exists. */
+export function resolveProductionMapping(
+  slotKey: string | null | undefined,
+  rawMapping: Record<string, unknown>,
+  fields: { label: string; key: string }[],
+): { ok: true; mapping: Record<string, string> } | { ok: false; error: string } {
+  if (!slotKey || !PRODUCTION_SLOT_TARGETS[slotKey]) {
+    return { ok: false, error: "Production mapping only applies to a form that's a version of a default production form (set its slot first)." };
+  }
+  const targets = PRODUCTION_SLOT_TARGETS[slotKey];
+  const labelToKey = new Map(fields.map((f) => [normLabel(f.label), f.key]));
+  const out: Record<string, string> = {};
+  for (const [friendlyKey, lbl] of Object.entries(rawMapping)) {
+    if (!targets.includes(friendlyKey)) {
+      return { ok: false, error: `"${friendlyKey}" isn't a production value for this form. Use one of: ${targets.join(", ")}.` };
+    }
+    const key = labelToKey.get(normLabel(String(lbl)));
+    if (!key) return { ok: false, error: `The field "${lbl}" (mapped to ${friendlyKey}) isn't on this form.` };
+    out[friendlyKey] = key;
+  }
+  return { ok: true, mapping: out };
 }

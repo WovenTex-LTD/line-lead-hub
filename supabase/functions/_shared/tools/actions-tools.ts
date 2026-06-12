@@ -9,8 +9,24 @@ import {
 } from "../actions/po.ts";
 import {
   validateCreateCustomForm, validateUpdateCustomForm,
-  applyFormEdits, summarizeFormEdits, type FormEditOps,
+  applyFormEdits, summarizeFormEdits, resolveProductionMapping, type FormEditOps,
 } from "../actions/forms.ts";
+
+/** Resolve + attach a production_mapping to a proposed form action. The action's
+ *  payload.fields are already normalized (label + key), and slotKey identifies the
+ *  production slot. Returns an error string on failure, or null on success/no-op. */
+function attachProductionMapping(
+  action: { payload: Record<string, unknown> },
+  slotKey: string | null,
+  rawMapping: unknown,
+): string | null {
+  if (!rawMapping || typeof rawMapping !== "object") return null;
+  const fields = (action.payload.fields as { label: string; key: string }[]) ?? [];
+  const res = resolveProductionMapping(slotKey, rawMapping as Record<string, unknown>, fields);
+  if (!res.ok) return res.error;
+  action.payload.production_mapping = res.mapping;
+  return null;
+}
 
 const ADMIN_ROLES = ["admin", "owner", "superadmin"];
 const DENY = "You don't have access to make that change. It requires an admin or owner role. Please contact your administrator.";
@@ -103,7 +119,12 @@ export async function archivePoTool(ctx: ToolContext, input: Record<string, unkn
 
 export async function proposeCreateFormTool(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
   if (!gate(ctx)) return DENY;
-  return propose(ctx, validateCreateCustomForm(input));
+  const result = validateCreateCustomForm(input);
+  if (result.ok && input.production_mapping) {
+    const err = attachProductionMapping(result.action, (input.slot_key as string) ?? null, input.production_mapping);
+    if (err) return err;
+  }
+  return propose(ctx, result);
 }
 export async function proposeUpdateFormTool(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
   if (!gate(ctx)) return DENY;
@@ -120,19 +141,20 @@ const FIELD_TYPE_DESC: Record<string, (f: Record<string, unknown>) => string> = 
 
 /** Read a form's current fields so the (model and the) edit tool work from truth. */
 async function loadFormFields(ctx: ToolContext, name: string): Promise<
-  | { ok: true; templateName: string; role: string | null; rows: Record<string, unknown>[] }
+  | { ok: true; templateName: string; role: string | null; slotKey: string | null; rows: Record<string, unknown>[] }
   | { ok: false; error: string }
 > {
   const { data: tpl } = await ctx.supabase
-    .from("custom_form_templates").select("id, name, target_role")
+    .from("custom_form_templates").select("id, name, target_role, slot_key")
     .eq("factory_id", ctx.factoryId).eq("name", name).eq("status", "active")
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (!tpl) return { ok: false, error: `I couldn't find an active form named "${name}".` };
+  const t = tpl as Record<string, unknown>;
   const { data: rows } = await ctx.supabase
     .from("custom_form_fields").select("*")
-    .eq("template_id", (tpl as Record<string, unknown>).id)
+    .eq("template_id", t.id)
     .order("section_order", { ascending: true }).order("sort_order", { ascending: true });
-  return { ok: true, templateName: (tpl as Record<string, unknown>).name as string, role: (tpl as Record<string, unknown>).target_role as string | null, rows: (rows as Record<string, unknown>[]) ?? [] };
+  return { ok: true, templateName: t.name as string, role: t.target_role as string | null, slotKey: (t.slot_key as string | null) ?? null, rows: (rows as Record<string, unknown>[]) ?? [] };
 }
 
 // DB row -> the raw field shape applyFormEdits / validateUpdateCustomForm consume.
@@ -174,8 +196,8 @@ export async function proposeEditFormTool(ctx: ToolContext, input: Record<string
     rename: Array.isArray(input.rename) ? (input.rename as { from: string; to: string }[]) : undefined,
     set: Array.isArray(input.set) ? (input.set as Record<string, unknown>[]) : undefined,
   };
-  const anyOp = (ops.add?.length || ops.remove?.length || ops.rename?.length || ops.set?.length);
-  if (!anyOp) return `What change should I make to "${name}"? (add, remove, rename, or update fields)`;
+  const anyOp = (ops.add?.length || ops.remove?.length || ops.rename?.length || ops.set?.length || input.production_mapping);
+  if (!anyOp) return `What change should I make to "${name}"? (add, remove, rename, update fields, or set the production mapping)`;
 
   const loaded = await loadFormFields(ctx, name);
   if (!loaded.ok) return loaded.error;
@@ -186,6 +208,12 @@ export async function proposeEditFormTool(ctx: ToolContext, input: Record<string
   // Validate the RESULT and propose it through the existing update path.
   const res = validateUpdateCustomForm({ name: loaded.templateName, fields: edited.fields });
   if (!res.ok) return res.error;
-  res.action.humanSummary = summarizeFormEdits(loaded.templateName, ops);
+  // Optionally (re)set the production mapping so this slot form feeds the dashboards.
+  if (input.production_mapping) {
+    const err = attachProductionMapping(res.action, loaded.slotKey, input.production_mapping);
+    if (err) return err;
+  }
+  res.action.humanSummary = summarizeFormEdits(loaded.templateName, ops) +
+    (input.production_mapping ? "; link its values to the production dashboards" : "");
   return propose(ctx, res);
 }
