@@ -92,7 +92,6 @@ const CustomFormsList = lazy(() => import("./pages/custom-forms/CustomFormsList"
 const FormSlotVersions = lazy(() => import("./pages/custom-forms/FormSlotVersions"));
 const DefaultFormPreview = lazy(() => import("./pages/custom-forms/DefaultFormPreview"));
 const CustomFormFill = lazy(() => import("./pages/custom-forms/CustomFormFill"));
-const CustomFormSubmissions = lazy(() => import("./pages/custom-forms/CustomFormSubmissions"));
 const CustomFormSubmissionView = lazy(() => import("./pages/custom-forms/CustomFormSubmissionView"));
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -256,7 +255,6 @@ function AppRoutes() {
         <Route path="/forms/preview/:slotKey" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker','admin','owner','sewing','finishing','cutting','qc','storage']}><DefaultFormPreview /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/forms/versions/:ref" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker','admin','owner','sewing','finishing','cutting','qc','storage']}><FormSlotVersions /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/forms/:templateId" element={<SubscriptionGate><ProtectedRoute allowedRoles={['worker','admin','owner','sewing','finishing','cutting','qc','storage']}><CustomFormFill /></ProtectedRoute></SubscriptionGate>} />
-        <Route path="/forms/:templateId/submissions" element={<SubscriptionGate><ProtectedRoute adminOnly><CustomFormSubmissions /></ProtectedRoute></SubscriptionGate>} />
         <Route path="/forms/submissions/:submissionId" element={<SubscriptionGate><ProtectedRoute adminOnly><CustomFormSubmissionView /></ProtectedRoute></SubscriptionGate>} />
       </Route>
 

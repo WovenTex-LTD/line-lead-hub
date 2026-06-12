@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useCustomFormConfig, submitCustomForm, useFactoryPOs, useDynamicSourceOptions } from "@/hooks/useCustomForms";
 import { CustomFormRenderer } from "@/components/custom-forms/CustomFormRenderer";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,11 +50,8 @@ export default function CustomFormFill() {
       >
         <ArrowLeft className="h-4 w-4 mr-1.5" /> Back
       </Button>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4">
         <h1 className="text-xl font-bold">{config.template.name}</h1>
-        {isAdminOrHigher() && (
-          <Link to={`/forms/${config.template.id}/submissions`} className="text-sm text-primary underline">Submissions</Link>
-        )}
       </div>
       {config.template.description && <p className="text-sm text-muted-foreground mb-4">{config.template.description}</p>}
       <CustomFormRenderer

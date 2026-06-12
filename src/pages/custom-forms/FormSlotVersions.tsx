@@ -11,7 +11,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { ArrowLeft, ClipboardList, Lock, Loader2, ExternalLink, FileText } from "lucide-react";
+import { ArrowLeft, ClipboardList, Lock, Loader2, ExternalLink } from "lucide-react";
 
 /** Versions screen for a form slot (ref = slot key) or a standalone Lina form (ref = template uuid).
  *  Shows every version as a card; the active one carries an Active badge; admins switch versions. */
@@ -134,11 +134,6 @@ export default function FormSlotVersions() {
                 <Button asChild size="sm" variant="outline">
                   <Link to={`/forms/${t.id}`}><ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Open form</Link>
                 </Button>
-                {admin && (
-                  <Button asChild size="sm" variant="ghost">
-                    <Link to={`/forms/${t.id}/submissions`}><FileText className="h-3.5 w-3.5 mr-1.5" /> Submissions</Link>
-                  </Button>
-                )}
                 {admin && slot && !isActive && (
                   <Button size="sm" disabled={saving} onClick={() => setConfirmTemplate(t.id)}>
                     Set active
