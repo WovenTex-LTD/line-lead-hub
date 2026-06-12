@@ -25,14 +25,14 @@ function ctx(role: string) {
 describe("PO preview tools", () => {
   it("admin create_po proposes an action (no write)", async () => {
     const { c, proposed } = ctx("admin");
-    const out = await createPoTool(c, { po_number: "86600", buyer: "C&A", style: "S1", order_number: "ORD-1", planned_ex_factory: "2026-07-10" });
+    const out = await createPoTool(c, { po_number: "86600", buyer: "C&A", style: "S1", order_number: "ORD-1", planned_ex_factory: "2026-07-10", line_ids: [] });
     expect(proposed.length).toBe(1);
     expect(proposed[0].kind).toBe("create_po");
     expect(out.toLowerCase()).toContain("approve");
   });
   it("worker is denied create_po", async () => {
     const { c, proposed } = ctx("worker");
-    const out = await createPoTool(c, { po_number: "1", buyer: "B", style: "S", order_number: "O1", planned_ex_factory: "2026-07-10" });
+    const out = await createPoTool(c, { po_number: "1", buyer: "B", style: "S", order_number: "O1", planned_ex_factory: "2026-07-10", line_ids: [] });
     expect(proposed.length).toBe(0);
     expect(out.toLowerCase()).toContain("don't have access");
   });

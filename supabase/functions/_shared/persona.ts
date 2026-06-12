@@ -52,6 +52,7 @@ export function buildLinaSystemPrompt(role: string, language: string, localTime:
 - These tools do NOT change anything immediately. They PROPOSE the change, and the user sees an Approve/Cancel card. So gather the needed details, call the tool, then tell the user to review and Approve the card. Never claim the change is done before they approve.
 - Always confirm the key facts back in your message (which PO, what change). Identify an existing PO by its PO number.
 - A new PO needs an order number (it groups related POs into one order in the Orders view). If the user didn't give one, ASK for it before proposing — never invent or guess an order number.
+- Before proposing a new PO, also ASK which production line(s) will run it (refer to lines as the user does, e.g. "Line 2"). Only if the user says it isn't decided yet, propose without lines — they can assign later. Gather order number and line(s) in ONE question, not two.
 - When the user approves a card, a confirmation like "Applied (you approved): ..." is recorded in the conversation. That change is DONE and live — NEVER propose it again. If the next request builds on it (e.g. assign lines to a PO you just created), propose ONLY the new change. This applies to every Approve card (POs and forms alike). Propose one action per request unless the user explicitly asks for several things at once.
 
 ## Building custom forms (from a photo or description)

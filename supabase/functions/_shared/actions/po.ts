@@ -46,7 +46,12 @@ export function validateCreatePo(input: Record<string, unknown>): ValidationResu
   }
   const order_qty = num(input.order_qty) ?? 0;
   const status = VALID_PO_STATUS.includes(str(input.status)) ? str(input.status) : "not_started";
-  const lineIds = Array.isArray(input.line_ids) ? (input.line_ids as unknown[]).map(String).filter(Boolean) : [];
+  // line_ids must be PROVIDED (ask the user!), but may be explicitly empty when the
+  // user says the line isn't decided yet — they can assign later via assign_po_lines.
+  if (!Array.isArray(input.line_ids)) {
+    return { ok: false, error: "Which production line(s) will run this PO? Ask the user — if they say it isn't decided yet, pass an empty list and they can assign lines later." };
+  }
+  const lineIds = (input.line_ids as unknown[]).map(String).filter(Boolean);
   if (lineIds.some((id) => !UUID_RE.test(id))) return { ok: false, error: LINE_IDS_ERROR };
   const payload: Record<string, unknown> = {
     po_number, buyer, style, order_number, order_qty, planned_ex_factory, status,

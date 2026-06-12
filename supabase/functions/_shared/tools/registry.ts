@@ -141,7 +141,7 @@ export const ALL_TOOLS: ToolDefinition[] = [
   },
   {
     name: "create_po",
-    description: "Create a new purchase order (work order). Admin/owner only. Use when the user asks to add/create a PO. Required: po_number, buyer, style, order_number, planned_ex_factory (YYYY-MM-DD). Optional: order_qty, item, color, smv, cm_per_dozen, target_per_hour, target_per_day, line_ids. This PROPOSES the change for the user to approve — it does not write directly.",
+    description: "Create a new purchase order (work order). Admin/owner only. Use when the user asks to add/create a PO. Required: po_number, buyer, style, order_number, planned_ex_factory (YYYY-MM-DD), line_ids (always ask the user which line(s) will run the PO; pass [] only if they explicitly say it isn't decided yet). Optional: order_qty, item, color, smv, cm_per_dozen, target_per_hour, target_per_day. This PROPOSES the change for the user to approve — it does not write directly.",
     input_schema: {
       type: "object",
       properties: {
@@ -151,9 +151,9 @@ export const ALL_TOOLS: ToolDefinition[] = [
         order_qty: { type: "number" }, item: { type: "string" }, color: { type: "string" },
         smv: { type: "number" }, cm_per_dozen: { type: "number" },
         target_per_hour: { type: "number" }, target_per_day: { type: "number" },
-        line_ids: { type: "array", items: { type: "string" }, description: "Production lines to run this PO, exactly as the user refers to them (e.g. 'Line 2'). They are matched to the factory's real lines automatically." },
+        line_ids: { type: "array", items: { type: "string" }, description: "Production lines to run this PO, exactly as the user refers to them (e.g. 'Line 2'); matched to the factory's real lines automatically. ALWAYS ask the user which line(s) — pass an empty array only if they explicitly say it isn't decided yet." },
       },
-      required: ["po_number", "buyer", "style", "order_number", "planned_ex_factory"],
+      required: ["po_number", "buyer", "style", "order_number", "planned_ex_factory", "line_ids"],
     },
     allowedRoles: ["admin", "owner", "superadmin"],
     execute: createPoTool,
