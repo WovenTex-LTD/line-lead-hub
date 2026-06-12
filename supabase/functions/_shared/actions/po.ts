@@ -4,7 +4,8 @@
 
 export type PoActionKind =
   | "create_po" | "update_po" | "assign_po_lines"
-  | "set_po_status" | "set_po_ex_factory" | "archive_po";
+  | "set_po_status" | "set_po_ex_factory" | "archive_po"
+  | "create_custom_form";
 
 export interface ProposedAction {
   kind: PoActionKind;
