@@ -27,15 +27,8 @@ export default function CustomFormFill() {
     const res = await submitCustomForm(config, values, user?.id);
     setSubmitting(false);
     if (res.ok) {
-      // If this is a production-slot form but the data couldn't reach production
-      // (e.g. missing Line/PO field), say so — the form still saved.
-      if (res.production && !res.production.written && res.production.reason) {
-        toast.success("Submitted", { description: res.production.reason });
-      } else {
-        toast.success("Submitted successfully");
-      }
-      // Mirror the default production forms exactly: admins land on the dashboard,
-      // everyone else on their forms area.
+      toast.success("Submitted successfully");
+      // Mirror the default production forms: admins land on the dashboard, others on forms.
       navigate(isAdminOrHigher() ? "/dashboard" : "/forms");
     } else {
       toast.error(res.error || "Submission failed");

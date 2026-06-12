@@ -4,7 +4,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   CustomFormConfig, CustomFormField, CustomFormTemplate, CustomFormSubmission, FormSlotOverride, PoDetail,
 } from "@/types/custom-form";
-import { getSlotProduction } from "@/lib/production-slots";
 
 function orderFields(fields: CustomFormField[]): CustomFormField[] {
   return [...fields]
@@ -86,84 +85,12 @@ export function useCustomFormConfig(templateId: string | undefined) {
   return { config, loading };
 }
 
-/** Insert a submission. The authenticated user's id is REQUIRED (RLS enforces submitted_by = auth.uid()). */
-const localToday = () => {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-};
-
-/** When a custom form is a version of a production slot, also write a real row into
- *  that slot's production table so it appears everywhere the default form does.
- *  Line and PO are auto-detected from the form's picker fields; the production_mapping
- *  supplies the numeric columns. Existing row for the same line/PO/day is updated, not
- *  duplicated. Non-fatal: a failure here never blocks the custom submission. */
-async function writeProductionRow(
-  config: CustomFormConfig, values: Record<string, unknown>, userId: string,
-): Promise<{ written: boolean; reason?: string }> {
-  const slot = getSlotProduction(config.template.slot_key);
-  if (!slot) return { written: false };
-  const mapping = config.template.production_mapping ?? {};
-  const factoryId = config.template.factory_id;
-
-  // Auto-detect the line picker (dynamic_select on 'lines') and PO picker (po_select).
-  const lineField = config.fields.find((f) => f.field_type === "dynamic_select" && f.source_key === "lines");
-  const poField = config.fields.find((f) => f.field_type === "po_select");
-  const lineName = lineField ? (values[lineField.key] as string | undefined) : undefined;
-  const poNumber = poField ? (values[poField.key] as string | undefined) : undefined;
-  if (!lineName || !poNumber) {
-    return { written: false, reason: "This form needs a Line field and a PO field for its data to reach the production dashboards." };
-  }
-
-  // Resolve names -> ids (production tables key on uuids).
-  const [{ data: lineRows }, { data: poRow }] = await Promise.all([
-    supabase.from("lines").select("id, line_id, name").eq("factory_id", factoryId).eq("is_active", true),
-    supabase.from("work_orders").select("id").eq("factory_id", factoryId).eq("po_number", poNumber).maybeSingle(),
-  ]);
-  const line = ((lineRows as { id: string; line_id: string | null; name: string | null }[]) || [])
-    .find((l) => l.name === lineName || l.line_id === lineName);
-  const lineId = line?.id;
-  const workOrderId = (poRow as { id: string } | null)?.id;
-  if (!lineId || !workOrderId) {
-    return { written: false, reason: "Couldn't match the selected Line or PO to a production record." };
-  }
-
-  // Build the mapped numeric columns.
-  const mapped: Record<string, number> = {};
-  for (const [friendlyKey, fieldKey] of Object.entries(mapping)) {
-    const target = slot.targets.find((t) => t.key === friendlyKey);
-    if (!target) continue;
-    const raw = values[fieldKey as string];
-    const n = typeof raw === "number" ? raw : Number(raw);
-    if (Number.isFinite(n)) mapped[target.column] = n;
-  }
-
-  const production_date = localToday();
-  try {
-    // One row per line/PO/day: update if it exists, else insert (mirrors the default forms).
-    const { data: existing } = await supabase
-      .from(slot.table as never).select("id")
-      .eq("factory_id", factoryId).eq("line_id", lineId).eq("work_order_id", workOrderId)
-      .eq("production_date", production_date).maybeSingle();
-    if (existing && (existing as { id: string }).id) {
-      const { error } = await supabase.from(slot.table as never).update(mapped as never).eq("id", (existing as { id: string }).id);
-      if (error) return { written: false, reason: error.message };
-    } else {
-      const { error } = await supabase.from(slot.table as never).insert({
-        factory_id: factoryId, line_id: lineId, work_order_id: workOrderId,
-        submitted_by: userId, production_date, ...mapped,
-      } as never);
-      if (error) return { written: false, reason: error.message };
-    }
-    return { written: true };
-  } catch (e) {
-    return { written: false, reason: e instanceof Error ? e.message : String(e) };
-  }
-}
-
+/** Insert a submission. The authenticated user's id is REQUIRED (RLS enforces submitted_by = auth.uid()).
+ *  Custom forms keep their OWN fields — submissions are shown as the form's headers + values,
+ *  not forced into the typed production tables (which would leave columns the form doesn't have empty). */
 export async function submitCustomForm(
   config: CustomFormConfig, values: Record<string, unknown>, userId: string | undefined,
-): Promise<{ ok: boolean; error?: string; production?: { written: boolean; reason?: string } }> {
+): Promise<{ ok: boolean; error?: string }> {
   if (!userId) return { ok: false, error: "You must be signed in to submit." };
   const { error } = await supabase.from("custom_form_submissions" as never).insert({
     template_id: config.template.id,
@@ -174,9 +101,7 @@ export async function submitCustomForm(
     fields_snapshot: config.fields,
   });
   if (error) return { ok: false, error: error.message };
-  // If this form is a production-slot version, also write the production row.
-  const production = await writeProductionRow(config, values, userId);
-  return { ok: true, production };
+  return { ok: true };
 }
 
 export function useFormSubmissions(templateId: string | undefined) {
@@ -316,14 +241,9 @@ export function useCustomSubmissions(scope: "today" | "week" | "all") {
         names = Object.fromEntries(((profs as { id: string; full_name: string }[]) || []).map((p) => [p.id, p.full_name]));
       }
       if (cancelled) return;
-      // Slot-variant submissions appear in the production views (sewing tab, dashboard,
-      // etc.) via their production row — so this card shows only STANDALONE forms, to
-      // avoid double-listing.
-      const standaloneRows = rows.filter((r) => {
-        const tpl = r.custom_form_templates as { slot_key?: string | null } | null;
-        return !tpl?.slot_key;
-      });
-      setEntries(standaloneRows.map((r) => {
+      // Show ALL custom-form submissions (slot versions + standalone) — each renders its
+      // OWN fields when opened, rather than being forced into a typed production table.
+      setEntries(rows.map((r) => {
         const tpl = r.custom_form_templates as { name?: string; target_role?: string | null } | null;
         const by = r.submitted_by as string | null;
         return {
