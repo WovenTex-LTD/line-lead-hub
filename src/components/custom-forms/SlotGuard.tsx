@@ -1,18 +1,20 @@
 import { ReactNode } from "react";
-import { Navigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { Navigate, useLocation } from "react-router-dom";
 import { useSlotOverrides } from "@/hooks/useCustomForms";
 import { Loader2 } from "lucide-react";
 
 /** Route wrapper for a default production form. When an admin has made a Lina-created
- *  version the active one for this slot, workers are sent to that version instead.
- *  Admins always reach the default form. If the overrides lookup fails or is empty,
+ *  version the active one for this slot, EVERYONE who opens the form (admins included)
+ *  is sent to that active version — that's the whole point of "active".
+ *  Escape hatch: `?default=1` forces the real default form (used by the versions
+ *  screen's "Open live entry page" so admins can still reach it). With no override,
  *  the default form renders exactly as before. */
 export function SlotGuard({ slotKey, children }: { slotKey: string; children: ReactNode }) {
-  const { isAdminOrHigher } = useAuth();
   const { overrides, loading } = useSlotOverrides();
+  const location = useLocation();
+  const forceDefault = new URLSearchParams(location.search).get("default") === "1";
 
-  if (isAdminOrHigher()) return <>{children}</>;
+  if (forceDefault) return <>{children}</>;
   if (loading) {
     return (
       <div className="flex min-h-[200px] items-center justify-center">

@@ -84,7 +84,7 @@ export default function DefaultFormPreview() {
 
       <div className="mt-5">
         <Button asChild size="sm" variant="outline">
-          <Link to={slot.defaultPath}><ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Open live entry page</Link>
+          <Link to={`${slot.defaultPath}?default=1`}><ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Open live entry page</Link>
         </Button>
       </div>
     </div>
