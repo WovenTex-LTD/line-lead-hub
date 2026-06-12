@@ -16,8 +16,9 @@ export function cleanDisplayName(s: string | null | undefined): string {
 
 // Search-bar normalization: lowercase and strip ALL spacing/punctuation from
 // BOTH the query and the value, so "PO 1123" finds "PO1123" and "t shirt"
-// finds "T-Shirt". Unicode-aware: letters in any script (e.g. Bengali) are kept.
+// finds "T-Shirt". Unicode-aware: letters, combining marks (Bengali vowel
+// signs etc.) and digits in any script are kept.
 export function searchNorm(s: string | null | undefined): string {
   if (!s) return "";
-  return s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+  return s.toLowerCase().replace(/[^\p{L}\p{M}\p{N}]+/gu, "");
 }
