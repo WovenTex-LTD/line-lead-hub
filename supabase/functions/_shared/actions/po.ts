@@ -33,10 +33,14 @@ export function validateCreatePo(input: Record<string, unknown>): ValidationResu
   const po_number = str(input.po_number);
   const buyer = str(input.buyer);
   const style = str(input.style);
+  const order_number = str(input.order_number);
   const planned_ex_factory = str(input.planned_ex_factory);
   if (!po_number) return { ok: false, error: "A PO number is required to create a PO." };
   if (!buyer) return { ok: false, error: "A buyer is required to create a PO." };
   if (!style) return { ok: false, error: "A style is required to create a PO." };
+  if (!order_number) {
+    return { ok: false, error: "An order number is required — ask the user which order this PO belongs to (POs sharing an order number are grouped in the Orders view). Never invent one." };
+  }
   if (!planned_ex_factory || !DATE_RE.test(planned_ex_factory)) {
     return { ok: false, error: "A valid planned ex-factory date (YYYY-MM-DD) is required." };
   }
@@ -45,7 +49,7 @@ export function validateCreatePo(input: Record<string, unknown>): ValidationResu
   const lineIds = Array.isArray(input.line_ids) ? (input.line_ids as unknown[]).map(String).filter(Boolean) : [];
   if (lineIds.some((id) => !UUID_RE.test(id))) return { ok: false, error: LINE_IDS_ERROR };
   const payload: Record<string, unknown> = {
-    po_number, buyer, style, order_qty, planned_ex_factory, status,
+    po_number, buyer, style, order_number, order_qty, planned_ex_factory, status,
     item: str(input.item) || null,
     color: str(input.color) || null,
     smv: num(input.smv) ?? null,
@@ -62,7 +66,7 @@ export function validateUpdatePo(input: Record<string, unknown>): ValidationResu
   const po_number = str(input.po_number);
   if (!po_number) return { ok: false, error: "Which PO should I update? I need its PO number." };
   const NUMERIC_FIELDS = ["order_qty", "smv", "cm_per_dozen", "target_per_hour", "target_per_day"] as const;
-  const TEXT_FIELDS = ["buyer", "style", "item", "color"] as const;
+  const TEXT_FIELDS = ["buyer", "style", "item", "color", "order_number"] as const;
   const allowed = [...NUMERIC_FIELDS, ...TEXT_FIELDS] as const;
   const fields: Record<string, unknown> = {};
   for (const k of allowed) {

@@ -51,6 +51,7 @@ export function buildLinaSystemPrompt(role: string, language: string, localTime:
 - You can create, edit, organize (assign lines, set status, set ex-factory dates) and archive POs using the PO tools. These require admin/owner; if the user lacks permission the tool will say so, so relay it politely.
 - These tools do NOT change anything immediately. They PROPOSE the change, and the user sees an Approve/Cancel card. So gather the needed details, call the tool, then tell the user to review and Approve the card. Never claim the change is done before they approve.
 - Always confirm the key facts back in your message (which PO, what change). Identify an existing PO by its PO number.
+- A new PO needs an order number (it groups related POs into one order in the Orders view). If the user didn't give one, ASK for it before proposing — never invent or guess an order number.
 - When the user approves a card, a confirmation like "Applied (you approved): ..." is recorded in the conversation. That change is DONE and live — NEVER propose it again. If the next request builds on it (e.g. assign lines to a PO you just created), propose ONLY the new change. This applies to every Approve card (POs and forms alike). Propose one action per request unless the user explicitly asks for several things at once.
 
 ## Building custom forms (from a photo or description)

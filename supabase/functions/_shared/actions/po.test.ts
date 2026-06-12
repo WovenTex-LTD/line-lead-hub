@@ -4,7 +4,7 @@ import { validateAssignPoLines, validateSetPoStatus, validateSetPoExFactory, val
 
 describe("validateCreatePo", () => {
   it("accepts a valid PO and builds a human summary + payload", () => {
-    const r = validateCreatePo({ po_number: "86600", buyer: "C&A", style: "S1", order_qty: 5000, planned_ex_factory: "2026-07-10" });
+    const r = validateCreatePo({ po_number: "86600", buyer: "C&A", style: "S1", order_number: "ORD-1", order_qty: 5000, planned_ex_factory: "2026-07-10" });
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.action.kind).toBe("create_po");
@@ -19,8 +19,18 @@ describe("validateCreatePo", () => {
     if (!r.ok) expect(r.error.toLowerCase()).toContain("po number");
   });
   it("rejects a bad ex-factory date", () => {
-    const r = validateCreatePo({ po_number: "1", buyer: "B", style: "S", planned_ex_factory: "10-07-2026" });
+    const r = validateCreatePo({ po_number: "1", buyer: "B", style: "S", order_number: "O1", planned_ex_factory: "10-07-2026" });
     expect(r.ok).toBe(false);
+  });
+  it("requires an order number (so Lina asks instead of leaving it null)", () => {
+    const r = validateCreatePo({ po_number: "1", buyer: "B", style: "S", planned_ex_factory: "2026-07-10" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.toLowerCase()).toContain("order number");
+  });
+  it("update_po can change the order number", () => {
+    const r = validateUpdatePo({ po_number: "1", order_number: "ORD-9" });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.action.payload.fields).toEqual({ order_number: "ORD-9" });
   });
 });
 

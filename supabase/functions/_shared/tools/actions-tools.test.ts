@@ -25,14 +25,14 @@ function ctx(role: string) {
 describe("PO preview tools", () => {
   it("admin create_po proposes an action (no write)", async () => {
     const { c, proposed } = ctx("admin");
-    const out = await createPoTool(c, { po_number: "86600", buyer: "C&A", style: "S1", planned_ex_factory: "2026-07-10" });
+    const out = await createPoTool(c, { po_number: "86600", buyer: "C&A", style: "S1", order_number: "ORD-1", planned_ex_factory: "2026-07-10" });
     expect(proposed.length).toBe(1);
     expect(proposed[0].kind).toBe("create_po");
     expect(out.toLowerCase()).toContain("approve");
   });
   it("worker is denied create_po", async () => {
     const { c, proposed } = ctx("worker");
-    const out = await createPoTool(c, { po_number: "1", buyer: "B", style: "S", planned_ex_factory: "2026-07-10" });
+    const out = await createPoTool(c, { po_number: "1", buyer: "B", style: "S", order_number: "O1", planned_ex_factory: "2026-07-10" });
     expect(proposed.length).toBe(0);
     expect(out.toLowerCase()).toContain("don't have access");
   });
@@ -82,7 +82,7 @@ describe("assign_po_lines line resolution", () => {
   });
   it("create_po resolves its optional line_ids too", async () => {
     const { c, proposed } = linesCtx();
-    await createPoTool(c, { po_number: "9", buyer: "B", style: "S", planned_ex_factory: "2026-07-10", line_ids: ["Line 1"] });
+    await createPoTool(c, { po_number: "9", buyer: "B", style: "S", order_number: "O1", planned_ex_factory: "2026-07-10", line_ids: ["Line 1"] });
     expect(proposed.length).toBe(1);
     expect(proposed[0].payload.line_ids).toEqual(["11111111-1111-4111-8111-111111111111"]);
   });

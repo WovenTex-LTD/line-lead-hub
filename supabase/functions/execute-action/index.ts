@@ -189,6 +189,7 @@ serve(async (req) => {
       const insert = {
         factory_id: factoryId,
         po_number: p.po_number, buyer: p.buyer, style: p.style,
+        order_number: p.order_number ?? null,
         item: p.item, color: p.color, order_qty: p.order_qty,
         smv: p.smv, cm_per_dozen: p.cm_per_dozen,
         target_per_hour: p.target_per_hour, target_per_day: p.target_per_day,

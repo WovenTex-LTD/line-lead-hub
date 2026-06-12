@@ -72,7 +72,7 @@ const WORK_ORDER_STATUSES = [
 const workOrderSchema = z.object({
   po_number: z.string().min(1, "PO Number is required").max(100, "PO Number too long"),
   buyer: z.string().min(1, "Buyer is required").max(200, "Buyer name too long"),
-  order_number: z.string().min(1, "Order number is required").max(200, "Order number too long"),
+  order_number: z.string({ invalid_type_error: "Order number is required" }).min(1, "Order number is required").max(200, "Order number too long"),
   style: z.string().min(1, "Style is required").max(200, "Style too long"),
   item: z.string().max(200, "Item too long").optional().nullable(),
   color: z.string().max(100, "Color too long").optional().nullable(),

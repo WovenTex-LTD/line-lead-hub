@@ -141,29 +141,31 @@ export const ALL_TOOLS: ToolDefinition[] = [
   },
   {
     name: "create_po",
-    description: "Create a new purchase order (work order). Admin/owner only. Use when the user asks to add/create a PO. Required: po_number, buyer, style, planned_ex_factory (YYYY-MM-DD). Optional: order_qty, item, color, smv, cm_per_dozen, target_per_hour, target_per_day, line_ids. This PROPOSES the change for the user to approve — it does not write directly.",
+    description: "Create a new purchase order (work order). Admin/owner only. Use when the user asks to add/create a PO. Required: po_number, buyer, style, order_number, planned_ex_factory (YYYY-MM-DD). Optional: order_qty, item, color, smv, cm_per_dozen, target_per_hour, target_per_day, line_ids. This PROPOSES the change for the user to approve — it does not write directly.",
     input_schema: {
       type: "object",
       properties: {
         po_number: { type: "string" }, buyer: { type: "string" }, style: { type: "string" },
+        order_number: { type: "string", description: "Order number that groups POs into one order in the Orders view. Ask the user for it — NEVER invent one." },
         planned_ex_factory: { type: "string", description: "YYYY-MM-DD" },
         order_qty: { type: "number" }, item: { type: "string" }, color: { type: "string" },
         smv: { type: "number" }, cm_per_dozen: { type: "number" },
         target_per_hour: { type: "number" }, target_per_day: { type: "number" },
         line_ids: { type: "array", items: { type: "string" }, description: "Production lines to run this PO, exactly as the user refers to them (e.g. 'Line 2'). They are matched to the factory's real lines automatically." },
       },
-      required: ["po_number", "buyer", "style", "planned_ex_factory"],
+      required: ["po_number", "buyer", "style", "order_number", "planned_ex_factory"],
     },
     allowedRoles: ["admin", "owner", "superadmin"],
     execute: createPoTool,
   },
   {
     name: "update_po",
-    description: "Edit fields on an existing PO. Admin/owner only. Identify the PO by po_number; provide only the fields to change (buyer, style, item, color, order_qty, smv, cm_per_dozen, target_per_hour, target_per_day). Proposes the change for approval.",
+    description: "Edit fields on an existing PO. Admin/owner only. Identify the PO by po_number; provide only the fields to change (buyer, style, item, color, order_number, order_qty, smv, cm_per_dozen, target_per_hour, target_per_day). Proposes the change for approval.",
     input_schema: {
       type: "object",
       properties: {
         po_number: { type: "string" }, buyer: { type: "string" }, style: { type: "string" },
+        order_number: { type: "string", description: "Order number that groups POs into one order." },
         item: { type: "string" }, color: { type: "string" }, order_qty: { type: "number" },
         smv: { type: "number" }, cm_per_dozen: { type: "number" },
         target_per_hour: { type: "number" }, target_per_day: { type: "number" },
