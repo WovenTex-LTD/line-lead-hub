@@ -27,7 +27,11 @@ export default function CustomFormFill() {
     const res = await submitCustomForm(config, values, user?.id);
     setSubmitting(false);
     if (res.ok) {
-      toast.success("Submitted successfully");
+      if (res.production && !res.production.written && res.production.reason) {
+        toast.success("Submitted", { description: res.production.reason });
+      } else {
+        toast.success("Submitted successfully");
+      }
       // Mirror the default production forms: admins land on the dashboard, others on forms.
       navigate(isAdminOrHigher() ? "/dashboard" : "/forms");
     } else {
