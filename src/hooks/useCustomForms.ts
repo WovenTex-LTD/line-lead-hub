@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  CustomFormConfig, CustomFormField, CustomFormTemplate, CustomFormSubmission, DEFAULT_FILL_ROLES,
+  CustomFormConfig, CustomFormField, CustomFormTemplate, CustomFormSubmission,
 } from "@/types/custom-form";
 
 function orderFields(fields: CustomFormField[]): CustomFormField[] {
@@ -31,11 +31,7 @@ export function useFillableForms() {
     if (error) { console.error("custom forms list:", error); setLoading(false); return; }
 
     const myRoles = new Set(roles.map((r) => r.role));
-    const fillable = (data as CustomFormTemplate[]).filter((t) => {
-      if (admin) return true;
-      const allowed = t.allowed_fill_roles?.length ? t.allowed_fill_roles : DEFAULT_FILL_ROLES;
-      return allowed.some((r) => myRoles.has(r as never));
-    });
+    const fillable = (data as CustomFormTemplate[]).filter((t) => admin || (t.target_role != null && myRoles.has(t.target_role as never)));
     setTemplates(fillable);
     setLoading(false);
   }, [profile?.factory_id, roles, admin]);
