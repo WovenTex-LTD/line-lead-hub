@@ -1,3 +1,4 @@
+import { DepartmentCustomSubmissions } from "@/components/custom-forms/DepartmentCustomSubmissions";
 import { searchNorm } from "@/lib/normalize-name";
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -664,6 +665,9 @@ export default function AllSubmissions() {
           </Button>
         </div>
       )}
+
+      {/* Custom-form submissions for this department — own fields, form-driven detail */}
+      <DepartmentCustomSubmissions role={department} scope="all" />
 
       {/* Finishing daily logs (targets + outputs from finishing_daily_logs table) */}
       {department === 'finishing' && profile?.factory_id && (

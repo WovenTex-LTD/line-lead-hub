@@ -202,6 +202,21 @@ export interface CustomSubmissionEntry {
   targetRole: string | null;
   submitterName: string | null;
   createdAt: string;
+  summary: string; // "Label value · Label value …" from the form's own filled fields
+}
+
+/** A short "Label value · …" preview from a submission's first few filled fields. */
+function buildSummary(values: Record<string, unknown>, snapshot: unknown): string {
+  const fields = Array.isArray(snapshot) ? (snapshot as { key: string; label: string; field_type: string }[]) : [];
+  const parts: string[] = [];
+  for (const f of fields) {
+    if (parts.length >= 3) break;
+    const v = values?.[f.key];
+    if (v === undefined || v === null || v === "") continue;
+    const display = f.field_type === "checkbox" ? (v ? "Yes" : "No") : String(v);
+    parts.push(`${f.label} ${display}`);
+  }
+  return parts.join(" · ");
 }
 
 /** Custom-form submissions for the factory, scoped to today / this week / all,
@@ -218,7 +233,7 @@ export function useCustomSubmissions(scope: "today" | "week" | "all") {
       setLoading(true);
       let q = supabase
         .from("custom_form_submissions" as never)
-        .select("id, template_id, submitted_by, created_at, custom_form_templates(name, target_role, slot_key)")
+        .select("id, template_id, submitted_by, created_at, values, fields_snapshot, custom_form_templates(name, target_role, slot_key)")
         .eq("factory_id", profile.factory_id)
         .order("created_at", { ascending: false });
       const now = new Date();
@@ -253,6 +268,7 @@ export function useCustomSubmissions(scope: "today" | "week" | "all") {
           targetRole: tpl?.target_role ?? null,
           submitterName: by ? (names[by] ?? null) : null,
           createdAt: r.created_at as string,
+          summary: buildSummary(r.values as Record<string, unknown>, r.fields_snapshot),
         };
       }));
       setLoading(false);

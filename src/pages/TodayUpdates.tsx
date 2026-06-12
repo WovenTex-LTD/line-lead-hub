@@ -1,3 +1,4 @@
+import { DepartmentCustomSubmissions } from "@/components/custom-forms/DepartmentCustomSubmissions";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -1341,6 +1342,7 @@ export default function TodayUpdates() {
         </div>
 
         <TabsContent value="all" className="mt-4 space-y-4">
+          <DepartmentCustomSubmissions role="all" scope="today" />
           {/* Sewing Table */}
           {filteredSewing.length > 0 && (
             <Card>
@@ -1731,6 +1733,7 @@ export default function TodayUpdates() {
         </TabsContent>
 
         <TabsContent value="sewing" className="mt-4 space-y-4">
+          <DepartmentCustomSubmissions role="sewing" scope="today" />
           {/* Old sewing updates */}
           {filteredSewing.length > 0 && (
             <Card>
@@ -1885,6 +1888,7 @@ export default function TodayUpdates() {
         </TabsContent>
 
         <TabsContent value="finishing" className="mt-4">
+          <DepartmentCustomSubmissions role="finishing" scope="today" />
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
@@ -1966,6 +1970,7 @@ export default function TodayUpdates() {
         </TabsContent>
 
         <TabsContent value="cutting" className="mt-4">
+          <DepartmentCustomSubmissions role="cutting" scope="today" />
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">

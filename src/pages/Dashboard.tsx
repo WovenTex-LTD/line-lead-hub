@@ -1,3 +1,4 @@
+import { DepartmentCustomSubmissions } from "@/components/custom-forms/DepartmentCustomSubmissions";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -1116,6 +1117,9 @@ export default function Dashboard() {
           onDismiss={onboarding.dismiss}
         />
       )}
+
+      {/* Custom-form submissions today — own fields, form-driven detail */}
+      <DepartmentCustomSubmissions role="all" scope="today" />
 
       {/* KPI Cards */}
       <motion.div
