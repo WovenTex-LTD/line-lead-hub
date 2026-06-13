@@ -15,6 +15,7 @@ import {
   proposeUpdateFormTool,
   proposeEditFormTool,
   getCustomFormTool,
+  getCustomSubmissionsTool,
 } from "./actions-tools.ts";
 
 export const ALL_TOOLS: ToolDefinition[] = [
@@ -293,6 +294,23 @@ export const ALL_TOOLS: ToolDefinition[] = [
     },
     allowedRoles: ["admin", "owner", "superadmin"],
     execute: getCustomFormTool,
+  },
+  {
+    name: "get_custom_form_submissions",
+    description: "Read the SUBMISSIONS (filled-in data) of a custom form by name — the actual values people entered — so you can answer questions about them, compare forms, or compute things like efficiency, totals, or target-vs-actual. Admin/owner only. Returns each submission's field values with its date. To COMPARE two forms (e.g. a morning-target form vs an end-of-day form), call this once per form (optionally filtered to the same line/PO/day) and reason over the results. Use get_custom_form first if you need to know a form's field labels.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Exact name of the custom form whose submissions to read." },
+        scope: { type: "string", enum: ["today", "week", "all"], description: "Time range — today, the last 7 days, or all (default: recent)." },
+        line: { type: "string", description: "Optional: only submissions whose line field matches this." },
+        po: { type: "string", description: "Optional: only submissions whose PO field matches this." },
+        limit: { type: "number", description: "Max submissions to return (default 20, max 50)." },
+      },
+      required: ["name"],
+    },
+    allowedRoles: ["admin", "owner", "superadmin"],
+    execute: getCustomSubmissionsTool,
   },
   {
     name: "propose_edit_form",

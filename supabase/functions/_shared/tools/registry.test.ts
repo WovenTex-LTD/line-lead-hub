@@ -23,7 +23,7 @@ describe("registry", () => {
     expect(names).toEqual([
       "archive_po", "assign_po_lines", "compare_periods", "create_po", "find_anomalies",
       "generate_report", "get_blockers", "get_financials", "get_lines", "get_production_data",
-      "get_custom_form", "get_work_orders", "propose_create_form", "propose_edit_form", "propose_update_form",
+      "get_custom_form", "get_custom_form_submissions", "get_work_orders", "propose_create_form", "propose_edit_form", "propose_update_form",
       "raise_support_ticket", "search_knowledge",
       "set_po_ex_factory", "set_po_status", "update_po",
     ].sort());

@@ -217,3 +217,63 @@ export async function proposeEditFormTool(ctx: ToolContext, input: Record<string
     (input.production_mapping ? "; link its values to the production dashboards" : "");
   return propose(ctx, res);
 }
+
+/** READ tool: the SUBMISSIONS (filled data) of a custom form, so Lina can answer
+ *  questions, compare forms, and compute things (efficiency, target-vs-actual). */
+export async function getCustomSubmissionsTool(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  if (!gate(ctx)) return DENY;
+  const name = typeof input.name === "string" ? input.name.trim() : "";
+  if (!name) return "Which form's submissions do you want? Tell me its name.";
+  const { data: tpl } = await ctx.supabase
+    .from("custom_form_templates").select("id, name")
+    .eq("factory_id", ctx.factoryId).eq("name", name).eq("status", "active")
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (!tpl) return `I couldn't find an active form named "${name}".`;
+  const t = tpl as Record<string, unknown>;
+
+  let q = ctx.supabase
+    .from("custom_form_submissions").select("id, created_at, values, fields_snapshot")
+    .eq("template_id", t.id).order("created_at", { ascending: false });
+  const scope = (typeof input.scope === "string" ? input.scope : "").toLowerCase();
+  if (scope === "today") {
+    q = q.gte("created_at", ctx.today);
+  } else if (scope === "week" || scope === "this_week") {
+    const d = new Date(); d.setDate(d.getDate() - 7);
+    q = q.gte("created_at", d.toISOString());
+  }
+  const limit = typeof input.limit === "number" ? Math.min(Math.max(1, input.limit), 50) : 20;
+  q = q.limit(limit);
+  const { data } = await q;
+  const rows = (data as Record<string, unknown>[]) || [];
+
+  const lineFilter = typeof input.line === "string" ? input.line.trim().toLowerCase() : "";
+  const poFilter = typeof input.po === "string" ? input.po.trim().toLowerCase() : "";
+  const filtered = rows.filter((s) => {
+    if (!lineFilter && !poFilter) return true;
+    const fields = (s.fields_snapshot as { key: string; field_type: string; source_key?: string }[]) || [];
+    const vals = s.values as Record<string, unknown>;
+    const lineField = fields.find((f) => f.field_type === "dynamic_select" && f.source_key === "lines");
+    const poField = fields.find((f) => f.field_type === "po_select");
+    const lineVal = lineField ? String(vals[lineField.key] ?? "").toLowerCase() : "";
+    const poVal = poField ? String(vals[poField.key] ?? "").toLowerCase() : "";
+    if (lineFilter && !lineVal.includes(lineFilter)) return false;
+    if (poFilter && !poVal.includes(poFilter)) return false;
+    return true;
+  });
+  if (!filtered.length) {
+    return `No submissions found for "${t.name}"${scope ? ` (${scope})` : ""}${(lineFilter || poFilter) ? " matching that line/PO" : ""}.`;
+  }
+  const lines = filtered.map((s, i) => {
+    const fields = (s.fields_snapshot as { key: string; label: string; field_type: string }[]) || [];
+    const vals = s.values as Record<string, unknown>;
+    const parts = fields.map((f) => {
+      const v = vals[f.key];
+      if (v === undefined || v === null || v === "") return null;
+      const disp = f.field_type === "checkbox" ? (v ? "Yes" : "No") : String(v);
+      return `${f.label}: ${disp}`;
+    }).filter(Boolean);
+    const day = String(s.created_at).slice(0, 10);
+    return `${i + 1}. [${day}] ${parts.join(" | ")}`;
+  });
+  return `Submissions for "${t.name}" (showing ${filtered.length}):\n${lines.join("\n")}`;
+}
