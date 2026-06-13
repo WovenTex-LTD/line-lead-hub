@@ -1306,7 +1306,7 @@ export default function Dashboard() {
             onEodClick={(eod) => {
               // A row from a custom form opens a detail driven by the form's own fields.
               if ((eod as EndOfDaySubmission).customSubmissionId) {
-                setCustomModal({ id: (eod as EndOfDaySubmission).customSubmissionId as string, title: eod.line_name });
+                setCustomModal({ id: (eod as EndOfDaySubmission).customSubmissionId as string, title: "Sewing End of Day" });
                 return;
               }
               setSewingViewSource({ type: 'actual', id: eod.id });

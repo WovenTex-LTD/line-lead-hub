@@ -492,7 +492,7 @@ export default function AllSubmissions() {
   const handleActualClick = (actual: SewingActual | FinishingActual) => {
     const customId = (actual as any).custom_data?.custom_submission_id;
     if (customId) {
-      setCustomModal({ id: customId, title: actual.lines?.name || actual.lines?.line_id || 'Submission' });
+      setCustomModal({ id: customId, title: department === 'sewing' ? 'Sewing End of Day' : 'End of Day' });
       return;
     }
     if (department === 'sewing') {
