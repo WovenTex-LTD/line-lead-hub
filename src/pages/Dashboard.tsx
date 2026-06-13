@@ -70,6 +70,7 @@ interface DashboardStats {
 
 interface TargetSubmission {
   id: string;
+  customSubmissionId?: string | null;
   type: 'sewing' | 'finishing';
   line_uuid: string;
   line_id: string;
@@ -271,7 +272,7 @@ export default function Dashboard() {
   const [activeBlockers, setActiveBlockers] = useState<ActiveBlocker[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
-  const [customModal, setCustomModal] = useState<{ id: string; title: string; targetLookup?: any; actualOutput?: number | null } | null>(null);
+  const [customModal, setCustomModal] = useState<{ title: string; lookup: any } | null>(null);
   const [selectedTarget, setSelectedTarget] = useState<TargetSubmission | null>(null);
   const [selectedCutting, setSelectedCutting] = useState<CuttingSubmission | null>(null);
   const [selectedCuttingTarget, setSelectedCuttingTarget] = useState<CuttingTarget | null>(null);
@@ -563,6 +564,7 @@ export default function Dashboard() {
         remarks: t.remarks,
         submitted_at: t.submitted_at,
         production_date: t.production_date,
+        customSubmissionId: (t as any).custom_data?.custom_submission_id ?? null,
       }));
 
       // Format finishing targets
@@ -1300,22 +1302,24 @@ export default function Dashboard() {
             allLines={allLines}
             loading={loading}
             onTargetClick={(target) => {
+              const t = target as TargetSubmission;
+              if (t.customSubmissionId && profile?.factory_id && t.line_uuid && t.work_order_id && t.production_date) {
+                setCustomModal({ title: "Sewing Submission", lookup: {
+                  factoryId: profile.factory_id, lineId: t.line_uuid, workOrderId: t.work_order_id, productionDate: t.production_date,
+                  targetTable: "sewing_targets", actualTable: "sewing_actuals",
+                }});
+                return;
+              }
               setSewingViewSource({ type: 'target', id: target.id });
               setSewingViewOpen(true);
             }}
             onEodClick={(eod) => {
-              // A row from a custom form opens a detail driven by the form's own fields.
-              if ((eod as EndOfDaySubmission).customSubmissionId) {
-                const e = eod as EndOfDaySubmission;
-                setCustomModal({
-                  id: e.customSubmissionId as string,
-                  title: "Sewing End of Day",
-                  actualOutput: e.output,
-                  targetLookup: (profile?.factory_id && e.line_uuid && e.work_order_id && e.production_date) ? {
-                    table: "sewing_targets", factoryId: profile.factory_id,
-                    lineId: e.line_uuid, workOrderId: e.work_order_id, productionDate: e.production_date,
-                  } : null,
-                });
+              const e = eod as EndOfDaySubmission;
+              if (e.customSubmissionId && profile?.factory_id && e.line_uuid && e.work_order_id && e.production_date) {
+                setCustomModal({ title: "Sewing Submission", lookup: {
+                  factoryId: profile.factory_id, lineId: e.line_uuid, workOrderId: e.work_order_id, productionDate: e.production_date,
+                  targetTable: "sewing_targets", actualTable: "sewing_actuals",
+                }});
                 return;
               }
               setSewingViewSource({ type: 'actual', id: eod.id });
@@ -1765,10 +1769,9 @@ export default function Dashboard() {
       />
 
       <CustomSubmissionModal
-        submissionId={customModal?.id ?? null}
+        open={customModal !== null}
         title={customModal?.title}
-        targetLookup={customModal?.targetLookup ?? null}
-        actualOutput={customModal?.actualOutput ?? null}
+        lookup={customModal?.lookup ?? null}
         onClose={() => setCustomModal(null)}
       />
 
