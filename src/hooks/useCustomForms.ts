@@ -125,9 +125,8 @@ async function writeProductionRow(
 
   const mapped: Record<string, number> = {};
   // Default every production column for this slot to 0, so columns the form doesn't
-  // map (some of which are NOT NULL, e.g. sewing_targets.per_hour_target) never block
-  // the insert. The detail stays form-driven, so these 0s aren't shown to the user.
-  for (const t of slot.targets) mapped[t.column] = 0;
+  // map. Only the genuinely-mapped values are sent; the DB function fills any
+  // required column the form doesn't supply, so no column knowledge lives here.
   for (const [friendlyKey, fieldKey] of Object.entries(mapping)) {
     const target = slot.targets.find((t) => t.key === friendlyKey);
     if (!target) continue;
@@ -138,26 +137,19 @@ async function writeProductionRow(
   // Link back to the custom submission so the row's detail can show the form's own fields.
   const custom_data = { source: "custom_form", custom_submission_id: submissionId, template_id: config.template.id };
 
-  const production_date = localToday();
-  try {
-    const { data: existing } = await supabase
-      .from(slot.table as never).select("id")
-      .eq("factory_id", factoryId).eq("line_id", lineId).eq("work_order_id", workOrderId)
-      .eq("production_date", production_date).maybeSingle();
-    if (existing && (existing as { id: string }).id) {
-      const { error } = await supabase.from(slot.table as never).update({ ...mapped, custom_data } as never).eq("id", (existing as { id: string }).id);
-      if (error) return { written: false, reason: error.message };
-    } else {
-      const { error } = await supabase.from(slot.table as never).insert({
-        factory_id: factoryId, line_id: lineId, work_order_id: workOrderId,
-        submitted_by: userId, production_date, custom_data, ...mapped,
-      } as never);
-      if (error) return { written: false, reason: error.message };
-    }
-    return { written: true };
-  } catch (e) {
-    return { written: false, reason: e instanceof Error ? e.message : String(e) };
-  }
+  // The DB function introspects the table, defaults any required column we didn't
+  // supply, and upserts by the natural key — runs as this user so RLS applies.
+  const { error } = await supabase.rpc("upsert_custom_production_row" as never, {
+    p_table: slot.table,
+    p_factory_id: factoryId,
+    p_line_id: lineId,
+    p_work_order_id: workOrderId,
+    p_production_date: localToday(),
+    p_values: mapped,
+    p_custom_data: custom_data,
+  } as never);
+  if (error) return { written: false, reason: error.message };
+  return { written: true };
 }
 
 /** Insert a submission (form keeps its own fields). For a slot form, also write the
