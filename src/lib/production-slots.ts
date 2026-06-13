@@ -19,6 +19,7 @@ export const SLOT_PRODUCTION: Record<string, SlotProduction> = {
   sewing_morning_targets: {
     table: "sewing_targets",
     targets: [
+      { key: "target_output", column: "target_total_planned", label: "Target total output" },
       { key: "per_hour_target", column: "per_hour_target", label: "Per-hour target" },
       { key: "manpower", column: "manpower_planned", label: "Manpower planned" },
       { key: "hours", column: "hours_planned", label: "Hours planned" },

@@ -331,7 +331,7 @@ export function summarizeFormEdits(name: string, ops: FormEditOps): string {
 // SLOT_PRODUCTION in src/lib/production-slots.ts). Line and PO are auto-detected
 // from the form's picker fields, so they're not listed here.
 export const PRODUCTION_SLOT_TARGETS: Record<string, string[]> = {
-  sewing_morning_targets: ["per_hour_target", "manpower", "hours", "ot_hours"],
+  sewing_morning_targets: ["target_output", "per_hour_target", "manpower", "hours", "ot_hours"],
   sewing_end_of_day: ["good_output", "reject", "rework", "manpower", "hours", "ot_hours"],
   cutting_morning_targets: ["manpower", "marker_capacity", "lay_capacity", "cutting_capacity", "day_cutting", "day_input", "hours"],
   cutting_end_of_day: ["day_cutting", "day_input", "manpower", "marker_capacity", "lay_capacity", "cutting_capacity", "hours"],
