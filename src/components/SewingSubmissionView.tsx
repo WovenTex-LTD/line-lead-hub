@@ -137,10 +137,14 @@ export function SewingSubmissionView({ target, actual, open, onOpenChange, onEdi
   // If either side's production row came from a custom form, render the form-driven
   // detail instead of the typed layout — so every page using this view follows the rule.
   const [customLookup, setCustomLookup] = useState<SubmissionLookup | null>(null);
+  // Until we've checked, show a loader (not the typed view) to avoid a flash of the
+  // wrong layout before the custom-detection resolves.
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    if (!open) { setCustomLookup(null); return; }
+    if (!open) { setCustomLookup(null); setReady(false); return; }
+    setReady(false);
     (async () => {
       const sides: [string, string][] = [];
       if (actual?.id) sides.push(["sewing_actuals", actual.id]);
@@ -155,7 +159,7 @@ export function SewingSubmissionView({ target, actual, open, onOpenChange, onEdi
         }
         if (row?.custom_data?.custom_submission_id) isCustom = true;
       }
-      if (!cancelled) setCustomLookup(isCustom ? key : null);
+      if (!cancelled) { setCustomLookup(isCustom ? key : null); setReady(true); }
     })();
     return () => { cancelled = true; };
   }, [open, actual?.id, target?.id]);
@@ -205,6 +209,19 @@ export function SewingSubmissionView({ target, actual, open, onOpenChange, onEdi
       : t('modals.sewingTarget');
 
   const Icon = hasActual ? SewingMachine : Crosshair;
+
+  // While checking whether this submission is custom, show a loader (avoids the
+  // typed view flashing before the form-driven view loads).
+  if (open && !ready) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl p-0">
+          <DialogHeader className="px-6 pt-6"><DialogTitle>{title}</DialogTitle></DialogHeader>
+          <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   if (customLookup) {
     return (
