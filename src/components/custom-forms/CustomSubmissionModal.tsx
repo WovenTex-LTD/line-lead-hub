@@ -14,6 +14,40 @@ export interface SubmissionLookup {
   actualTable: string;  // e.g. "sewing_actuals"
 }
 
+/** Shared by every department's submission view: when the opened production row came
+ *  from a custom form, return the lookup so the view renders the form-driven detail.
+ *  `ready` gates a loader so the typed view never flashes first. */
+export function useCustomSubmissionBranch(params: {
+  open: boolean; actualId?: string | null; targetId?: string | null; targetTable: string; actualTable: string;
+}): { lookup: SubmissionLookup | null; ready: boolean } {
+  const { open, actualId, targetId, targetTable, actualTable } = params;
+  const [lookup, setLookup] = useState<SubmissionLookup | null>(null);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    if (!open) { setLookup(null); setReady(false); return; }
+    setReady(false);
+    (async () => {
+      const sides: [string, string][] = [];
+      if (actualId) sides.push([actualTable, actualId]);
+      if (targetId) sides.push([targetTable, targetId]);
+      let key: SubmissionLookup | null = null;
+      let isCustom = false;
+      for (const [tbl, id] of sides) {
+        const { data } = await supabase.from(tbl as never).select("factory_id, line_id, work_order_id, production_date, custom_data").eq("id", id).maybeSingle();
+        const row = data as { factory_id?: string; line_id?: string; work_order_id?: string; production_date?: string; custom_data?: { custom_submission_id?: string } } | null;
+        if (row?.factory_id && row.line_id && row.work_order_id && row.production_date) {
+          key = { factoryId: row.factory_id, lineId: row.line_id, workOrderId: row.work_order_id, productionDate: row.production_date, targetTable, actualTable };
+        }
+        if (row?.custom_data?.custom_submission_id) isCustom = true;
+      }
+      if (!cancelled) { setLookup(isCustom ? key : null); setReady(true); }
+    })();
+    return () => { cancelled = true; };
+  }, [open, actualId, targetId, targetTable, actualTable]);
+  return { lookup, ready };
+}
+
 // Typed columns to show when a side is a DEFAULT (non-custom) production row.
 const TYPED_FIELDS: Record<string, { col: string; label: string; suffix?: string }[]> = {
   sewing_targets: [

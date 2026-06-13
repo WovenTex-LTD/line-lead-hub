@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { CustomSubmissionDetail, type SubmissionLookup } from "@/components/custom-forms/CustomSubmissionModal";
+import { CustomSubmissionDetail, useCustomSubmissionBranch } from "@/components/custom-forms/CustomSubmissionModal";
 import {
   Dialog,
   DialogContent,
@@ -136,33 +136,9 @@ export function SewingSubmissionView({ target, actual, open, onOpenChange, onEdi
   const [deleting, setDeleting] = useState(false);
   // If either side's production row came from a custom form, render the form-driven
   // detail instead of the typed layout — so every page using this view follows the rule.
-  const [customLookup, setCustomLookup] = useState<SubmissionLookup | null>(null);
-  // Until we've checked, show a loader (not the typed view) to avoid a flash of the
-  // wrong layout before the custom-detection resolves.
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!open) { setCustomLookup(null); setReady(false); return; }
-    setReady(false);
-    (async () => {
-      const sides: [string, string][] = [];
-      if (actual?.id) sides.push(["sewing_actuals", actual.id]);
-      if (target?.id) sides.push(["sewing_targets", target.id]);
-      let key: SubmissionLookup | null = null;
-      let isCustom = false;
-      for (const [tbl, id] of sides) {
-        const { data } = await supabase.from(tbl).select("factory_id, line_id, work_order_id, production_date, custom_data").eq("id", id).maybeSingle();
-        const row = data as { factory_id?: string; line_id?: string; work_order_id?: string; production_date?: string; custom_data?: { custom_submission_id?: string } } | null;
-        if (row?.factory_id && row.line_id && row.work_order_id && row.production_date) {
-          key = { factoryId: row.factory_id, lineId: row.line_id, workOrderId: row.work_order_id, productionDate: row.production_date, targetTable: "sewing_targets", actualTable: "sewing_actuals" };
-        }
-        if (row?.custom_data?.custom_submission_id) isCustom = true;
-      }
-      if (!cancelled) { setCustomLookup(isCustom ? key : null); setReady(true); }
-    })();
-    return () => { cancelled = true; };
-  }, [open, actual?.id, target?.id]);
+  const { lookup: customLookup, ready } = useCustomSubmissionBranch({
+    open, actualId: actual?.id, targetId: target?.id, targetTable: "sewing_targets", actualTable: "sewing_actuals",
+  });
 
   if (!target && !actual) return null;
 

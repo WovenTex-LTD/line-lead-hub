@@ -36,6 +36,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { CustomSubmissionDetail, useCustomSubmissionBranch } from "@/components/custom-forms/CustomSubmissionModal";
 import { useNavigate } from "react-router-dom";
 
 export interface CuttingTargetData {
@@ -137,6 +138,9 @@ export function CuttingSubmissionView({ target, actual, open, onOpenChange, onEd
   const { calculateEstimatedCost, getCurrencySymbol, isConfigured } = useHeadcountCost();
   const [deleteType, setDeleteType] = useState<"target" | "actual" | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const { lookup: customLookup, ready: customReady } = useCustomSubmissionBranch({
+    open, actualId: actual?.id, targetId: target?.id, targetTable: "cutting_targets", actualTable: "cutting_actuals",
+  });
 
   if (!target && !actual) return null;
 
@@ -183,6 +187,26 @@ export function CuttingSubmissionView({ target, actual, open, onOpenChange, onEd
       : t('cutting.cuttingTarget');
 
   const Icon = hasActual ? Scissors : Target;
+
+  if (open && !customReady) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl p-0">
+          <DialogHeader className="px-6 pt-6"><DialogTitle>{title}</DialogTitle></DialogHeader>
+          <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+  if (customLookup) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
+          <CustomSubmissionDetail title={title} lookup={customLookup} />
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

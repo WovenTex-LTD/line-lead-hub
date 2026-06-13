@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
+import { CustomSubmissionDetail, useCustomSubmissionBranch } from "@/components/custom-forms/CustomSubmissionModal";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -141,6 +142,9 @@ export function FinishingSubmissionView({ target, actual, open, onOpenChange, on
   const { calculateEstimatedCost, getCurrencySymbol, isConfigured } = useHeadcountCost();
   const [deleteType, setDeleteType] = useState<"target" | "actual" | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const { lookup: customLookup, ready: customReady } = useCustomSubmissionBranch({
+    open, actualId: actual?.id, targetId: target?.id, targetTable: "finishing_targets", actualTable: "finishing_actuals",
+  });
 
   if (!target && !actual) return null;
 
@@ -184,6 +188,26 @@ export function FinishingSubmissionView({ target, actual, open, onOpenChange, on
       : t('modals.finishingTarget');
 
   const Icon = hasActual ? Package : Crosshair;
+
+  if (open && !customReady) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl p-0">
+          <DialogHeader className="px-6 pt-6"><DialogTitle>{title}</DialogTitle></DialogHeader>
+          <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+  if (customLookup) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
+          <CustomSubmissionDetail title={title} lookup={customLookup} />
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
