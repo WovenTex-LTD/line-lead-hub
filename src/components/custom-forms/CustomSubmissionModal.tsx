@@ -88,15 +88,11 @@ function TypedRows({ table, row }: { table: string; row: Record<string, unknown>
   );
 }
 
-/** Shows the morning target (left) and the end-of-day actual (right) for one line/PO/day,
- *  each driven by the custom form that produced it (or the default typed fields). Opens the
- *  same combined view whether you click the target row or the actual row. */
-export function CustomSubmissionModal({ open, onClose, title, lookup }: {
-  open: boolean;
-  onClose: () => void;
-  title?: string;
-  lookup: SubmissionLookup | null;
-}) {
+/** The combined form-driven body (header + target/actual columns) for one line/PO/day.
+ *  Rendered inside a DialogContent — by CustomSubmissionModal, or by the shared
+ *  SewingSubmissionView when it detects a custom row, so every page follows the same rule. */
+export function CustomSubmissionDetail({ title, lookup }: { title?: string; lookup: SubmissionLookup | null }) {
+  const open = lookup !== null;
   const [loading, setLoading] = useState(false);
   const [target, setTarget] = useState<SideData>({ row: null, custom: null });
   const [actual, setActual] = useState<SideData>({ row: null, custom: null });
@@ -152,51 +148,60 @@ export function CustomSubmissionModal({ open, onClose, title, lookup }: {
   const hasTarget = !!(target.row || target.custom);
   const hasActual = !!(actual.row || actual.custom);
 
+  if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+  if (!hasTarget && !hasActual) return <div className="p-6"><p className="text-sm text-muted-foreground">Nothing to show.</p></div>;
+  return (
+    <>
+      <div className="px-6 pt-6 pb-4 border-b border-border/40">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-lg">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-sm shadow-blue-500/20 flex items-center justify-center">
+              <Shirt className="h-4 w-4 text-white" />
+            </div>
+            {title || "Submission"}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-wrap items-start gap-x-5 gap-y-1 mt-3 text-sm">
+          <HeaderField label="Date" value={lookup ? new Date(lookup.productionDate).toLocaleDateString() : undefined} />
+          <HeaderField label="Line" value={lines?.name || lines?.line_id} />
+          <HeaderField label="Buyer" value={wo?.buyer} />
+          <HeaderField label="Style" value={wo?.style} />
+          <HeaderField label="PO Number" value={wo?.po_number} />
+          <HeaderField label="Order Qty" value={wo?.order_qty ?? undefined} />
+          {achievement != null && <HeaderField label="Achievement" value={`${achievement}%`} />}
+        </div>
+      </div>
+      <div className="px-6 py-5">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+          <div className={hasTarget
+            ? "rounded-lg border-l-2 border-l-blue-500 border border-border/50 bg-blue-50/30 dark:bg-blue-950/10 p-4 space-y-3"
+            : "rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30 p-4 min-h-[180px] flex items-center justify-center"}>
+            {hasTarget && <h4 className="text-xs font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-400 flex items-center gap-2"><Crosshair className="h-3.5 w-3.5" /> Morning Target</h4>}
+            {renderSide("target", target, lookup!.targetTable)}
+          </div>
+          <div className={hasActual
+            ? "rounded-lg border-l-2 border-l-emerald-500 border border-border/50 bg-emerald-50/30 dark:bg-emerald-950/10 p-4 space-y-3"
+            : "rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30 p-4 min-h-[180px] flex items-center justify-center"}>
+            {hasActual && <h4 className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-2"><Shirt className="h-3.5 w-3.5" /> End of Day Actual</h4>}
+            {renderSide("actual", actual, lookup!.actualTable)}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** Standalone modal wrapper around the form-driven detail. */
+export function CustomSubmissionModal({ open, onClose, title, lookup }: {
+  open: boolean;
+  onClose: () => void;
+  title?: string;
+  lookup: SubmissionLookup | null;
+}) {
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
-        {loading && <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
-        {!loading && !hasTarget && !hasActual && <div className="p-6"><p className="text-sm text-muted-foreground">Nothing to show.</p></div>}
-        {!loading && (hasTarget || hasActual) && (
-          <>
-            <div className="px-6 pt-6 pb-4 border-b border-border/40">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-lg">
-                  <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-sm shadow-blue-500/20 flex items-center justify-center">
-                    <Shirt className="h-4 w-4 text-white" />
-                  </div>
-                  {title || "Submission"}
-                </DialogTitle>
-              </DialogHeader>
-              <div className="flex flex-wrap items-start gap-x-5 gap-y-1 mt-3 text-sm">
-                <HeaderField label="Date" value={lookup ? new Date(lookup.productionDate).toLocaleDateString() : undefined} />
-                <HeaderField label="Line" value={lines?.name || lines?.line_id} />
-                <HeaderField label="Buyer" value={wo?.buyer} />
-                <HeaderField label="Style" value={wo?.style} />
-                <HeaderField label="PO Number" value={wo?.po_number} />
-                <HeaderField label="Order Qty" value={wo?.order_qty ?? undefined} />
-                {achievement != null && <HeaderField label="Achievement" value={`${achievement}%`} />}
-              </div>
-            </div>
-
-            <div className="px-6 py-5">
-              <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-                <div className={hasTarget
-                  ? "rounded-lg border-l-2 border-l-blue-500 border border-border/50 bg-blue-50/30 dark:bg-blue-950/10 p-4 space-y-3"
-                  : "rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30 p-4 min-h-[180px] flex items-center justify-center"}>
-                  {hasTarget && <h4 className="text-xs font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-400 flex items-center gap-2"><Crosshair className="h-3.5 w-3.5" /> Morning Target</h4>}
-                  {renderSide("target", target, lookup!.targetTable)}
-                </div>
-                <div className={hasActual
-                  ? "rounded-lg border-l-2 border-l-emerald-500 border border-border/50 bg-emerald-50/30 dark:bg-emerald-950/10 p-4 space-y-3"
-                  : "rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30 p-4 min-h-[180px] flex items-center justify-center"}>
-                  {hasActual && <h4 className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-2"><Shirt className="h-3.5 w-3.5" /> End of Day Actual</h4>}
-                  {renderSide("actual", actual, lookup!.actualTable)}
-                </div>
-              </div>
-            </div>
-          </>
-        )}
+        {open && <CustomSubmissionDetail title={title} lookup={lookup} />}
       </DialogContent>
     </Dialog>
   );

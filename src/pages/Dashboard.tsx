@@ -1,4 +1,3 @@
-import { CustomSubmissionModal } from "@/components/custom-forms/CustomSubmissionModal";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -272,7 +271,6 @@ export default function Dashboard() {
   const [activeBlockers, setActiveBlockers] = useState<ActiveBlocker[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
-  const [customModal, setCustomModal] = useState<{ title: string; lookup: any } | null>(null);
   const [selectedTarget, setSelectedTarget] = useState<TargetSubmission | null>(null);
   const [selectedCutting, setSelectedCutting] = useState<CuttingSubmission | null>(null);
   const [selectedCuttingTarget, setSelectedCuttingTarget] = useState<CuttingTarget | null>(null);
@@ -1302,26 +1300,10 @@ export default function Dashboard() {
             allLines={allLines}
             loading={loading}
             onTargetClick={(target) => {
-              const t = target as TargetSubmission;
-              if (t.customSubmissionId && profile?.factory_id && t.line_uuid && t.work_order_id && t.production_date) {
-                setCustomModal({ title: "Sewing Submission", lookup: {
-                  factoryId: profile.factory_id, lineId: t.line_uuid, workOrderId: t.work_order_id, productionDate: t.production_date,
-                  targetTable: "sewing_targets", actualTable: "sewing_actuals",
-                }});
-                return;
-              }
               setSewingViewSource({ type: 'target', id: target.id });
               setSewingViewOpen(true);
             }}
             onEodClick={(eod) => {
-              const e = eod as EndOfDaySubmission;
-              if (e.customSubmissionId && profile?.factory_id && e.line_uuid && e.work_order_id && e.production_date) {
-                setCustomModal({ title: "Sewing Submission", lookup: {
-                  factoryId: profile.factory_id, lineId: e.line_uuid, workOrderId: e.work_order_id, productionDate: e.production_date,
-                  targetTable: "sewing_targets", actualTable: "sewing_actuals",
-                }});
-                return;
-              }
               setSewingViewSource({ type: 'actual', id: eod.id });
               setSewingViewOpen(true);
             }}
@@ -1766,13 +1748,6 @@ export default function Dashboard() {
         target={selectedTarget ? { ...selectedTarget, submitted_at: selectedTarget.submitted_at || '' } : null}
         open={targetModalOpen}
         onOpenChange={setTargetModalOpen}
-      />
-
-      <CustomSubmissionModal
-        open={customModal !== null}
-        title={customModal?.title}
-        lookup={customModal?.lookup ?? null}
-        onClose={() => setCustomModal(null)}
       />
 
       {(() => {
