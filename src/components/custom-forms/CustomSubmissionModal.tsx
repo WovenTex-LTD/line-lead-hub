@@ -52,6 +52,27 @@ const SELECT = "*, lines(line_id, name), work_orders(po_number, buyer, style, it
 
 interface SideData { row: Record<string, unknown> | null; custom: CustomFormSubmission | null; }
 
+interface CompareRow { label: string; target: number; actual: number; diff: number; }
+
+/** Pair the target and actual custom submissions' numeric fields by label (matching
+ *  "Target X" to "X") and compute the difference (actual − target). */
+function buildComparison(target: CustomFormSubmission, actual: CustomFormSubmission): CompareRow[] {
+  const norm = (s: string) => s.toLowerCase().replace(/^target\s+/, "").trim();
+  const targetByLabel = new Map<string, unknown>();
+  for (const f of target.fields_snapshot) targetByLabel.set(norm(f.label), target.values[f.key]);
+  const rows: CompareRow[] = [];
+  for (const af of actual.fields_snapshot) {
+    if (af.field_type === "po_select" || (af.field_type === "dynamic_select" && af.source_key === "lines")) continue;
+    const key = norm(af.label);
+    if (!targetByLabel.has(key)) continue;
+    const an = Number(actual.values[af.key]);
+    const tn = Number(targetByLabel.get(key));
+    if (!Number.isFinite(an) || !Number.isFinite(tn)) continue;
+    rows.push({ label: af.label, target: tn, actual: an, diff: Math.round((an - tn) * 100) / 100 });
+  }
+  return rows;
+}
+
 function HeaderField({ label, value }: { label: string; value: ReactNode }) {
   if (value === null || value === undefined || value === "") return null;
   return <div><p className="text-[11px] text-muted-foreground mb-0.5">{label}</p><p className="font-semibold">{value}</p></div>;
@@ -147,6 +168,7 @@ export function CustomSubmissionDetail({ title, lookup }: { title?: string; look
 
   const hasTarget = !!(target.row || target.custom);
   const hasActual = !!(actual.row || actual.custom);
+  const comparison = (target.custom && actual.custom) ? buildComparison(target.custom, actual.custom) : [];
 
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
   if (!hasTarget && !hasActual) return <div className="p-6"><p className="text-sm text-muted-foreground">Nothing to show.</p></div>;
@@ -186,6 +208,36 @@ export function CustomSubmissionDetail({ title, lookup }: { title?: string; look
             {renderSide("actual", actual, lookup!.actualTable)}
           </div>
         </div>
+
+        {comparison.length > 0 && (
+          <div className="mt-5">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Target vs Actual Comparison</h4>
+            <div className="rounded-lg border border-border/50 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-muted/40 text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <th className="text-left font-medium px-3 py-2">Field</th>
+                    <th className="text-right font-medium px-3 py-2">Target</th>
+                    <th className="text-right font-medium px-3 py-2">Actual</th>
+                    <th className="text-right font-medium px-3 py-2">Difference</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {comparison.map((r) => (
+                    <tr key={r.label} className="border-t border-border/40">
+                      <td className="px-3 py-2">{r.label}</td>
+                      <td className="text-right px-3 py-2 font-mono text-muted-foreground">{r.target}</td>
+                      <td className="text-right px-3 py-2 font-mono">{r.actual}</td>
+                      <td className={`text-right px-3 py-2 font-mono font-semibold ${r.diff > 0 ? "text-emerald-600 dark:text-emerald-400" : r.diff < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                        {r.diff > 0 ? "+" : ""}{r.diff}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
