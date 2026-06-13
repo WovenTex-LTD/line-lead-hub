@@ -124,6 +124,10 @@ async function writeProductionRow(
   if (!lineId || !workOrderId) return { written: false, reason: "Couldn't match the selected Line or PO." };
 
   const mapped: Record<string, number> = {};
+  // Default every production column for this slot to 0, so columns the form doesn't
+  // map (some of which are NOT NULL, e.g. sewing_targets.per_hour_target) never block
+  // the insert. The detail stays form-driven, so these 0s aren't shown to the user.
+  for (const t of slot.targets) mapped[t.column] = 0;
   for (const [friendlyKey, fieldKey] of Object.entries(mapping)) {
     const target = slot.targets.find((t) => t.key === friendlyKey);
     if (!target) continue;
