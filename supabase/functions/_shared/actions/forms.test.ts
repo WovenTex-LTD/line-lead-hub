@@ -86,7 +86,12 @@ describe("validateUpdateCustomForm", () => {
 });
 
 describe("slot_key (form versions)", () => {
-  const fields = [{ label: "Date", type: "date" }];
+  // Slot forms now require a Line picker + PO picker (backstop), so include them.
+  const fields = [
+    { label: "Line", type: "dynamic_select", source_key: "lines" },
+    { label: "PO Number", type: "po_select" },
+    { label: "Date", type: "date" },
+  ];
   it("accepts a valid slot_key and derives the role from it", () => {
     const r = validateCreateCustomForm({ name: "Cutting Targets v2", slot_key: "cutting_morning_targets", fields });
     expect(r.ok).toBe(true);
@@ -327,5 +332,25 @@ describe("resolveProductionMapping", () => {
   it("rejects when the slot has no production target", () => {
     const r = resolveProductionMapping(null, { manpower: "Daily Manpower" }, fields);
     expect(r.ok).toBe(false);
+  });
+});
+
+describe("slot form production backstop", () => {
+  it("rejects a slot form without a Line or PO picker", () => {
+    const r = validateCreateCustomForm({ name: "X", slot_key: "sewing_end_of_day", fields: [{ label: "Output", type: "number" }] });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.toLowerCase()).toContain("line");
+  });
+  it("accepts a slot form that has both pickers", () => {
+    const r = validateCreateCustomForm({ name: "X", slot_key: "sewing_end_of_day", fields: [
+      { label: "Line", type: "dynamic_select", source_key: "lines" },
+      { label: "PO", type: "po_select" },
+      { label: "Output", type: "number" },
+    ] });
+    expect(r.ok).toBe(true);
+  });
+  it("does NOT require pickers for a standalone form", () => {
+    const r = validateCreateCustomForm({ name: "X", target_role: "qc", fields: [{ label: "Note", type: "text" }] });
+    expect(r.ok).toBe(true);
   });
 });

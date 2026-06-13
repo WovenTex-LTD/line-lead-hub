@@ -191,6 +191,19 @@ export function validateCreateCustomForm(input: Record<string, unknown>): Valida
   const norm = normalizeFields(input.fields);
   if (!norm.ok) return norm;
 
+  // Backstop: a slot form (a version of a production form) MUST have a Line picker and
+  // a PO picker, otherwise its submissions can't reach the production views. Enforced
+  // here so any factory's slot form is guaranteed to work — never relies on the model
+  // remembering. (Required only for production slots, not standalone forms.)
+  if (slot_key) {
+    const hasLine = norm.fields.some((f) => f.field_type === "dynamic_select" && f.source_key === "lines");
+    const hasPo = norm.fields.some((f) => f.field_type === "po_select");
+    if (!hasLine || !hasPo) {
+      const missing = [!hasLine ? "a Line field (dynamic_select, source lines)" : "", !hasPo ? "a PO field (po_select)" : ""].filter(Boolean).join(" and ");
+      return { ok: false, error: `A version of a production form needs ${missing} so its submissions appear in the production views. Add ${missing} and propose again.` };
+    }
+  }
+
   const action: ProposedAction = {
     kind: "create_custom_form",
     humanSummary: slot_key
