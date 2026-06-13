@@ -271,7 +271,7 @@ export default function Dashboard() {
   const [activeBlockers, setActiveBlockers] = useState<ActiveBlocker[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
-  const [customModal, setCustomModal] = useState<{ id: string; title: string } | null>(null);
+  const [customModal, setCustomModal] = useState<{ id: string; title: string; targetLookup?: any; actualOutput?: number | null } | null>(null);
   const [selectedTarget, setSelectedTarget] = useState<TargetSubmission | null>(null);
   const [selectedCutting, setSelectedCutting] = useState<CuttingSubmission | null>(null);
   const [selectedCuttingTarget, setSelectedCuttingTarget] = useState<CuttingTarget | null>(null);
@@ -1306,7 +1306,16 @@ export default function Dashboard() {
             onEodClick={(eod) => {
               // A row from a custom form opens a detail driven by the form's own fields.
               if ((eod as EndOfDaySubmission).customSubmissionId) {
-                setCustomModal({ id: (eod as EndOfDaySubmission).customSubmissionId as string, title: "Sewing End of Day" });
+                const e = eod as EndOfDaySubmission;
+                setCustomModal({
+                  id: e.customSubmissionId as string,
+                  title: "Sewing End of Day",
+                  actualOutput: e.output,
+                  targetLookup: (profile?.factory_id && e.line_uuid && e.work_order_id && e.production_date) ? {
+                    table: "sewing_targets", factoryId: profile.factory_id,
+                    lineId: e.line_uuid, workOrderId: e.work_order_id, productionDate: e.production_date,
+                  } : null,
+                });
                 return;
               }
               setSewingViewSource({ type: 'actual', id: eod.id });
@@ -1758,6 +1767,8 @@ export default function Dashboard() {
       <CustomSubmissionModal
         submissionId={customModal?.id ?? null}
         title={customModal?.title}
+        targetLookup={customModal?.targetLookup ?? null}
+        actualOutput={customModal?.actualOutput ?? null}
         onClose={() => setCustomModal(null)}
       />
 

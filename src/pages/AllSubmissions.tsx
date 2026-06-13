@@ -182,7 +182,7 @@ export default function AllSubmissions() {
   // Modal state
   const [selectedTarget, setSelectedTarget] = useState<any>(null);
   const [selectedActual, setSelectedActual] = useState<any>(null);
-  const [customModal, setCustomModal] = useState<{ id: string; title: string } | null>(null);
+  const [customModal, setCustomModal] = useState<{ id: string; title: string; targetLookup?: any; actualOutput?: number | null } | null>(null);
   const [targetModalOpen, setTargetModalOpen] = useState(false);
   const [actualModalOpen, setActualModalOpen] = useState(false);
   const [sewingViewOpen, setSewingViewOpen] = useState(false);
@@ -492,7 +492,16 @@ export default function AllSubmissions() {
   const handleActualClick = (actual: SewingActual | FinishingActual) => {
     const customId = (actual as any).custom_data?.custom_submission_id;
     if (customId) {
-      setCustomModal({ id: customId, title: department === 'sewing' ? 'Sewing End of Day' : 'End of Day' });
+      const a = actual as SewingActual;
+      setCustomModal({
+        id: customId,
+        title: department === 'sewing' ? 'Sewing End of Day' : 'End of Day',
+        actualOutput: (a as any).good_today ?? null,
+        targetLookup: (department === 'sewing' && profile?.factory_id && a.line_id && a.work_order_id && a.production_date) ? {
+          table: 'sewing_targets', factoryId: profile.factory_id,
+          lineId: a.line_id, workOrderId: a.work_order_id, productionDate: a.production_date,
+        } : null,
+      });
       return;
     }
     if (department === 'sewing') {
@@ -1024,6 +1033,8 @@ export default function AllSubmissions() {
       <CustomSubmissionModal
         submissionId={customModal?.id ?? null}
         title={customModal?.title}
+        targetLookup={customModal?.targetLookup ?? null}
+        actualOutput={customModal?.actualOutput ?? null}
         onClose={() => setCustomModal(null)}
       />
 
