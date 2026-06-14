@@ -164,6 +164,7 @@ function rowToRaw(r: Record<string, unknown>): Record<string, unknown> {
   if (r.formula) raw.formula = r.formula;
   if (r.auto_source) raw.auto_source = r.auto_source;
   if (r.source_key) raw.source_key = r.source_key;
+  if (r.metric_role) raw.metric_role = r.metric_role;
   return raw;
 }
 

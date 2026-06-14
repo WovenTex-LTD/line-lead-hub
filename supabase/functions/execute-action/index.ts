@@ -112,6 +112,7 @@ serve(async (req) => {
         formula: f.formula ?? null,
         auto_source: f.auto_source ?? null,
         source_key: f.source_key ?? null,
+        metric_role: f.metric_role ?? null,
         sort_order: typeof f.sort_order === "number" ? f.sort_order : 0,
       }));
       const { data: inserted, error: fErr } = await userClient
@@ -155,6 +156,7 @@ serve(async (req) => {
         formula: f.formula ?? null,
         auto_source: f.auto_source ?? null,
         source_key: f.source_key ?? null,
+        metric_role: f.metric_role ?? null,
         sort_order: typeof f.sort_order === "number" ? f.sort_order : 0,
       }));
       const { data: inserted, error: fErr } = await userClient

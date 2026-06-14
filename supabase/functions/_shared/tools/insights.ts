@@ -49,6 +49,72 @@ export async function getProductionData(
   return result.error ? `(${result.error})` : result.summary;
 }
 
+/** get_metrics([department],[metric],[kind],[start_date],[end_date]) — reads the
+ *  canonical production_metrics view: ONE normalized vocabulary (output,
+ *  target_output, reject, rework, manpower, hours, ot_hours, per_hour,
+ *  per_hour_target, input, poly, carton) across sewing/cutting/finishing, target
+ *  AND actual, standard AND custom forms. Use this to compare or compute across
+ *  forms — a custom form's differently-worded fields are already mapped to these
+ *  roles, so the same output/manpower number is comparable regardless of form. */
+export async function getMetrics(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  const allowed = allowedDepartmentsForRole(ctx.role);
+  if (allowed.length === 0) return DENY("production metrics");
+
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+  const start = typeof input.start_date === "string" && DATE_RE.test(input.start_date) ? input.start_date : ctx.today;
+  const end = typeof input.end_date === "string" && DATE_RE.test(input.end_date) ? input.end_date : ctx.today;
+
+  let depts = allowed as string[];
+  const reqDept = typeof input.department === "string" ? input.department : null;
+  if (reqDept) {
+    if (!allowed.includes(reqDept as Department)) return DENY(`${reqDept} metrics`);
+    depts = [reqDept];
+  }
+
+  let q = ctx.supabase.from("production_metrics")
+    .select("department, kind, metric_role, value, is_custom")
+    .eq("factory_id", ctx.factoryId)
+    .gte("production_date", start).lte("production_date", end)
+    .in("department", depts);
+  if (typeof input.metric === "string") q = q.eq("metric_role", input.metric);
+  if (typeof input.kind === "string") q = q.eq("kind", input.kind);
+
+  const { data, error } = await q;
+  if (error) return `(couldn't read metrics: ${error.message})`;
+  const rows = (data ?? []) as { department: string; kind: string; metric_role: string; value: number; is_custom: boolean }[];
+  if (rows.length === 0) return `No production metrics for ${depts.join("/")} between ${start} and ${end}.`;
+
+  // Sum by department|kind|metric_role, tracking how many rows came from custom forms.
+  const agg = new Map<string, { sum: number; custom: number }>();
+  for (const r of rows) {
+    const key = `${r.department}|${r.kind}|${r.metric_role}`;
+    const a = agg.get(key) ?? { sum: 0, custom: 0 };
+    a.sum += Number(r.value) || 0;
+    if (r.is_custom) a.custom += 1;
+    agg.set(key, a);
+  }
+
+  const range = start === end ? start : `${start} → ${end}`;
+  const out: string[] = [`Production metrics (${range}), normalized across standard + custom forms:`];
+  for (const d of depts) {
+    const parts: string[] = [];
+    for (const [key, a] of agg) {
+      const [dd, kind, role] = key.split("|");
+      if (dd !== d) continue;
+      const cust = a.custom > 0 ? ` (${a.custom} from custom forms)` : "";
+      parts.push(`  ${kind} ${role}: ${Math.round(a.sum * 100) / 100}${cust}`);
+    }
+    if (parts.length === 0) continue;
+    out.push(`${d}:`, ...parts.sort());
+    const actOut = agg.get(`${d}|actual|output`)?.sum;
+    const tgtOut = agg.get(`${d}|target|target_output`)?.sum;
+    if (actOut != null && tgtOut != null && tgtOut > 0) {
+      out.push(`  → achievement: ${Math.round((actOut / tgtOut) * 1000) / 10}% (actual output ${actOut} vs target ${tgtOut})`);
+    }
+  }
+  return out.join("\n");
+}
+
 /** get_blockers() — open/in-progress blockers across sewing + finishing. */
 export async function getBlockers(ctx: ToolContext, _input: Record<string, unknown>): Promise<string> {
   if (!canSeeProductionFloor(ctx.role)) return DENY("blocker data");

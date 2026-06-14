@@ -4,7 +4,7 @@
 import type { ToolContext, ToolDefinition, UserRole } from "./types.ts";
 import { isToolAllowed } from "./types.ts";
 import {
-  getProductionData, getBlockers, getWorkOrders, getLines,
+  getProductionData, getMetrics, getBlockers, getWorkOrders, getLines,
   getFinancials, comparePeriods, findAnomalies, searchKnowledge,
   raiseSupportTicket, generateReport,
 } from "./insights.ts";
@@ -32,6 +32,22 @@ export const ALL_TOOLS: ToolDefinition[] = [
     },
     allowedRoles: "all",
     execute: getProductionData,
+  },
+  {
+    name: "get_metrics",
+    description: "Read the CANONICAL production metrics — one normalized vocabulary (output, target_output, reject, rework, manpower, hours, ot_hours, per_hour, per_hour_target, input, poly, carton) across sewing/cutting/finishing, target AND actual, STANDARD AND CUSTOM forms. Use this whenever you need to compare or compute across forms or departments — output vs target, efficiency, manpower productivity, custom-form data alongside standard. Because each custom form's differently-worded fields are already mapped to these roles, the same metric is directly comparable no matter which form produced it. Optionally filter by department, metric (a single metric_role), kind (target|actual), and a date range (defaults to today).",
+    input_schema: {
+      type: "object",
+      properties: {
+        department: { type: "string", enum: ["sewing", "cutting", "finishing"], description: "Limit to one department. Omit for all the user's departments." },
+        metric: { type: "string", description: "Limit to one metric_role, e.g. output, target_output, manpower, hours, reject, per_hour_target. Omit for all." },
+        kind: { type: "string", enum: ["target", "actual"], description: "Limit to target or actual. Omit for both." },
+        start_date: { type: "string", description: "Range start YYYY-MM-DD. Defaults to today." },
+        end_date: { type: "string", description: "Range end YYYY-MM-DD. Defaults to today." },
+      },
+    },
+    allowedRoles: "all",
+    execute: getMetrics,
   },
   {
     name: "get_blockers",
@@ -227,7 +243,7 @@ export const ALL_TOOLS: ToolDefinition[] = [
         name: { type: "string", description: "The form's title." },
         target_role: { type: "string", enum: ["sewing", "cutting", "finishing", "qc", "storage", "worker"], description: "Which role/department this form belongs to. Ask the user if unclear. Not needed when slot_key is set (the slot implies the role)." },
         slot_key: { type: "string", enum: ["sewing_morning_targets", "sewing_end_of_day", "cutting_morning_targets", "cutting_end_of_day", "finishing_daily_target", "finishing_daily_output"], description: "Set ONLY when this form is meant as a new version/variant of that default production form. Omit for a standalone form." },
-        production_mapping: { type: "object", additionalProperties: { type: "string" }, description: "For a slot form (slot_key set), ALWAYS include this so the form feeds the production dashboards by default — don't wait to be asked. Map production values to this form's field LABELS. Keys depend on the slot — e.g. for sewing_end_of_day: good_output, reject, rework, manpower, hours, ot_hours; for sewing_morning_targets: target_output (map the target/planned OUTPUT field — REQUIRED for the target-vs-actual status to work), per_hour_target, manpower, hours, ot_hours; cutting: day_cutting, day_input, manpower, marker_capacity, lay_capacity, cutting_capacity, hours; finishing_daily_output: qc_pass, poly, carton, manpower, hours. Example (end of day): {\"good_output\": \"Line output (Production)\", \"manpower\": \"Daily Manpower\", \"hours\": \"Worked Hours\"}. Example (morning target): {\"target_output\": \"Target Line output (Production)\", \"manpower\": \"Target Daily Manpower\", \"hours\": \"Target Worked Hours\"}. Line and PO are detected automatically from the form's line/PO picker fields." },
+        production_mapping: { type: "object", additionalProperties: { type: "string" }, description: "For a slot form (slot_key set), ALWAYS include this so the form feeds the production dashboards by default — don't wait to be asked. Map production values to this form's field LABELS. Keys depend on the slot — e.g. for sewing_end_of_day: good_output, reject, rework, manpower, hours, ot_hours; for sewing_morning_targets: target_output (map the target/planned OUTPUT field — REQUIRED for the target-vs-actual status to work), per_hour_target, manpower, hours, ot_hours; cutting: day_cutting, day_input, manpower, marker_capacity, lay_capacity, cutting_capacity, hours; finishing_daily_output: poly, carton, manpower, hours, ot_hours; finishing_daily_target: per_hour_target, manpower, hours, ot_hours. Example (end of day): {\"good_output\": \"Line output (Production)\", \"manpower\": \"Daily Manpower\", \"hours\": \"Worked Hours\"}. Example (morning target): {\"target_output\": \"Target Line output (Production)\", \"manpower\": \"Target Daily Manpower\", \"hours\": \"Target Worked Hours\"}. Line and PO are detected automatically from the form's line/PO picker fields." },
         description: { type: "string" },
         fields: {
           type: "array",
@@ -243,6 +259,7 @@ export const ALL_TOOLS: ToolDefinition[] = [
               source_key: { type: "string", enum: ["lines", "stages", "stage_progress", "milestones", "blocker_types", "blocker_owners", "blocker_impacts"], description: "Required for type \"dynamic_select\": which live factory list supplies the dropdown choices (kept in sync automatically). Use lines for production lines, stages/stage_progress/milestones for the production lists, blocker_types/blocker_owners/blocker_impacts for the blocker lists." },
               formula: { type: "string", description: "Required for type \"computed\": arithmetic that references OTHER fields by their exact label in braces, e.g. \"{Total Minutes Produced} / {Total Minutes Attended} * 100\". Supports + - * / and parentheses. The field auto-calculates and is read-only." },
               auto_source: { type: "string", enum: ["submission_date", "submission_time", "submission_datetime", "current_month", "current_year", "user_name", "user_email", "factory_name"], description: "Required for type \"auto\": which submission-context value fills the field automatically (read-only). E.g. submission_date for the date it's filled, user_name for who filled it." },
+              metric_role: { type: "string", enum: ["output", "target_output", "reject", "rework", "manpower", "hours", "ot_hours", "per_hour", "per_hour_target", "input", "poly", "carton", "efficiency"], description: "Optional, for a NUMBER or COMPUTED field only: tag the canonical production metric this field's value represents, so the form feeds the Insights page and Lina even though it's not a default production form. Map by MEANING, not wording — e.g. 'Garments Produced Today' or 'Pieces Out' → output, 'Target Output'/'Planned Pcs' → target_output, 'Operators on Line'/'Headcount' → manpower, 'Hours Worked' → hours, 'Line Efficiency %' → efficiency, 'Rejects'/'Defects' → reject. Tag EVERY numeric field that is one of these. Omit for fields that aren't a production metric." },
             },
             required: ["label", "type"],
           },
@@ -274,6 +291,7 @@ export const ALL_TOOLS: ToolDefinition[] = [
               source_key: { type: "string", enum: ["lines", "stages", "stage_progress", "milestones", "blocker_types", "blocker_owners", "blocker_impacts"], description: "Required for type \"dynamic_select\": which live factory list supplies the choices." },
               formula: { type: "string", description: "Required for type \"computed\": arithmetic referencing OTHER fields by exact label in braces, e.g. \"{A} * {B}\". Supports + - * / and parentheses. Read-only, auto-calculated." },
               auto_source: { type: "string", enum: ["submission_date", "submission_time", "submission_datetime", "current_month", "current_year", "user_name", "user_email", "factory_name"], description: "Required for type \"auto\": which submission-context value fills the field (read-only)." },
+              metric_role: { type: "string", enum: ["output", "target_output", "reject", "rework", "manpower", "hours", "ot_hours", "per_hour", "per_hour_target", "input", "poly", "carton", "efficiency"], description: "Optional, NUMBER/COMPUTED only: canonical production metric this value represents (output, manpower, hours, target_output, efficiency, …), so the form feeds Insights + Lina. Map by meaning regardless of wording. Omit if not a production metric." },
             },
             required: ["label", "type"],
           },
@@ -340,6 +358,7 @@ export const ALL_TOOLS: ToolDefinition[] = [
               formula: { type: "string", description: "When converting to type computed: arithmetic referencing OTHER fields by exact label in braces, e.g. \"{A} * {B}\"." },
               auto_source: { type: "string", enum: ["submission_date", "submission_time", "submission_datetime", "current_month", "current_year", "user_name", "user_email", "factory_name"] },
               source_key: { type: "string", enum: ["lines", "stages", "stage_progress", "milestones", "blocker_types", "blocker_owners", "blocker_impacts"] },
+              metric_role: { type: "string", enum: ["output", "target_output", "reject", "rework", "manpower", "hours", "ot_hours", "per_hour", "per_hour_target", "input", "poly", "carton", "efficiency"], description: "Set/change the canonical production metric this NUMBER/COMPUTED field represents so it feeds Insights + Lina (output, manpower, hours, target_output, efficiency, …). Map by meaning regardless of wording." },
             },
             required: ["field"],
           },
@@ -358,6 +377,7 @@ export const ALL_TOOLS: ToolDefinition[] = [
               formula: { type: "string" },
               auto_source: { type: "string", enum: ["submission_date", "submission_time", "submission_datetime", "current_month", "current_year", "user_name", "user_email", "factory_name"] },
               source_key: { type: "string", enum: ["lines", "stages", "stage_progress", "milestones", "blocker_types", "blocker_owners", "blocker_impacts"] },
+              metric_role: { type: "string", enum: ["output", "target_output", "reject", "rework", "manpower", "hours", "ot_hours", "per_hour", "per_hour_target", "input", "poly", "carton", "efficiency"], description: "Canonical production metric this NUMBER/COMPUTED field represents so it feeds Insights + Lina. Map by meaning regardless of wording." },
               after: { type: "string", description: "Insert this new field directly after the field with this label (otherwise it's added at the end)." },
             },
             required: ["label", "type"],

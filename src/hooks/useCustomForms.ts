@@ -123,7 +123,7 @@ async function writeProductionRow(
   const workOrderId = (poRow as { id: string } | null)?.id;
   if (!lineId || !workOrderId) return { written: false, reason: "Couldn't match the selected Line or PO." };
 
-  const mapped: Record<string, number> = {};
+  const mapped: Record<string, unknown> = {};
   // Default every production column for this slot to 0, so columns the form doesn't
   // map. Only the genuinely-mapped values are sent; the DB function fills any
   // required column the form doesn't supply, so no column knowledge lives here.
@@ -134,6 +134,9 @@ async function writeProductionRow(
     const n = typeof raw === "number" ? raw : Number(raw);
     if (Number.isFinite(n)) mapped[target.column] = n;
   }
+  // Log-typed tables (finishing_daily_logs) need log_type in the row and the
+  // natural key so OUTPUT/TARGET rows don't overwrite each other.
+  if (slot.logType) mapped.log_type = slot.logType;
   // Link back to the custom submission so the row's detail can show the form's own fields.
   const custom_data = { source: "custom_form", custom_submission_id: submissionId, template_id: config.template.id };
 

@@ -143,7 +143,9 @@ export function FinishingSubmissionView({ target, actual, open, onOpenChange, on
   const [deleteType, setDeleteType] = useState<"target" | "actual" | null>(null);
   const [deleting, setDeleting] = useState(false);
   const { lookup: customLookup, ready: customReady } = useCustomSubmissionBranch({
-    open, actualId: actual?.id, targetId: target?.id, targetTable: "finishing_targets", actualTable: "finishing_actuals",
+    open, actualId: actual?.id, targetId: target?.id,
+    targetTable: "finishing_daily_logs", actualTable: "finishing_daily_logs",
+    targetMatch: { log_type: "TARGET" }, actualMatch: { log_type: "OUTPUT" },
   });
 
   if (!target && !actual) return null;

@@ -12,6 +12,10 @@ export interface SubmissionLookup {
   productionDate: string;
   targetTable: string;  // e.g. "sewing_targets"
   actualTable: string;  // e.g. "sewing_actuals"
+  // For log-typed tables (finishing_daily_logs) both sides share one table, so each
+  // side also filters on these columns (e.g. { log_type: "OUTPUT" }).
+  targetMatch?: Record<string, string>;
+  actualMatch?: Record<string, string>;
 }
 
 /** Shared by every department's submission view: when the opened production row came
@@ -19,8 +23,10 @@ export interface SubmissionLookup {
  *  `ready` gates a loader so the typed view never flashes first. */
 export function useCustomSubmissionBranch(params: {
   open: boolean; actualId?: string | null; targetId?: string | null; targetTable: string; actualTable: string;
+  targetMatch?: Record<string, string>; actualMatch?: Record<string, string>;
 }): { lookup: SubmissionLookup | null; ready: boolean } {
-  const { open, actualId, targetId, targetTable, actualTable } = params;
+  const { open, actualId, targetId, targetTable, actualTable, targetMatch, actualMatch } = params;
+  const matchKey = JSON.stringify([targetMatch, actualMatch]);
   const [lookup, setLookup] = useState<SubmissionLookup | null>(null);
   const [ready, setReady] = useState(false);
   useEffect(() => {
@@ -37,14 +43,14 @@ export function useCustomSubmissionBranch(params: {
         const { data } = await supabase.from(tbl as never).select("factory_id, line_id, work_order_id, production_date, custom_data").eq("id", id).maybeSingle();
         const row = data as { factory_id?: string; line_id?: string; work_order_id?: string; production_date?: string; custom_data?: { custom_submission_id?: string } } | null;
         if (row?.factory_id && row.line_id && row.work_order_id && row.production_date) {
-          key = { factoryId: row.factory_id, lineId: row.line_id, workOrderId: row.work_order_id, productionDate: row.production_date, targetTable, actualTable };
+          key = { factoryId: row.factory_id, lineId: row.line_id, workOrderId: row.work_order_id, productionDate: row.production_date, targetTable, actualTable, targetMatch, actualMatch };
         }
         if (row?.custom_data?.custom_submission_id) isCustom = true;
       }
       if (!cancelled) { setLookup(isCustom ? key : null); setReady(true); }
     })();
     return () => { cancelled = true; };
-  }, [open, actualId, targetId, targetTable, actualTable]);
+  }, [open, actualId, targetId, targetTable, actualTable, matchKey]);
   return { lookup, ready };
 }
 
@@ -79,6 +85,13 @@ const TYPED_FIELDS: Record<string, { col: string; label: string; suffix?: string
   finishing_actuals: [
     { col: "day_qc_pass", label: "QC Pass" }, { col: "day_poly", label: "Poly" }, { col: "day_carton", label: "Carton" },
     { col: "m_power_actual", label: "Manpower Actual" }, { col: "day_hour_actual", label: "Hours Actual" },
+  ],
+  // finishing_daily_logs holds both OUTPUT and TARGET rows; show the union (unused
+  // columns render as "-"). poly is the primary finishing output / per-hour target.
+  finishing_daily_logs: [
+    { col: "poly", label: "Poly / Per-Hour Target" }, { col: "carton", label: "Carton" },
+    { col: "m_power_actual", label: "Manpower Actual" }, { col: "actual_hours", label: "Hours Actual" },
+    { col: "m_power_planned", label: "Manpower Planned" }, { col: "planned_hours", label: "Planned Hours" },
   ],
 };
 
@@ -157,17 +170,21 @@ export function CustomSubmissionDetail({ title, lookup }: { title?: string; look
     if (!open || !lookup) { setTarget({ row: null, custom: null }); setActual({ row: null, custom: null }); return; }
     setLoading(true);
     (async () => {
-      const fetchSide = async (table: string): Promise<SideData> => {
-        const { data } = await supabase.from(table as never).select(SELECT)
+      const fetchSide = async (table: string, match?: Record<string, string>): Promise<SideData> => {
+        let qb = supabase.from(table as never).select(SELECT)
           .eq("factory_id", lookup.factoryId).eq("line_id", lookup.lineId)
-          .eq("work_order_id", lookup.workOrderId).eq("production_date", lookup.productionDate)
-          .maybeSingle();
+          .eq("work_order_id", lookup.workOrderId).eq("production_date", lookup.productionDate);
+        for (const [col, val] of Object.entries(match ?? {})) qb = qb.eq(col, val);
+        const { data } = await qb.maybeSingle();
         const row = data as Record<string, unknown> | null;
         const cid = (row?.custom_data as { custom_submission_id?: string } | null)?.custom_submission_id;
         const custom = cid ? await getSubmission(cid) : null;
         return { row, custom };
       };
-      const [t, a] = await Promise.all([fetchSide(lookup.targetTable), fetchSide(lookup.actualTable)]);
+      const [t, a] = await Promise.all([
+        fetchSide(lookup.targetTable, lookup.targetMatch),
+        fetchSide(lookup.actualTable, lookup.actualMatch),
+      ]);
       if (!cancelled) { setTarget(t); setActual(a); setLoading(false); }
     })();
     return () => { cancelled = true; };

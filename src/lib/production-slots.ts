@@ -13,6 +13,9 @@ export interface SlotTarget {
 export interface SlotProduction {
   table: string;
   targets: SlotTarget[];
+  // For log-typed tables (finishing_daily_logs), the log_type this slot writes.
+  // Carried into the row + the natural key so OUTPUT/TARGET rows don't collide.
+  logType?: string;
 }
 
 export const SLOT_PRODUCTION: Record<string, SlotProduction> = {
@@ -61,24 +64,28 @@ export const SLOT_PRODUCTION: Record<string, SlotProduction> = {
       { key: "hours", column: "hours_actual", label: "Hours actual" },
     ],
   },
+  // Finishing writes the active log table (finishing_daily_logs), the same place
+  // standard finishing entry writes and Insights reads. On TARGET logs the poly
+  // column holds a per-hour target.
   finishing_daily_target: {
-    table: "finishing_targets",
+    table: "finishing_daily_logs",
+    logType: "TARGET",
     targets: [
-      { key: "per_hour_target", column: "per_hour_target", label: "Per-hour target" },
+      { key: "per_hour_target", column: "poly", label: "Per-hour target" },
       { key: "manpower", column: "m_power_planned", label: "Manpower planned" },
-      { key: "hours", column: "day_hour_planned", label: "Day hours planned" },
-      { key: "ot_hours", column: "day_over_time_planned", label: "Day OT planned" },
+      { key: "hours", column: "planned_hours", label: "Planned hours" },
+      { key: "ot_hours", column: "ot_hours_planned", label: "OT hours planned" },
     ],
   },
   finishing_daily_output: {
-    table: "finishing_actuals",
+    table: "finishing_daily_logs",
+    logType: "OUTPUT",
     targets: [
-      { key: "qc_pass", column: "day_qc_pass", label: "QC pass today" },
-      { key: "poly", column: "day_poly", label: "Poly today" },
-      { key: "carton", column: "day_carton", label: "Carton today" },
+      { key: "poly", column: "poly", label: "Poly output today" },
+      { key: "carton", column: "carton", label: "Carton today" },
       { key: "manpower", column: "m_power_actual", label: "Manpower actual" },
-      { key: "hours", column: "day_hour_actual", label: "Day hours actual" },
-      { key: "ot_hours", column: "day_over_time_actual", label: "Day OT actual" },
+      { key: "hours", column: "actual_hours", label: "Actual hours" },
+      { key: "ot_hours", column: "ot_hours_actual", label: "OT hours actual" },
     ],
   },
 };

@@ -19,6 +19,13 @@ const VALID_AUTO_SOURCES = [
 ];
 // Roles a custom form can be tagged to (it shows in that role's catalogue).
 const VALID_FORM_ROLES = ["sewing", "cutting", "finishing", "qc", "storage", "worker"];
+// Canonical production metric a numeric field's value represents. Tagging a field
+// with one of these feeds it into the production_metrics layer (Insights + Lina),
+// regardless of how the form worded the label. Must match the view's vocabulary.
+export const VALID_METRIC_ROLES = [
+  "output", "target_output", "reject", "rework", "manpower", "hours",
+  "ot_hours", "per_hour", "per_hour_target", "input", "poly", "carton", "efficiency",
+];
 // Default production form slots a custom form can be a VERSION of. The slot key
 // implies the role. Must match FORM_SLOTS in src/lib/form-slots.ts.
 export const FORM_SLOT_ROLES: Record<string, string> = {
@@ -43,6 +50,7 @@ interface NormalizedField {
   formula: string | null;      // computed fields: arithmetic referencing other field keys
   auto_source: string | null;  // auto fields: which submission-context value fills it
   source_key: string | null;   // dynamic_select: which live factory list feeds the options
+  metric_role: string | null;  // canonical production metric this numeric field represents
 }
 
 const normLabel = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
@@ -107,10 +115,20 @@ function normalizeFields(input: unknown): { ok: true; fields: NormalizedField[] 
         return { ok: false, error: `Dropdown "${label}" has an unknown source "${source_key}". Use one of: ${VALID_DYNAMIC_SOURCES.join(", ")}.` };
       }
     }
+    // Optional canonical metric tag. Only meaningful on numeric values (number /
+    // computed); ignored on other types. Validated against the shared vocabulary.
+    let metric_role: string | null = null;
+    const rawRole = str(f.metric_role) || str(f.metric);
+    if (rawRole) {
+      if (!VALID_METRIC_ROLES.includes(rawRole)) {
+        return { ok: false, error: `Field "${label}" has an unknown metric_role "${rawRole}". Use one of: ${VALID_METRIC_ROLES.join(", ")}.` };
+      }
+      if (type === "number" || type === "computed") metric_role = rawRole;
+    }
     fields.push({
       key, label, field_type: type, is_required: required,
       options, section_label: section, section_order: Math.max(0, sectionOrder), sort_order: i,
-      formula, auto_source, source_key,
+      formula, auto_source, source_key, metric_role,
     });
   }
 
@@ -297,6 +315,7 @@ export function applyFormEdits(
     if (s.formula !== undefined) f.formula = s.formula;
     if (s.auto_source !== undefined) f.auto_source = s.auto_source;
     if (s.source_key !== undefined) f.source_key = s.source_key;
+    if (s.metric_role !== undefined) f.metric_role = s.metric_role;
   }
 
   // 4) add (append, or insert after a named field)
@@ -336,7 +355,7 @@ export const PRODUCTION_SLOT_TARGETS: Record<string, string[]> = {
   cutting_morning_targets: ["manpower", "marker_capacity", "lay_capacity", "cutting_capacity", "day_cutting", "day_input", "hours"],
   cutting_end_of_day: ["day_cutting", "day_input", "manpower", "marker_capacity", "lay_capacity", "cutting_capacity", "hours"],
   finishing_daily_target: ["per_hour_target", "manpower", "hours", "ot_hours"],
-  finishing_daily_output: ["qc_pass", "poly", "carton", "manpower", "hours", "ot_hours"],
+  finishing_daily_output: ["poly", "carton", "manpower", "hours", "ot_hours"],
 };
 
 /** Resolve a production_mapping ({ friendlyKey: fieldLabel }) against a slot and the

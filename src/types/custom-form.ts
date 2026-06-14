@@ -19,6 +19,7 @@ export interface CustomFormField {
   formula: string | null; // computed fields only: arithmetic over other field keys
   auto_source: string | null; // auto fields only: which submission-context value fills this field
   source_key: string | null;  // dynamic_select only: which live factory list feeds the options
+  metric_role?: string | null; // canonical production metric a numeric field feeds (Insights/Lina)
 }
 
 export interface CustomFormTemplate {
