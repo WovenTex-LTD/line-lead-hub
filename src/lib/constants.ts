@@ -7,6 +7,11 @@ export const APP_DESCRIPTION = "Garment Factory Production Tracking System";
 // available for this factory until general release.
 export const DEV_FACTORY_ID_PREFIX = "f7b308bb";
 
+// Developer/internal factories get full app access regardless of Stripe
+// subscription state (so the team is never locked out by billing).
+export const isDeveloperFactory = (factoryId?: string | null): boolean =>
+  !!factoryId && factoryId.startsWith(DEV_FACTORY_ID_PREFIX);
+
 // Role definitions
 export const ROLES = {
   WORKER: 'worker',
@@ -200,7 +205,6 @@ export const NAV_ITEMS = {
     { path: '/sewing/end-of-day', label: 'Sewing End of Day', icon: 'ClipboardCheck' },
     { path: '/sewing/my-submissions', label: 'My Submissions', icon: 'FileText' },
     { path: '/sewing/cutting-handoffs', label: 'Cutting Handoffs', icon: 'Scissors' },
-    { path: '/forms', label: 'Forms', icon: 'ClipboardList' },
     { path: '/report-blocker', label: 'Report Blocker', icon: 'AlertTriangle' },
     { path: '/preferences', label: 'My Preferences', icon: 'UserCog' },
   ],
@@ -208,7 +212,6 @@ export const NAV_ITEMS = {
     { path: '/finishing/daily-target', label: 'Daily Target', icon: 'Crosshair' },
     { path: '/finishing/daily-output', label: 'End of Day Output', icon: 'ClipboardCheck' },
     { path: '/finishing/my-submissions', label: 'My Submissions', icon: 'FileText' },
-    { path: '/forms', label: 'Forms', icon: 'ClipboardList' },
     { path: '/report-blocker', label: 'Report Blocker', icon: 'AlertTriangle' },
     { path: '/preferences', label: 'My Preferences', icon: 'UserCog' },
   ],
@@ -220,7 +223,6 @@ export const NAV_ITEMS = {
     { path: '/finishing/daily-output', label: 'Finishing End of Day', icon: 'ClipboardCheck' },
     { path: '/sewing/my-submissions', label: 'Sewing Submissions', icon: 'FileText' },
     { path: '/finishing/my-submissions', label: 'Finishing Submissions', icon: 'FileText' },
-    { path: '/forms', label: 'Forms', icon: 'ClipboardList' },
     { path: '/report-blocker', label: 'Report Blocker', icon: 'AlertTriangle' },
     { path: '/preferences', label: 'My Preferences', icon: 'UserCog' },
   ],
@@ -275,7 +277,6 @@ export const NAV_ITEMS = {
   storage: [
     { path: '/storage', label: 'Bin Card Entry', icon: 'Warehouse' },
     { path: '/storage/history', label: 'All Bin Cards', icon: 'Warehouse' },
-    { path: '/forms', label: 'Forms', icon: 'ClipboardList' },
     { path: '/report-blocker', label: 'Report Blocker', icon: 'AlertTriangle' },
     { path: '/preferences', label: 'My Preferences', icon: 'UserCog' },
   ],
@@ -283,7 +284,6 @@ export const NAV_ITEMS = {
     { path: '/cutting/morning-targets', label: 'Cutting Morning Targets', icon: 'Crosshair' },
     { path: '/cutting/end-of-day', label: 'Cutting End of Day', icon: 'ClipboardCheck' },
     { path: '/cutting/submissions', label: 'All Submissions', icon: 'FileText' },
-    { path: '/forms', label: 'Forms', icon: 'ClipboardList' },
     { path: '/report-blocker', label: 'Report Blocker', icon: 'AlertTriangle' },
     { path: '/preferences', label: 'My Preferences', icon: 'UserCog' },
   ],
@@ -292,7 +292,6 @@ export const NAV_ITEMS = {
     { path: '/sewing/end-of-day', label: 'Sewing End of Day', icon: 'ClipboardCheck' },
     { path: '/sewing/my-submissions', label: 'My Submissions', icon: 'FileText' },
     { path: '/sewing/cutting-handoffs', label: 'Cutting Handoffs', icon: 'Scissors' },
-    { path: '/forms', label: 'Forms', icon: 'ClipboardList' },
     { path: '/report-blocker', label: 'Report Blocker', icon: 'AlertTriangle' },
     { path: '/preferences', label: 'My Preferences', icon: 'UserCog' },
   ],
@@ -300,7 +299,6 @@ export const NAV_ITEMS = {
     { path: '/finishing/daily-target', label: 'Daily Target', icon: 'Crosshair' },
     { path: '/finishing/daily-output', label: 'End of Day Output', icon: 'ClipboardCheck' },
     { path: '/finishing/my-submissions', label: 'My Submissions', icon: 'FileText' },
-    { path: '/forms', label: 'Forms', icon: 'ClipboardList' },
     { path: '/report-blocker', label: 'Report Blocker', icon: 'AlertTriangle' },
     { path: '/preferences', label: 'My Preferences', icon: 'UserCog' },
   ],
@@ -319,7 +317,6 @@ export const NAV_ITEMS = {
     { path: '/quality/daily-sheet', label: 'Daily QC Sheet', icon: 'ListChecks', group: 'Quality' },
     { path: '/quality/order-manager', label: 'Order Manager', icon: 'ClipboardList', group: 'Quality' },
     { path: '/quality/records', label: 'My QC Records', icon: 'FolderOpen', group: 'Quality' },
-    { path: '/forms', label: 'Forms', icon: 'ClipboardList', group: 'Quality' },
     { path: '/preferences', label: 'My Preferences', icon: 'UserCog', bottom: true },
   ],
 };

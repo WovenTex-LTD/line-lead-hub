@@ -5,6 +5,7 @@
 export type PoActionKind =
   | "create_po" | "update_po" | "assign_po_lines"
   | "set_po_status" | "set_po_ex_factory" | "archive_po"
+  | "record_production"
   | "create_custom_form" | "update_custom_form";
 
 export interface ProposedAction {
@@ -146,4 +147,36 @@ export function validateArchivePo(input: Record<string, unknown>): ValidationRes
     ok: true,
     action: { kind: "archive_po", humanSummary: `Archive PO ${po_number} (soft-delete — production history is kept)`, payload: { po_number } },
   };
+}
+
+// Record (backfill) end-of-day production output for a PO so its progress %
+// reflects reality — e.g. set a completed/legacy PO to 100%. Either `to_full`
+// (record the PO's full order quantity for sewing + finishing) or explicit
+// sewing_qty / finishing_qty. The executor resolves the line and writes real
+// production rows via the upsert_custom_production_row RPC.
+export function validateRecordProduction(input: Record<string, unknown>): ValidationResult {
+  const po_number = str(input.po_number);
+  if (!po_number) return { ok: false, error: "Which PO should I record production for?" };
+  const to_full = input.to_full === true;
+  const sewing_qty = num(input.sewing_qty);
+  const finishing_qty = num(input.finishing_qty);
+  const production_date = str(input.production_date);
+  if (!to_full && sewing_qty === undefined && finishing_qty === undefined) {
+    return { ok: false, error: "Tell me the quantities to record (sewing and/or finishing), or say to mark the PO fully complete." };
+  }
+  if (production_date && !DATE_RE.test(production_date)) {
+    return { ok: false, error: "Production date must be YYYY-MM-DD." };
+  }
+  if (sewing_qty !== undefined && sewing_qty < 0) return { ok: false, error: "Sewing quantity can't be negative." };
+  if (finishing_qty !== undefined && finishing_qty < 0) return { ok: false, error: "Finishing quantity can't be negative." };
+  const payload: Record<string, unknown> = { po_number, to_full };
+  if (sewing_qty !== undefined) payload.sewing_qty = sewing_qty;
+  if (finishing_qty !== undefined) payload.finishing_qty = finishing_qty;
+  if (production_date) payload.production_date = production_date;
+  const what = to_full
+    ? "full order quantity (sewing + finishing → 100%)"
+    : [sewing_qty !== undefined ? `sewing ${sewing_qty.toLocaleString()}` : null,
+       finishing_qty !== undefined ? `finishing ${finishing_qty.toLocaleString()}` : null].filter(Boolean).join(", ");
+  const summary = `Record production for PO ${po_number}: ${what}${production_date ? ` on ${production_date}` : ""} — backfills end-of-day data and updates the progress %.`;
+  return { ok: true, action: { kind: "record_production", humanSummary: summary, payload } };
 }

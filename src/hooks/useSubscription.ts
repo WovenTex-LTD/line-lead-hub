@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { isDeveloperFactory } from '@/lib/constants';
 
 interface SubscriptionStatus {
   subscribed: boolean;
@@ -43,6 +44,12 @@ export function useSubscription() {
         needsFactory: !profile?.factory_id,
         needsPayment: false
       };
+    }
+
+    // Developer/internal factories always have full access, regardless of the
+    // Stripe subscription state (the team must never be locked out by billing).
+    if (isDeveloperFactory(profile.factory_id)) {
+      return { subscribed: true, hasAccess: true, isTrial: false };
     }
 
     const now = new Date();

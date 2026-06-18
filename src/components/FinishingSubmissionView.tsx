@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { VoiceNotes } from "@/components/voice/VoiceNotes";
 import {
   Dialog,
   DialogContent,
@@ -317,6 +318,9 @@ export function FinishingSubmissionView({ target, actual, open, onOpenChange, on
                   </div>
                 )}
 
+                {/* Voice notes — playback only on the review screen */}
+                <VoiceNotes heading="Voice notes" showRecorder={false} recordType="finishing_daily_logs" recordId={target.id} />
+
                 {/* Timestamp */}
                 {target.submitted_at && (
                   <p className="text-xs text-muted-foreground pt-2 border-t border-border/40">
@@ -411,6 +415,9 @@ export function FinishingSubmissionView({ target, actual, open, onOpenChange, on
                     <p className="text-sm text-muted-foreground">{actual.remarks}</p>
                   </div>
                 )}
+
+                {/* Voice notes — playback only on the review screen */}
+                <VoiceNotes heading="Voice notes" showRecorder={false} recordType="finishing_daily_logs" recordId={actual.id} />
 
                 {/* Timestamp */}
                 {actual.submitted_at && (

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { VoiceNotes } from "@/components/voice/VoiceNotes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -695,7 +696,12 @@ export default function StorageHistory() {
                             <TableCell className={`text-right font-medium ${txn.balance_qty < 0 ? 'text-destructive' : ''}`}>
                               {txn.balance_qty}
                             </TableCell>
-                            <TableCell className="max-w-[200px] truncate">{txn.remarks || "-"}</TableCell>
+                            <TableCell className="max-w-[260px]">
+                              <div className="space-y-1.5">
+                                <p className="truncate">{txn.remarks || "-"}</p>
+                                <VoiceNotes showRecorder={false} recordType="storage_bin_card_transactions" recordId={txn.id} />
+                              </div>
+                            </TableCell>
                           </TableRow>
                         ))
                       )}
@@ -870,7 +876,12 @@ export default function StorageHistory() {
                                       <TableCell className={`text-right font-medium ${txn.balance_qty < 0 ? 'text-destructive' : ''}`}>
                                         {txn.balance_qty}
                                       </TableCell>
-                                      <TableCell className="max-w-[200px] truncate">{txn.remarks || "-"}</TableCell>
+                                      <TableCell className="max-w-[260px]">
+                              <div className="space-y-1.5">
+                                <p className="truncate">{txn.remarks || "-"}</p>
+                                <VoiceNotes showRecorder={false} recordType="storage_bin_card_transactions" recordId={txn.id} />
+                              </div>
+                            </TableCell>
                                     </TableRow>
                                   ))}
                                 </TableBody>

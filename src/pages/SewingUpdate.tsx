@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { NotesWithVoice } from "@/components/voice/NotesWithVoice";
+import type { VoiceNotesHandle } from "@/components/voice/VoiceNotes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -132,6 +134,7 @@ export default function SewingUpdate() {
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([]);
   const [remarks, setRemarks] = useState("");
+  const voiceRef = useRef<VoiceNotesHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // KPI stats
@@ -369,6 +372,9 @@ export default function SewingUpdate() {
       });
 
       if (result.queued) {
+        if (voiceRef.current?.hasPending()) {
+          toast.error("Voice note not saved — you were offline when this was queued.");
+        }
         const isWorker = hasRole('worker') && !isAdminOrHigher();
         navigate(isWorker ? '/my-submissions' : '/dashboard');
         return;
@@ -376,6 +382,12 @@ export default function SewingUpdate() {
 
       if (!result.success) {
         throw new Error(result.error);
+      }
+
+      const savedId = (result.data as any[] | undefined)?.[0]?.id ?? "";
+      if (savedId && voiceRef.current?.hasPending()) {
+        try { await voiceRef.current.commit(savedId); }
+        catch (e: any) { toast.error(e?.message || "Voice note couldn't be saved"); }
       }
 
       toast.success("Update submitted!", { description: "Your daily production update has been recorded." });
@@ -848,14 +860,17 @@ export default function SewingUpdate() {
               </p>
             </div>
 
-            {/* Remarks */}
+            {/* Remarks + voice note */}
             <div className="space-y-2">
-              <Label>{t('sewing.remarks')} ({t('common.optional')})</Label>
-              <Textarea
-                placeholder={t('sewing.remarks')}
+              <NotesWithVoice
+                ref={voiceRef}
+                label={`${t('sewing.remarks')} (${t('common.optional')})`}
                 value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                className="min-h-[80px]"
+                onChange={setRemarks}
+                placeholder={t('sewing.remarks')}
+                recordType="production_updates_sewing"
+                recordId={null}
+                deferred
               />
             </div>
           </CardContent>

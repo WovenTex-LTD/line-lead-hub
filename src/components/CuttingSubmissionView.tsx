@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { VoiceNotes } from "@/components/voice/VoiceNotes";
 import {
   Dialog,
   DialogContent,
@@ -286,6 +287,9 @@ export function CuttingSubmissionView({ target, actual, open, onOpenChange, onEd
                   </div>
                 </div>
 
+                {/* Voice notes — playback only on the review screen */}
+                <VoiceNotes heading="Voice notes" showRecorder={false} recordType="cutting_targets" recordId={target.id} />
+
                 {/* Target Timestamp */}
                 {target.submitted_at && (
                   <p className="text-xs text-muted-foreground pt-2 border-t border-border/40">
@@ -406,6 +410,9 @@ export function CuttingSubmissionView({ target, actual, open, onOpenChange, onEd
                   </div>
                 )}
 
+
+                {/* Voice notes — playback only on the review screen */}
+                <VoiceNotes heading="Voice notes" showRecorder={false} recordType="cutting_actuals" recordId={actual.id} />
 
                 {/* Actual Timestamp */}
                 {actual.submitted_at && (

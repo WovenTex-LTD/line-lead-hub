@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,6 +7,7 @@ import { getTodayInTimezone } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { VoiceNotes, type VoiceNotesHandle } from "@/components/voice/VoiceNotes";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, AlertTriangle, CalendarIcon, Search, Factory } from "lucide-react";
@@ -90,6 +91,7 @@ export default function ReportBlocker() {
   const [blockerSeverity, setBlockerSeverity] = useState("");
   const [blockerResolution, setBlockerResolution] = useState<Date | undefined>(new Date());
   const [blockerDescription, setBlockerDescription] = useState("");
+  const voiceRef = useRef<VoiceNotesHandle>(null);
 
   // Check if user is Cutting or Storage role (no line selection needed)
   const isCuttingOrStorage = hasRole("cutting") || hasRole("storage");
@@ -341,6 +343,9 @@ export default function ReportBlocker() {
       });
 
       if (result.queued) {
+        if (voiceRef.current?.hasPending()) {
+          toast.error("Voice note not saved — you were offline when this was queued.");
+        }
         // Navigate away - notification won't fire for offline submissions
         if (isAdminOrHigher()) {
           navigate("/blockers");
@@ -358,6 +363,13 @@ export default function ReportBlocker() {
 
       if (!result.success) {
         throw new Error(result.error);
+      }
+
+      // Persist any voice notes recorded before save.
+      const savedBlockerId = (result.data as any[] | undefined)?.[0]?.id ?? "";
+      if (savedBlockerId && voiceRef.current?.hasPending()) {
+        try { await voiceRef.current.commit(savedBlockerId); }
+        catch (e: any) { toast.error(e?.message || "Voice note couldn't be saved"); }
       }
 
       // Get the blocker type name for notification
@@ -596,6 +608,15 @@ export default function ReportBlocker() {
               className={`min-h-[80px] ${errors.blockerDescription ? "border-destructive" : ""}`}
             />
             {errors.blockerDescription && <p className="text-xs text-destructive">{errors.blockerDescription}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">{t('blockers.voiceNote', { defaultValue: 'Voice note' })}</Label>
+            <VoiceNotes
+              ref={voiceRef}
+              recordType={updateType === "finishing" ? "production_updates_finishing" : "production_updates_sewing"}
+              recordId={null}
+              deferred
+            />
           </div>
         </div>
       </div>

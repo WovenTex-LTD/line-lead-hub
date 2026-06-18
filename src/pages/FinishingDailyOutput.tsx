@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { NotesWithVoice } from "@/components/voice/NotesWithVoice";
+import type { VoiceNotesHandle } from "@/components/voice/VoiceNotes";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
@@ -69,6 +71,7 @@ export default function FinishingDailyOutput() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [existingLog, setExistingLog] = useState<any>(null);
+  const voiceRef = useRef<VoiceNotesHandle>(null);
   const [targetLog, setTargetLog] = useState<TargetLog | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [previousCartonTotal, setPreviousCartonTotal] = useState(0);
@@ -334,6 +337,7 @@ export default function FinishingDailyOutput() {
         submitted_by: user.id,
       };
 
+      let savedId = "";
       if (isEditing && existingLog) {
         // Save old values to history
         const historyData = {
@@ -356,10 +360,15 @@ export default function FinishingDailyOutput() {
           .eq("id", existingLog.id);
 
         if (error) throw error;
+        savedId = existingLog.id;
         toast.success("End-of-day output updated successfully!");
       } else {
         // Insert new log
-        const { error } = await supabase.from("finishing_daily_logs").insert(logData);
+        const { data: inserted, error } = await supabase
+          .from("finishing_daily_logs")
+          .insert(logData)
+          .select("id")
+          .single();
 
         if (error) {
           if (error.code === "23505") {
@@ -369,9 +378,16 @@ export default function FinishingDailyOutput() {
           }
           throw error;
         }
+        savedId = inserted?.id ?? "";
         toast.success("End-of-day output submitted successfully!");
       }
-      
+
+      // Persist any voice notes recorded before save.
+      if (savedId && voiceRef.current?.hasPending()) {
+        try { await voiceRef.current.commit(savedId); }
+        catch (e: any) { toast.error(e?.message || "Voice note couldn't be saved"); }
+      }
+
       if (isAdminOrHigher()) {
         navigate("/dashboard");
       } else {
@@ -707,11 +723,17 @@ export default function FinishingDailyOutput() {
 
         <div className="border-t border-border/40" />
 
-        {/* Remarks */}
-        <div className="space-y-1.5">
-          <Label className="text-xs font-medium">Remarks</Label>
-          <Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Any notes about today's production..." rows={2} />
-        </div>
+        {/* Remarks + voice note */}
+        <NotesWithVoice
+          ref={voiceRef}
+          label="Remarks"
+          value={remarks}
+          onChange={setRemarks}
+          placeholder="Any notes about today's production..."
+          recordType="finishing_daily_logs"
+          recordId={existingLog?.id ?? null}
+          deferred={!existingLog}
+        />
       </div>
 
         {/* Submit */}

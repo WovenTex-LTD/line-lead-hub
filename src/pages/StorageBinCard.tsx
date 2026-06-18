@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,6 +37,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { NotesWithVoice } from "@/components/voice/NotesWithVoice";
+import type { VoiceNotesHandle } from "@/components/voice/VoiceNotes";
 
 interface WorkOrder {
   id: string;
@@ -103,6 +105,7 @@ export default function StorageBinCard() {
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const voiceRef = useRef<VoiceNotesHandle>(null);
   const [headerSaving, setHeaderSaving] = useState(false);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -651,6 +654,9 @@ export default function StorageBinCard() {
       });
 
       if (result.queued) {
+        if (voiceRef.current?.hasPending()) {
+          toast.error("Voice note not saved — you were offline when this was queued.");
+        }
         setNewTxn({ receive_qty: "", issue_qty: "", remarks: "" });
         navigate("/storage/history");
         return;
@@ -663,6 +669,12 @@ export default function StorageBinCard() {
           return;
         }
         throw new Error(result.error);
+      }
+
+      const savedId = (result.data as any[] | undefined)?.[0]?.id ?? "";
+      if (savedId && voiceRef.current?.hasPending()) {
+        try { await voiceRef.current.commit(savedId); }
+        catch (e: any) { toast.error(e?.message || "Voice note couldn't be saved"); }
       }
 
       await loadTransactions(binCard.id);
@@ -1156,12 +1168,15 @@ export default function StorageBinCard() {
                     />
                   </div>
                   <div>
-                    <Label>Remarks</Label>
-                    <Textarea
+                    <NotesWithVoice
+                      ref={voiceRef}
+                      label="Remarks"
                       value={newTxn.remarks}
-                      onChange={e => setNewTxn({...newTxn, remarks: e.target.value})}
+                      onChange={(v) => setNewTxn({ ...newTxn, remarks: v })}
                       placeholder="Optional notes"
-                      className="h-10 min-h-0"
+                      recordType="storage_bin_card_transactions"
+                      recordId={null}
+                      deferred
                     />
                   </div>
                 </div>

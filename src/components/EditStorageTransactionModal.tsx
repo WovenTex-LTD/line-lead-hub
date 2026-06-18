@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { VoiceNotes } from "@/components/voice/VoiceNotes";
 import { Loader2, Warehouse } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -113,6 +114,10 @@ export function EditStorageTransactionModal({ transaction, open, onOpenChange, o
               onChange={(e) => handleChange('remarks', e.target.value)}
               rows={3}
             />
+          </div>
+          <div className="space-y-2">
+            <Label>Voice note</Label>
+            <VoiceNotes recordType="storage_bin_card_transactions" recordId={transaction.id} />
           </div>
         </div>
 

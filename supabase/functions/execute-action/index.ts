@@ -179,16 +179,32 @@ serve(async (req) => {
       return json({ ok: true, summary: action.humanSummary, recordId: tpl.id });
     }
 
-    // Resolve PO id (factory-scoped) for non-create actions.
+    // Resolve PO id (factory-scoped) for non-create actions. Match flexibly:
+    // po_number is often stored as "PO 86538" while users/Lina pass the bare
+    // order number "86538", so try exact, then order_number, then prefix/contains.
     let poId: string | null = null;
     let oldRow: Record<string, unknown> | null = null;
     if (kind !== "create_po") {
-      const { data: po } = await userClient
-        .from("work_orders").select("*")
-        .eq("factory_id", factoryId).eq("po_number", p.po_number as string).maybeSingle();
+      const raw = String(p.po_number ?? "").trim();
+      const bare = raw.replace(/^po[\s#:_-]*/i, "").trim();
+      const base = () => userClient.from("work_orders").select("*").eq("factory_id", factoryId);
+      const attempts = [
+        () => base().eq("po_number", raw),
+        () => base().ilike("po_number", raw),
+        () => base().eq("order_number", bare),
+        () => base().or(`po_number.ilike.PO ${bare},po_number.ilike.${bare},order_number.ilike.${bare}`),
+      ];
+      let po: Record<string, unknown> | null = null;
+      let ambiguous = false;
+      for (const run of attempts) {
+        const { data } = await run().limit(2);
+        if (data && data.length === 1) { po = data[0] as Record<string, unknown>; break; }
+        if (data && data.length > 1) { ambiguous = true; break; }
+      }
+      if (ambiguous) return json({ ok: false, error: `Several POs match "${p.po_number}". Please give the exact PO number.` });
       if (!po) return json({ ok: false, error: `I couldn't find PO ${p.po_number}.` });
       poId = po.id as string;
-      oldRow = po as Record<string, unknown>;
+      oldRow = po;
     }
 
     let summary = action.humanSummary;
@@ -265,6 +281,53 @@ serve(async (req) => {
       if (error) return json({ ok: false, error: rlsMsg(error) });
       if (!data?.length) return json({ ok: false, error: "You don't have permission to make that change." });
       newData = { is_active: false, status: "deleted" };
+    } else if (kind === "record_production") {
+      // Backfill end-of-day output so the PO's progress % reflects reality.
+      const orderQty = Number((oldRow as Record<string, unknown>)?.order_qty) || 0;
+      const toFull = p.to_full === true;
+      const prodDate = (typeof p.production_date === "string" && p.production_date) ? p.production_date : new Date().toISOString().slice(0, 10);
+      const sewQty = toFull ? orderQty : (typeof p.sewing_qty === "number" ? p.sewing_qty : undefined);
+      const finQty = toFull ? orderQty : (typeof p.finishing_qty === "number" ? p.finishing_qty : undefined);
+
+      // sewing_actuals.line_id is NOT NULL; finishing_daily_logs.line_id is nullable (dept-wide).
+      let lineId: string | null = null;
+      const { data: la } = await userClient.from("work_order_line_assignments")
+        .select("line_id").eq("factory_id", factoryId).eq("work_order_id", poId).limit(1);
+      lineId = (la?.[0]?.line_id as string) ?? null;
+      if (!lineId) {
+        const { data: wo2 } = await userClient.from("work_orders").select("line_id").eq("id", poId).maybeSingle();
+        lineId = (wo2?.line_id as string) ?? null;
+      }
+
+      const done: string[] = [];
+      if (finQty !== undefined) {
+        const { error } = await userClient.rpc("upsert_custom_production_row", {
+          p_table: "finishing_daily_logs", p_factory_id: factoryId, p_line_id: lineId, p_work_order_id: poId,
+          p_production_date: prodDate,
+          p_values: { log_type: "OUTPUT", poly: finQty, m_power_actual: 1, actual_hours: 1 },
+          p_custom_data: { source: "lina_backfill" },
+        });
+        if (error) return json({ ok: false, error: rlsMsg(error) || "Could not record finishing output." });
+        done.push(`finishing ${finQty.toLocaleString()}`);
+      }
+      if (sewQty !== undefined) {
+        if (!lineId) {
+          done.push("(sewing skipped — PO has no assigned line)");
+        } else {
+          const { error } = await userClient.rpc("upsert_custom_production_row", {
+            p_table: "sewing_actuals", p_factory_id: factoryId, p_line_id: lineId, p_work_order_id: poId,
+            p_production_date: prodDate,
+            p_values: { good_today: sewQty, manpower_actual: 1, hours_actual: 1, actual_stage_progress: 100 },
+            p_custom_data: { source: "lina_backfill" },
+          });
+          if (error) return json({ ok: false, error: rlsMsg(error) || "Could not record sewing output." });
+          done.push(`sewing ${sewQty.toLocaleString()}`);
+        }
+      }
+      if (!done.length) return json({ ok: false, error: "Nothing to record — give me a sewing and/or finishing quantity." });
+      summary = `Recorded production for PO ${p.po_number}: ${done.join(", ")} on ${prodDate}.`;
+      tableName = finQty !== undefined ? "finishing_daily_logs" : "sewing_actuals";
+      newData = { production_date: prodDate, recorded: done };
     }
 
     // Audit via service client (audit_log RLS is admin-read; service bypasses).

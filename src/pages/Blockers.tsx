@@ -3,6 +3,7 @@ import { useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatTimeInTimezone, formatDateTimeInTimezone, getCurrentTimeInTimezone } from "@/lib/date-utils";
 import { supabase } from "@/integrations/supabase/client";
+import { VoiceNotes } from "@/components/voice/VoiceNotes";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -605,6 +606,15 @@ export default function Blockers() {
                 <p className="text-sm font-medium mb-1">Description</p>
                 <p className="text-sm">{selectedBlocker.description || 'No description provided'}</p>
               </div>
+
+              {/* Voice notes — playback only on the review screen */}
+              <VoiceNotes
+                heading="Voice notes"
+                showRecorder={false}
+                recordType={selectedBlocker.type === 'sewing' ? 'production_updates_sewing' : 'production_updates_finishing'}
+                recordId={selectedBlocker.id}
+                className="p-3 bg-muted/30 rounded-lg"
+              />
 
               {/* Details Grid */}
               <div className="grid grid-cols-2 gap-3 text-sm">

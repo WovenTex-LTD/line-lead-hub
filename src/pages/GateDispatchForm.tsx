@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { NotesWithVoice } from "@/components/voice/NotesWithVoice";
+import type { VoiceNotesHandle } from "@/components/voice/VoiceNotes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
@@ -49,6 +51,7 @@ export default function GateDispatchForm() {
   const [poOpen, setPoOpen] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const voiceRef = useRef<VoiceNotesHandle>(null);
 
   // Populate form when editing an existing request
   useEffect(() => {
@@ -115,12 +118,19 @@ export default function GateDispatchForm() {
       return toast.error("Dispatch quantity must be greater than 0.");
 
     try {
+      let savedId = id ?? "";
       if (isEditMode && id) {
         await editDispatch.mutateAsync({ id, formData: form, newPhotoFile: form.photo_file });
         toast.success("Dispatch request updated.");
       } else {
-        await submitDispatch.mutateAsync({ formData: form, photoFile: form.photo_file });
+        const created = await submitDispatch.mutateAsync({ formData: form, photoFile: form.photo_file });
+        savedId = (created as any)?.id ?? "";
         toast.success("Dispatch request submitted.", { description: "Waiting for admin approval." });
+      }
+      // Persist any voice notes recorded before save.
+      if (savedId && voiceRef.current?.hasPending()) {
+        try { await voiceRef.current.commit(savedId); }
+        catch (e: any) { toast.error(e?.message || "Voice note couldn't be saved"); }
       }
       navigate("/dispatch/history");
     } catch (err: unknown) {
@@ -351,17 +361,18 @@ export default function GateDispatchForm() {
                 placeholder="e.g. Chittagong Port, Buyer Warehouse"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label>
-                Remarks <span className="text-xs text-muted-foreground">(optional)</span>
-              </Label>
-              <Textarea
-                value={form.remarks}
-                onChange={(e) => set("remarks", e.target.value)}
-                placeholder="Any additional notes..."
-                rows={3}
-              />
-            </div>
+            {/* Remarks + voice note */}
+            <NotesWithVoice
+              label="Remarks"
+              value={form.remarks}
+              onChange={(v) => set("remarks", v)}
+              placeholder="Any additional notes..."
+              rows={3}
+              recordType="dispatch_requests"
+              recordId={id ?? null}
+              deferred={!id}
+              ref={voiceRef}
+            />
           </CardContent>
         </Card>
 

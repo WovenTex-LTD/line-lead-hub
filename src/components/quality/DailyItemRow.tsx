@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, MinusCircle, Clock, MessageSquare } from "lucide-react";
+import { AlertTriangle, CheckCircle2, MinusCircle, Clock, MessageSquare, Mic } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
+import { VoiceNotes } from "@/components/voice/VoiceNotes";
 import {
   Select,
   SelectContent,
@@ -36,6 +37,7 @@ const STATUS_META: Record<
 export function DailyItemRow({ item, updatedBy, disabled, onLocalUpdate }: Props) {
   const [notes, setNotes] = useState(item.notes ?? "");
   const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState<"notes" | "voice">("notes");
   useEffect(() => setNotes(item.notes ?? ""), [item.notes]);
 
   const meta = STATUS_META[item.status];
@@ -121,27 +123,59 @@ export function DailyItemRow({ item, updatedBy, disabled, onLocalUpdate }: Props
           </Select>
         </div>
 
-        <div className="md:col-span-9 space-y-1">
-          <label className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground flex items-center gap-1">
-            <MessageSquare className="h-3 w-3" />
-            {item.status === "fail" ? "Defect description" : "Notes"}
-          </label>
-          <Textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            onBlur={() => {
-              if ((notes || null) !== (item.notes || null)) {
-                commit({ notes: notes || null });
+        <div className="md:col-span-9 space-y-2">
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setTab("notes")}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] uppercase tracking-wide font-semibold transition-colors",
+                tab === "notes" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <MessageSquare className="h-3 w-3" />
+              {item.status === "fail" ? "Defect" : "Notes"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("voice")}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] uppercase tracking-wide font-semibold transition-colors",
+                tab === "voice" ? "bg-blue-500/10 text-blue-700 dark:text-blue-300" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Mic className="h-3 w-3" />
+              Voice note
+            </button>
+          </div>
+
+          {/* Notes box only on the Notes tab; the recorder only on the Voice tab. */}
+          {tab === "notes" && (
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              onBlur={() => {
+                if ((notes || null) !== (item.notes || null)) {
+                  commit({ notes: notes || null });
+                }
+              }}
+              placeholder={
+                item.status === "fail"
+                  ? "Defect description (required to action this issue)"
+                  : "Notes (optional)"
               }
-            }}
-            placeholder={
-              item.status === "fail"
-                ? "Defect description (required to action this issue)"
-                : "Notes (optional)"
-            }
-            rows={1}
-            className="min-h-9 text-xs resize-y"
-            disabled={disabled || busy}
+              rows={1}
+              className="min-h-9 text-xs resize-y"
+              disabled={disabled || busy}
+            />
+          )}
+
+          {/* Existing recordings are ALWAYS visible; the record button only shows
+              when the Voice tab is active. */}
+          <VoiceNotes
+            recordType="qc_daily_sheet_item"
+            recordId={item.id}
+            showRecorder={tab === "voice"}
           />
         </div>
       </div>

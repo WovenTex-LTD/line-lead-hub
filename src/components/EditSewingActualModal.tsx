@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { VoiceNotes } from "@/components/voice/VoiceNotes";
 import { Loader2 } from "lucide-react";
 import { SewingMachine } from "@/components/icons/SewingMachine";
 import { supabase } from "@/integrations/supabase/client";
@@ -191,6 +192,10 @@ export function EditSewingActualModal({ submission, open, onOpenChange, onSaved 
               onChange={(e) => handleChange('remarks', e.target.value)}
               rows={3}
             />
+          </div>
+          <div className="space-y-2">
+            <Label>Voice note</Label>
+            <VoiceNotes recordType="sewing_actuals" recordId={submission.id} />
           </div>
         </div>
 

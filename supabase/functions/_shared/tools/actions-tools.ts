@@ -4,7 +4,7 @@
 import type { ToolContext } from "./types.ts";
 import {
   validateCreatePo, validateUpdatePo, validateAssignPoLines,
-  validateSetPoStatus, validateSetPoExFactory, validateArchivePo,
+  validateSetPoStatus, validateSetPoExFactory, validateArchivePo, validateRecordProduction,
   UUID_RE, type ValidationResult,
 } from "../actions/po.ts";
 import {
@@ -115,6 +115,10 @@ export async function setPoExFactoryTool(ctx: ToolContext, input: Record<string,
 export async function archivePoTool(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
   if (!gate(ctx)) return DENY;
   return propose(ctx, validateArchivePo(input));
+}
+export async function recordProductionTool(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  if (!gate(ctx)) return DENY;
+  return propose(ctx, validateRecordProduction(input));
 }
 
 export async function proposeCreateFormTool(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {

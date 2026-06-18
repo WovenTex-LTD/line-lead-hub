@@ -97,13 +97,14 @@ const TAB_META: Record<FilterTab, { label: string; activeCls: string }> = {
 };
 
 export default function QCDailySheetList() {
-  const { factory, isQCUser } = useAuth();
-  const canStart = isQCUser();
+  const { factory, isQCUser, isAdminOrHigher } = useAuth();
+  // Admins/owners can start sheets too (e.g. to demo or cover for an inspector).
+  const canStart = isQCUser() || isAdminOrHigher();
   const { rows, loading, refetch } = useQCDailySheets({ sinceDays: 30 });
   const [search, setSearch] = useState("");
   // Default to Today — that's where the inspector's active work is
   const [tab, setTab] = useState<FilterTab>("today");
-  const [newOpen, setNewOpen] = useState(false);
+  const [picking, setPicking] = useState(false);
 
   const timezone = factory?.timezone || "Asia/Dhaka";
   const today = getTodayInTimezone(timezone);
@@ -200,15 +201,18 @@ export default function QCDailySheetList() {
           </div>
           {canStart && (
             <Button
-              onClick={() => setNewOpen(true)}
+              onClick={() => setPicking((p) => !p)}
               className="gap-1.5 shrink-0 w-full sm:w-auto bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-md shadow-blue-500/25 text-white"
             >
               <Plus className="h-4 w-4" />
-              New sheet
+              {picking ? "Close" : "New sheet"}
             </Button>
           )}
         </div>
       </div>
+
+      {/* ── Start-sheet picker modal (line → PO) ───────────────────────── */}
+      {canStart && <StartSheetPicker open={picking} onOpenChange={setPicking} />}
 
       {/* ── KPI strip ──────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -299,7 +303,7 @@ export default function QCDailySheetList() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <EmptyState count={rows.length} canStart={canStart} onNew={() => setNewOpen(true)} />
+        <EmptyState count={rows.length} canStart={canStart} onNew={() => setPicking(true)} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {filtered.map((r) => (
@@ -313,15 +317,6 @@ export default function QCDailySheetList() {
           Showing {filtered.length} of {counts.all} sheet{counts.all === 1 ? "" : "s"} from the last 30 days
         </p>
       )}
-
-      <NewSheetDialog
-        open={newOpen}
-        onOpenChange={setNewOpen}
-        onCreated={() => {
-          setNewOpen(false);
-          refetch();
-        }}
-      />
     </div>
   );
 }
@@ -611,6 +606,165 @@ function EmptyState({
   );
 }
 
+// ── Start-sheet picker: pick a LINE, then a PO on that line ────────────
+// QC managers responsible for different phases all reach the same sheet by
+// choosing the same line + PO (the sheet is keyed by line+PO+date+shift, so a
+// second manager opens the existing sheet instead of creating a duplicate).
+function StartSheetPicker({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const navigate = useNavigate();
+  const { profile, user, factory } = useAuth();
+  const timezone = factory?.timezone || "Asia/Dhaka";
+  const today = getTodayInTimezone(timezone);
+
+  const [loading, setLoading] = useState(true);
+  const [lines, setLines] = useState<LineOpt[]>([]);
+  const [lineToPOs, setLineToPOs] = useState<Map<string, POOpt[]>>(new Map());
+  const [pickedLine, setPickedLine] = useState<string | null>(null);
+  const [starting, setStarting] = useState<string | null>(null);
+
+  useEffect(() => { if (open) setPickedLine(null); }, [open]);
+
+  useEffect(() => {
+    if (!open || !profile?.factory_id) return;
+    (async () => {
+      setLoading(true);
+      const [{ data: lns }, { data: woData }, { data: assign }] = await Promise.all([
+        supabase.from("lines").select("id, name, line_id").eq("factory_id", profile.factory_id).eq("is_active", true).order("line_id"),
+        supabase.from("work_orders").select("id, po_number, buyer, style, line_id, item, construction, target_per_day").eq("factory_id", profile.factory_id).eq("is_active", true).order("po_number"),
+        supabase.from("work_order_line_assignments").select("work_order_id, line_id").eq("factory_id", profile.factory_id),
+      ]);
+      // Resolve assignments to ACTIVE POs only, so the line's count matches the
+      // POs actually shown (assignments can reference archived/inactive POs).
+      const woById = new Map((woData as POOpt[] | null ?? []).map((w) => [w.id, w]));
+      const map = new Map<string, POOpt[]>();
+      const add = (lineId: string | null, woId: string) => {
+        if (!lineId) return;
+        const wo = woById.get(woId);
+        if (!wo) return; // not an active PO — skip
+        const a = map.get(lineId) || [];
+        if (!a.some((x) => x.id === wo.id)) a.push(wo);
+        map.set(lineId, a);
+      };
+      (assign as { work_order_id: string; line_id: string }[] | null)?.forEach((r) => add(r.line_id, r.work_order_id));
+      (woData as POOpt[] | null)?.forEach((w) => add(w.line_id, w.id)); // legacy single-line POs
+      setLines((lns as LineOpt[]) || []);
+      setLineToPOs(map);
+      setLoading(false);
+    })();
+  }, [open, profile?.factory_id]);
+
+  async function start(wo: POOpt) {
+    if (!profile?.factory_id || !user?.id || !pickedLine) return;
+    setStarting(wo.id);
+    try {
+      const sheetId = await startDailySheet({
+        factoryId: profile.factory_id,
+        workOrderId: wo.id,
+        lineId: pickedLine,
+        inspectionDate: today,
+        shift: "day",
+        inspectorId: user.id,
+        productType: wo.item ?? null,
+        fabric: wo.construction ?? null,
+        targetQty: wo.target_per_day ?? null,
+      });
+      toast.success("Daily QC sheet ready");
+      navigate(`/quality/daily-sheet/${sheetId}`);
+    } catch (err: any) {
+      toast.error(err?.message || "Could not start sheet");
+      setStarting(null);
+    }
+  }
+
+  const line = pickedLine ? lines.find((l) => l.id === pickedLine) : null;
+  const linePOs = pickedLine ? (lineToPOs.get(pickedLine) || []) : [];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl p-0 gap-0 overflow-hidden flex flex-col top-4 translate-y-0 max-h-[calc(100dvh-2rem)] sm:top-[50%] sm:-translate-y-[50%] sm:max-h-[85vh]">
+        <div className="h-[3px] bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-600 shrink-0" />
+        <DialogHeader className="px-6 pt-5 pb-4 border-b border-border/60 shrink-0">
+          <div className="flex items-center gap-3 text-left">
+            {pickedLine && (
+              <button onClick={() => setPickedLine(null)} className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline shrink-0">
+                ← Lines
+              </button>
+            )}
+            <div className="min-w-0">
+              <DialogTitle className="text-base">
+                {pickedLine ? `Pick a PO on ${line?.name || line?.line_id}` : "Start a QC sheet"}
+              </DialogTitle>
+              <DialogDescription className="text-xs mt-0.5">
+                {pickedLine ? "Choose the PO you're inspecting." : "Choose a line, then the PO you're inspecting."}
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : !pickedLine ? (
+          lines.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">No active lines in this factory.</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+              {lines.map((l) => {
+                const count = lineToPOs.get(l.id)?.length || 0;
+                return (
+                  <button
+                    key={l.id}
+                    onClick={() => setPickedLine(l.id)}
+                    className="group rounded-xl border border-border/60 bg-card hover:border-blue-400 hover:shadow-md transition-all p-3 text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-white grid place-items-center shrink-0 shadow">
+                        <ListChecks className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm truncate">{l.name || l.line_id}</p>
+                        <p className="text-[11px] text-muted-foreground">{count} PO{count === 1 ? "" : "s"}</p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )
+        ) : linePOs.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">No active POs on this line.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {linePOs.map((wo) => (
+              <button
+                key={wo.id}
+                onClick={() => start(wo)}
+                disabled={starting !== null}
+                className="group rounded-xl border border-border/60 bg-card hover:border-blue-400 hover:shadow-md transition-all p-3 text-left disabled:opacity-50"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-mono font-bold text-sm truncate">{wo.po_number}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{wo.buyer} · {wo.style}</p>
+                  </div>
+                  {starting === wo.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-600 shrink-0" />
+                  ) : (
+                    <ArrowRight className="h-4 w-4 text-blue-600 shrink-0 transition-transform group-hover:translate-x-0.5" />
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── New Sheet Dialog ───────────────────────────────────────────────────
 
 interface POOpt {
@@ -629,7 +783,7 @@ interface LineOpt {
   line_id: string;
 }
 
-function NewSheetDialog({
+export function NewSheetDialog({
   open,
   onOpenChange,
   onCreated,

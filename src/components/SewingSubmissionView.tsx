@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { CustomSubmissionDetail, useCustomSubmissionBranch } from "@/components/custom-forms/CustomSubmissionModal";
+import { VoiceNotes } from "@/components/voice/VoiceNotes";
 import {
   Dialog,
   DialogContent,
@@ -316,6 +317,9 @@ export function SewingSubmissionView({ target, actual, open, onOpenChange, onEdi
                   </div>
                 )}
 
+                {/* Voice notes — playback only on the review screen */}
+                <VoiceNotes heading="Voice notes" showRecorder={false} recordType="sewing_targets" recordId={target.id} />
+
                 {/* Target Timestamp */}
                 {target.submitted_at && (
                   <p className="text-xs text-muted-foreground pt-2 border-t border-border/40">
@@ -499,6 +503,9 @@ export function SewingSubmissionView({ target, actual, open, onOpenChange, onEdi
                     <p className="text-sm text-muted-foreground">{actual.remarks}</p>
                   </div>
                 )}
+
+                {/* Voice notes — playback only on the review screen */}
+                <VoiceNotes heading="Voice notes" showRecorder={false} recordType="sewing_actuals" recordId={actual.id} />
 
                 {/* Actual Timestamp */}
                 {actual.submitted_at && (

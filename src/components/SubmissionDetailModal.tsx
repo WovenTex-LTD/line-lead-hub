@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { VoiceNotes } from "@/components/voice/VoiceNotes";
 import { Clock, Package, Scissors, Warehouse, AlertTriangle, User, CalendarDays, Pencil, Trash2, Loader2 } from "lucide-react";
 import { SewingMachine } from "@/components/icons/SewingMachine";
 import { useAuth } from "@/contexts/AuthContext";
@@ -370,6 +371,15 @@ export function SubmissionDetailModal({ submission, open, onOpenChange, onDelete
                 </p>
               </div>
             )}
+
+            {/* Voice notes — playback only on the review screen */}
+            <VoiceNotes
+              heading={t('modals.notes')}
+              showRecorder={false}
+              recordType={isSewing ? 'production_updates_sewing' : 'production_updates_finishing'}
+              recordId={submission.id}
+              className="p-3 bg-muted/50 rounded-lg"
+            />
           </div>
 
           {/* Admin Actions */}

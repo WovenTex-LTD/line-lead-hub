@@ -10,7 +10,7 @@ import {
 } from "./insights.ts";
 import {
   createPoTool, updatePoTool, assignPoLinesTool,
-  setPoStatusTool, setPoExFactoryTool, archivePoTool,
+  setPoStatusTool, setPoExFactoryTool, archivePoTool, recordProductionTool,
   proposeCreateFormTool,
   proposeUpdateFormTool,
   proposeEditFormTool,
@@ -233,6 +233,23 @@ export const ALL_TOOLS: ToolDefinition[] = [
     input_schema: { type: "object", properties: { po_number: { type: "string" } }, required: ["po_number"] },
     allowedRoles: ["admin", "owner", "superadmin"],
     execute: archivePoTool,
+  },
+  {
+    name: "record_production",
+    description: "Record / backfill end-of-day production OUTPUT for a PO so its sewing & finishing progress %% reflects reality. Admin/owner only. Use this for completed or legacy POs that show 0% because no end-of-day data was ever entered — e.g. to mark a finished PO 100%. Set to_full:true to record the PO's full order quantity for BOTH sewing and finishing (the simplest way to bring a completed PO to 100%), or pass explicit sewing_qty and/or finishing_qty. Optional production_date (YYYY-MM-DD, defaults to today). This PROPOSES the change for approval, then writes real production records (progress updates automatically). Finishing output is what drives the completion %.",
+    input_schema: {
+      type: "object",
+      properties: {
+        po_number: { type: "string" },
+        to_full: { type: "boolean", description: "Record the PO's full order quantity for sewing + finishing (marks it 100%)." },
+        sewing_qty: { type: "number", description: "Sewing good output to record (ignored if to_full)." },
+        finishing_qty: { type: "number", description: "Finishing output to record — this drives the completion % (ignored if to_full)." },
+        production_date: { type: "string", description: "YYYY-MM-DD; defaults to today." },
+      },
+      required: ["po_number"],
+    },
+    allowedRoles: ["admin", "owner", "superadmin"],
+    execute: recordProductionTool,
   },
   {
     name: "propose_create_form",

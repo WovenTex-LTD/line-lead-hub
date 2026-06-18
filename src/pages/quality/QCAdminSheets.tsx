@@ -35,6 +35,7 @@ import {
   InspectorCell,
   type SheetTrackerStatus,
 } from "@/components/quality/status-vis";
+import { NewSheetDialog } from "./QCDailySheetList";
 import { DateFilter } from "@/components/quality/date-filter";
 import { downloadBulkSheetsPDF } from "@/lib/qc-pdf";
 import { searchNorm } from "@/lib/normalize-name";
@@ -86,6 +87,7 @@ export default function QCAdminSheets() {
   // Bulk export selection state
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [newSheetOpen, setNewSheetOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   const tz = factory?.timezone || "Asia/Dhaka";
@@ -246,6 +248,14 @@ export default function QCAdminSheets() {
             </div>
           </div>
           <div className="shrink-0 flex flex-col items-stretch sm:items-end gap-2 w-full sm:w-auto">
+            <Button
+              size="sm"
+              className="gap-1.5 w-full sm:w-auto bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-md shadow-blue-500/25"
+              onClick={() => setNewSheetOpen(true)}
+            >
+              <ListChecks className="h-3.5 w-3.5" />
+              Start QC Sheet
+            </Button>
             <Button
               size="sm"
               variant={selectMode ? "default" : "outline"}
@@ -488,6 +498,12 @@ export default function QCAdminSheets() {
           {rows.length === 1 ? "" : "s"} from the last 30 days
         </p>
       )}
+
+      <NewSheetDialog
+        open={newSheetOpen}
+        onOpenChange={setNewSheetOpen}
+        onCreated={() => setNewSheetOpen(false)}
+      />
     </div>
   );
 }

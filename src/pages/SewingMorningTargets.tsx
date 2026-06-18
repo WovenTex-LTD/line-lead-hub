@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { NotesWithVoice } from "@/components/voice/NotesWithVoice";
+import type { VoiceNotesHandle } from "@/components/voice/VoiceNotes";
 import {
   Select,
   SelectContent,
@@ -90,6 +92,7 @@ export default function SewingMorningTargets() {
   const { canEditSubmission } = useEditPermission();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const voiceRef = useRef<VoiceNotesHandle>(null);
 
   const dateLocale = i18n.language === 'bn' ? 'bn-BD' : 'en-US';
 
@@ -297,6 +300,7 @@ export default function SewingMorningTargets() {
 
       if (existingError) throw existingError;
 
+      let savedId = "";
       if (existing?.id) {
         const { canEdit, reason } = canEditSubmission(productionDate, user.id);
         if (!canEdit) {
@@ -311,12 +315,22 @@ export default function SewingMorningTargets() {
           .eq("id", existing.id);
 
         if (updateError) throw updateError;
+        savedId = existing.id;
       } else {
-        const { error: insertError } = await supabase
+        const { data: inserted, error: insertError } = await supabase
           .from("sewing_targets")
-          .insert(insertData);
+          .insert(insertData)
+          .select("id")
+          .single();
 
         if (insertError) throw insertError;
+        savedId = inserted?.id ?? "";
+      }
+
+      // Persist any voice notes recorded before save.
+      if (savedId && voiceRef.current?.hasPending()) {
+        try { await voiceRef.current.commit(savedId); }
+        catch (e: any) { toast.error(e?.message || "Voice note couldn't be saved"); }
       }
       toast.success(t("common.submissionSuccess"));
       
@@ -548,11 +562,17 @@ export default function SewingMorningTargets() {
 
         <div className="border-t border-border/40" />
 
-        {/* ── Remarks ── */}
-        <div className="space-y-1.5">
-          <Label className="text-xs font-medium">{t("forms.remarks")}</Label>
-          <Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder={t("forms.addAnyNotes")} rows={2} />
-        </div>
+        {/* ── Remarks + voice note ── */}
+        <NotesWithVoice
+          ref={voiceRef}
+          label={t("forms.remarks")}
+          value={remarks}
+          onChange={setRemarks}
+          placeholder={t("forms.addAnyNotes")}
+          recordType="sewing_targets"
+          recordId={null}
+          deferred
+        />
 
       </div>
 

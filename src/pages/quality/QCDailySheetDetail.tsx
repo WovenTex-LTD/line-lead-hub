@@ -9,6 +9,7 @@ import {
   Clock,
   MinusCircle,
   Send,
+  Save,
   Stamp,
   RotateCcw,
   Trash2,
@@ -220,6 +221,21 @@ export default function QCDailySheetDetail() {
 
       {/* ── Action bar ──────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-end gap-2">
+        {/* Save & close — entries save automatically as you go; this just makes
+            that obvious and returns to the list. Shown unless already signed off. */}
+        {data.status !== "signed_off" && (
+          <Button
+            size="sm"
+            className="gap-1.5 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-md shadow-blue-500/25"
+            onClick={() => {
+              toast.success("Sheet saved");
+              navigate(isAdminOrHigher() ? "/quality/admin/sheets" : "/quality/daily-sheet");
+            }}
+          >
+            <Save className="h-3.5 w-3.5" />
+            Save &amp; close
+          </Button>
+        )}
         {/* Download — only on signed-off records; available to anyone viewing. */}
         {data.status === "signed_off" && (
           <Button

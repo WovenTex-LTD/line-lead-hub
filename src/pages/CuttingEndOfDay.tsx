@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +13,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { NotesWithVoice } from "@/components/voice/NotesWithVoice";
+import type { VoiceNotesHandle } from "@/components/voice/VoiceNotes";
 import {
   Select,
   SelectContent,
@@ -128,6 +130,7 @@ export default function CuttingEndOfDay() {
   // Editing state
   const [isEditing, setIsEditing] = useState(false);
   const [existingActual, setExistingActual] = useState<ExistingActual | null>(null);
+  const voiceRef = useRef<VoiceNotesHandle>(null);
 
   // Left Over / Fabric Saved section
   const [leftoverOpen, setLeftoverOpen] = useState(false);
@@ -421,6 +424,7 @@ export default function CuttingEndOfDay() {
         estimated_cost_currency: estimatedCost.value != null ? estimatedCost.currency : null,
       };
 
+      let savedId = "";
       if (isEditing && existingActual) {
         const { error } = await supabase
           .from("cutting_actuals")
@@ -428,6 +432,7 @@ export default function CuttingEndOfDay() {
           .eq("id", existingActual.id);
 
         if (error) throw error;
+        savedId = existingActual.id;
         toast.success("Cutting actuals updated successfully!");
       } else {
         const result = await offlineSubmit("cutting_actuals", "cutting_actuals", actualData as Record<string, unknown>, {
@@ -436,6 +441,10 @@ export default function CuttingEndOfDay() {
         });
 
         if (result.queued) {
+          // Saved offline — no row id yet, so a recorded voice note can't be uploaded.
+          if (voiceRef.current?.hasPending()) {
+            toast.error("Voice note not saved — you were offline when this was queued.");
+          }
           if (isAdminOrHigher()) {
             navigate("/dashboard");
           } else {
@@ -451,9 +460,16 @@ export default function CuttingEndOfDay() {
           }
           throw new Error(result.error);
         }
+        savedId = (result.data as any[] | undefined)?.[0]?.id ?? "";
         toast.success("Cutting end-of-day actuals submitted successfully!");
       }
-      
+
+      // Persist any voice notes recorded before save.
+      if (savedId && voiceRef.current?.hasPending()) {
+        try { await voiceRef.current.commit(savedId); }
+        catch (e: any) { toast.error(e?.message || "Voice note couldn't be saved"); }
+      }
+
       if (isAdminOrHigher()) {
         navigate("/dashboard");
       } else {
@@ -808,16 +824,17 @@ export default function CuttingEndOfDay() {
                       />
                     </div>
 
-                    {/* Reason / Notes */}
-                    <div className="space-y-2">
-                      <Label>Reason / Notes (optional)</Label>
-                      <Textarea
-                        value={leftoverNotes}
-                        onChange={(e) => setLeftoverNotes(e.target.value)}
-                        placeholder="Additional notes..."
-                        rows={2}
-                      />
-                    </div>
+                    {/* Reason / Notes + voice note */}
+                    <NotesWithVoice
+                      label="Reason / Notes"
+                      value={leftoverNotes}
+                      onChange={setLeftoverNotes}
+                      placeholder="Additional notes..."
+                      recordType="cutting_actuals"
+                      recordId={existingActual?.id ?? null}
+                      deferred={!existingActual}
+                      ref={voiceRef}
+                    />
 
                   </>
                 )}
