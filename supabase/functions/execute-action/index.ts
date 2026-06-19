@@ -5,6 +5,7 @@ import {
   validateCreatePo, validateUpdatePo, validateAssignPoLines,
   validateSetPoStatus, validateSetPoExFactory, validateArchivePo,
   validateRecordProduction, validateResolveBlocker, validateNotifyUser, validateCreateReminder,
+  validateSetDispatchStatus,
   type ProposedAction, type ValidationResult,
 } from "../_shared/actions/po.ts";
 import { validateCreateCustomForm, validateUpdateCustomForm } from "../_shared/actions/forms.ts";
@@ -23,6 +24,7 @@ function revalidate(kind: string, payload: Record<string, unknown>): ValidationR
     case "resolve_blocker": return validateResolveBlocker(payload);
     case "notify_user": return validateNotifyUser(payload);
     case "create_reminder": return validateCreateReminder(payload);
+    case "set_dispatch_status": return validateSetDispatchStatus(payload);
     case "create_custom_form": return validateCreateCustomForm(payload);
     case "update_custom_form": return validateUpdateCustomForm(payload);
     default: return { ok: false, error: `Unknown action: ${kind}` };
@@ -189,7 +191,7 @@ serve(async (req) => {
     // order number "86538", so try exact, then order_number, then prefix/contains.
     let poId: string | null = null;
     let oldRow: Record<string, unknown> | null = null;
-    if (kind !== "create_po" && kind !== "notify_user" && kind !== "create_reminder") {
+    if (kind !== "create_po" && kind !== "notify_user" && kind !== "create_reminder" && kind !== "set_dispatch_status") {
       const raw = String(p.po_number ?? "").trim();
       const bare = raw.replace(/^po[\s#:_-]*/i, "").trim();
       const base = () => userClient.from("work_orders").select("*").eq("factory_id", factoryId);
@@ -423,6 +425,25 @@ serve(async (req) => {
       recordId = (typeof data === "string" ? data : null);
       tableName = "reminders";
       newData = { due_date: p.due_date, due_time: p.due_time ?? "09:00" };
+    } else if (kind === "set_dispatch_status") {
+      const ref = String(p.reference);
+      const decision = String(p.decision);
+      const { data: disp, error: findErr } = await userClient.from("dispatch_requests")
+        .select("id, status").eq("factory_id", factoryId).eq("reference_number", ref).maybeSingle();
+      if (findErr) return json({ ok: false, error: rlsMsg(findErr) });
+      if (!disp) return json({ ok: false, error: `I couldn't find dispatch ${ref}.` });
+      if (disp.status !== "pending") return json({ ok: false, error: `Dispatch ${ref} is already ${disp.status} — only pending dispatches can be ${decision}d.` });
+      const upd: Record<string, unknown> = decision === "approve"
+        ? { status: "approved", reviewed_by: user.id, reviewed_at: new Date().toISOString() }
+        : { status: "rejected", reviewed_by: user.id, reviewed_at: new Date().toISOString(), rejection_reason: p.reason ?? null };
+      const { error: uErr } = await userClient.from("dispatch_requests").update(upd).eq("id", disp.id);
+      if (uErr) return json({ ok: false, error: rlsMsg(uErr) });
+      summary = decision === "approve"
+        ? `Approved dispatch ${ref}. (Generate the gate-pass PDF in the app if a printout is needed.)`
+        : `Rejected dispatch ${ref} — ${p.reason}.`;
+      recordId = disp.id as string;
+      tableName = "dispatch_requests";
+      newData = upd;
     }
 
     // Audit via service client (audit_log RLS is admin-read; service bypasses).

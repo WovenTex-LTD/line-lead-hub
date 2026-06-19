@@ -2,6 +2,7 @@
 // Classifies user messages → fetches relevant production data → formats for LLM context
 
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
+import { transcribeAudio } from "./transcribe.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -19,7 +20,9 @@ export type LiveDataCategory =
   | "factory_summary"
   | "financials"
   | "qc_summary"
-  | "missing_submissions";
+  | "missing_submissions"
+  | "dispatches"
+  | "voice_notes";
 
 export interface LiveDataResult {
   category: LiveDataCategory;
@@ -428,6 +431,179 @@ export async function fetchMissingSubmissions(
     else { t += `Lines with NO submission yet (${missing.length}):\n`; for (const l of missing) t += `  - ${lineLabel(l)}${tag(l)}\n`; }
     return { category: "missing_submissions", label, data: missing, summary: t, fetchedAt: new Date().toISOString() };
   } catch (err) { return errorResult("missing_submissions", label, err); }
+}
+
+// Dispatch (gate-out) requests, default to those pending approval. Identified to
+// the user by reference_number (DSP-…), since a PO can have several dispatches.
+export async function fetchDispatches(
+  sb: SupabaseClient, factoryId: string, status?: string, poHint?: string,
+): Promise<LiveDataResult> {
+  const label = `Dispatch Requests${status && status !== "all" ? ` (${status})` : ""}`;
+  try {
+    let q = sb.from("dispatch_requests")
+      .select("id, reference_number, status, dispatch_quantity, carton_count, destination, truck_number, driver_name, submitted_at, reviewed_at, rejection_reason, work_orders(po_number, buyer, style)")
+      .eq("factory_id", factoryId)
+      .order("submitted_at", { ascending: false })
+      .limit(MAX_ROWS);
+    if (status && status !== "all") q = q.eq("status", status);
+    const { data, error } = await q;
+    if (error) throw error;
+    let list = data || [];
+    if (poHint) { const h = poHint.toLowerCase().replace(/[^a-z0-9]/g, ""); list = list.filter((d: any) => po(d).toLowerCase().replace(/[^a-z0-9]/g, "").includes(h)); }
+    return { category: "dispatches", label, data: list, summary: fmtDispatches(list, status), fetchedAt: new Date().toISOString() };
+  } catch (err) { return errorResult("dispatches", label, err); }
+}
+
+function fmtDispatches(data: any[], status?: string): string {
+  if (!data.length) return `No dispatch requests${status && status !== "all" ? ` with status "${status}"` : ""}.`;
+  const byStatus: Record<string, number> = {};
+  for (const d of data) byStatus[d.status] = (byStatus[d.status] ?? 0) + 1;
+  let t = `===== DISPATCHES =====\n`;
+  t += `Total: ${data.length} — ${Object.entries(byStatus).map(([s, c]) => `${s}: ${c}`).join(", ")}\n`;
+  t += `======================\n\n`;
+  for (const d of data) {
+    t += `  - ${d.reference_number} [${d.status}] PO ${po(d)} — ${d.dispatch_quantity} pcs${d.carton_count ? `, ${d.carton_count} cartons` : ""} → ${d.destination}\n`;
+    t += `    Truck: ${d.truck_number || "?"} | Driver: ${d.driver_name || "?"} | Submitted: ${d.submitted_at?.slice(0, 10) || "?"}${d.status === "rejected" && d.rejection_reason ? ` | Reason: ${d.rejection_reason}` : ""}\n`;
+  }
+  return t;
+}
+
+// Inventory: current storage bin-card balances (latest transaction balance per
+// card), optionally for one PO. balance = running balance_qty from the newest row.
+export async function fetchInventory(
+  sb: SupabaseClient, factoryId: string, poHint?: string,
+): Promise<LiveDataResult> {
+  const label = `Inventory / Storage Balances${poHint ? ` (PO ${poHint})` : ""}`;
+  try {
+    const { data: cards, error } = await sb.from("storage_bin_cards")
+      .select("id, description, supplier_name, color, work_orders(po_number, buyer, style, item)")
+      .eq("factory_id", factoryId)
+      .limit(MAX_ROWS);
+    if (error) throw error;
+    let list = cards || [];
+    if (poHint) { const h = poHint.toLowerCase().replace(/[^a-z0-9]/g, ""); list = list.filter((c: any) => po(c).toLowerCase().replace(/[^a-z0-9]/g, "").includes(h)); }
+    if (!list.length) {
+      return { category: "storage", label, data: [], summary: `No storage bin cards${poHint ? ` for PO ${poHint}` : ""}.`, fetchedAt: new Date().toISOString() };
+    }
+    const ids = list.map((c: any) => c.id);
+    const { data: txns, error: tErr } = await sb.from("storage_bin_card_transactions")
+      .select("bin_card_id, transaction_date, balance_qty, ttl_receive, receive_qty, issue_qty")
+      .in("bin_card_id", ids)
+      .order("transaction_date", { ascending: false });
+    if (tErr) throw tErr;
+    const latest = new Map<string, any>();
+    const totals = new Map<string, { received: number; issued: number }>();
+    for (const tx of txns || []) {
+      if (!latest.has(tx.bin_card_id)) latest.set(tx.bin_card_id, tx);
+      const agg = totals.get(tx.bin_card_id) ?? { received: 0, issued: 0 };
+      agg.received += tx.receive_qty || 0; agg.issued += tx.issue_qty || 0;
+      totals.set(tx.bin_card_id, agg);
+    }
+    let t = `===== STORAGE BALANCES =====\n`;
+    t += `Bin cards: ${list.length}\n`;
+    t += `============================\n\n`;
+    for (const c of list) {
+      const material = c.description || (c.work_orders as any)?.item || c.color || "material";
+      const last = latest.get(c.id);
+      const tot = totals.get(c.id) ?? { received: 0, issued: 0 };
+      if (last) {
+        t += `  - PO ${po(c)} — ${material}: balance ${last.balance_qty} (received ${tot.received}, issued ${tot.issued}) as of ${last.transaction_date}${c.supplier_name ? ` | supplier ${c.supplier_name}` : ""}\n`;
+      } else {
+        t += `  - PO ${po(c)} — ${material}: no transactions yet (balance 0)\n`;
+      }
+    }
+    return { category: "storage", label, data: list, summary: t, fetchedAt: new Date().toISOString() };
+  } catch (err) { return errorResult("storage", label, err); }
+}
+
+// Production tables that can carry a voice note and reference a PO via work_order_id.
+// Maps voice_notes.record_type -> the table whose row id is voice_notes.record_id.
+const VOICE_PO_TABLES = [
+  "sewing_actuals", "sewing_targets", "finishing_daily_logs",
+  "cutting_actuals", "cutting_targets", "dispatch_requests",
+  "production_updates_sewing", "production_updates_finishing",
+];
+
+// Resolve which record ids (across the PO-linked tables) belong to a PO, so we can
+// filter voice notes to "notes about PO X". Returns null if the PO isn't found.
+async function voiceNoteRecordIdsForPo(sb: SupabaseClient, factoryId: string, poHint: string): Promise<Set<string> | null> {
+  const bare = poHint.replace(/^po[\s#:_-]*/i, "").trim();
+  const { data: wo } = await sb.from("work_orders").select("id")
+    .eq("factory_id", factoryId)
+    .or(`po_number.ilike.%${bare}%,order_number.ilike.%${bare}%`).limit(1).maybeSingle();
+  if (!wo) return null;
+  const woId = (wo as any).id;
+  const sets = await Promise.all(VOICE_PO_TABLES.map(async (table) => {
+    const { data } = await sb.from(table).select("id").eq("factory_id", factoryId).eq("work_order_id", woId);
+    return (data || []).map((r: any) => r.id as string);
+  }));
+  return new Set(sets.flat());
+}
+
+// Voice notes recorded on production/QC records, transcribed via Whisper so Lina
+// can read them back. Bounded by `limit` (default 5) to cap transcription cost.
+export async function fetchVoiceNotes(
+  sb: SupabaseClient, factoryId: string,
+  opts: { recordType?: string; recordId?: string; po?: string; sinceDays?: number; limit?: number },
+): Promise<LiveDataResult> {
+  const label = "Voice Notes";
+  try {
+    let q = sb.from("voice_notes")
+      .select("id, record_type, record_id, storage_path, duration_ms, created_by, created_at")
+      .eq("factory_id", factoryId)
+      .order("created_at", { ascending: false });
+    if (opts.recordType) q = q.eq("record_type", opts.recordType);
+    if (opts.recordId) q = q.eq("record_id", opts.recordId);
+    const { data, error } = await q.limit(MAX_ROWS);
+    if (error) throw error;
+    let notes = data || [];
+
+    if (opts.po) {
+      const ids = await voiceNoteRecordIdsForPo(sb, factoryId, opts.po);
+      if (ids === null) {
+        return { category: "voice_notes", label, data: [], summary: `I couldn't find PO ${opts.po}.`, fetchedAt: new Date().toISOString() };
+      }
+      notes = notes.filter((n: any) => ids.has(n.record_id));
+    }
+    if (opts.sinceDays && !opts.recordId) {
+      const cutoff = new Date(Date.now() - opts.sinceDays * 86400000).toISOString();
+      notes = notes.filter((n: any) => n.created_at >= cutoff);
+    }
+    if (!notes.length) {
+      return { category: "voice_notes", label, data: [], summary: "No voice notes found for that.", fetchedAt: new Date().toISOString() };
+    }
+
+    const limit = Math.min(opts.limit ?? 5, 8);
+    const selected = notes.slice(0, limit);
+
+    const userIds = [...new Set(selected.map((n: any) => n.created_by).filter(Boolean))];
+    const nameById = new Map<string, string>();
+    if (userIds.length) {
+      const { data: profs } = await sb.from("profiles").select("id, full_name").in("id", userIds);
+      for (const p of profs || []) nameById.set((p as any).id, (p as any).full_name);
+    }
+
+    const transcripts = await Promise.all(selected.map(async (n: any) => {
+      try {
+        const { data: blob, error: dErr } = await sb.storage.from("voice-notes").download(n.storage_path);
+        if (dErr || !blob) return { n, text: `(couldn't load audio: ${dErr?.message || "missing file"})` };
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        const ext = (n.storage_path.split(".").pop() || "webm").toLowerCase();
+        const text = await transcribeAudio(bytes, `note.${ext}`);
+        return { n, text: text || "(no speech detected)" };
+      } catch (e) {
+        return { n, text: `(transcription failed: ${e instanceof Error ? e.message : String(e)})` };
+      }
+    }));
+
+    let t = `${selected.length} voice note${selected.length === 1 ? "" : "s"}${notes.length > selected.length ? ` (newest ${selected.length} of ${notes.length})` : ""}, transcribed:\n\n`;
+    for (const { n, text } of transcripts) {
+      const who = nameById.get(n.created_by) || "someone";
+      const dur = n.duration_ms ? `${Math.round(n.duration_ms / 1000)}s` : "?";
+      t += `- [${String(n.created_at).slice(0, 16).replace("T", " ")}] ${who} on ${n.record_type} (${dur}):\n  "${text}"\n\n`;
+    }
+    return { category: "voice_notes", label, data: selected, summary: t, fetchedAt: new Date().toISOString() };
+  } catch (err) { return errorResult("voice_notes", label, err); }
 }
 
 function computeBlockerAggregates(data: any[]): BlockerAggregates {

@@ -6,6 +6,7 @@ export type PoActionKind =
   | "create_po" | "update_po" | "assign_po_lines"
   | "set_po_status" | "set_po_ex_factory" | "archive_po"
   | "record_production" | "resolve_blocker" | "notify_user" | "create_reminder"
+  | "set_dispatch_status"
   | "create_custom_form" | "update_custom_form";
 
 export interface ProposedAction {
@@ -210,6 +211,25 @@ export function validateCreateReminder(input: Record<string, unknown>): Validati
   const payload = { title, message, due_date, due_time };
   const summary = `Set a reminder for ${due_date} at ${due_time}: "${message}".`;
   return { ok: true, action: { kind: "create_reminder", humanSummary: summary, payload } };
+}
+
+// Approve or reject a pending dispatch (gate-out) request, identified by its
+// reference number (DSP-…). Rejecting requires a reason.
+export function validateSetDispatchStatus(input: Record<string, unknown>): ValidationResult {
+  const reference = str(input.reference);
+  if (!reference) return { ok: false, error: "Which dispatch? Give its reference number (e.g. DSP-20260619-001)." };
+  const decision = str(input.decision).toLowerCase();
+  if (decision !== "approve" && decision !== "reject") {
+    return { ok: false, error: "Should I approve or reject it? Set decision to 'approve' or 'reject'." };
+  }
+  const reason = str(input.reason);
+  if (decision === "reject" && !reason) return { ok: false, error: "Give a reason for rejecting the dispatch." };
+  const payload: Record<string, unknown> = { reference, decision };
+  if (reason) payload.reason = reason;
+  const summary = decision === "approve"
+    ? `Approve dispatch ${reference}.`
+    : `Reject dispatch ${reference} — "${reason}".`;
+  return { ok: true, action: { kind: "set_dispatch_status", humanSummary: summary, payload } };
 }
 
 // Record (backfill) end-of-day production output for a PO so its progress %

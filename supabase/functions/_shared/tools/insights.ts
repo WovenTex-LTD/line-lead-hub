@@ -11,6 +11,9 @@ import {
   fetchWorkOrders,
   fetchQCSummary,
   fetchMissingSubmissions,
+  fetchDispatches,
+  fetchInventory,
+  fetchVoiceNotes,
 } from "../live-data.ts";
 
 const DENY = (what: string) =>
@@ -140,6 +143,34 @@ export async function getMissingSubmissions(ctx: ToolContext, input: Record<stri
   const date = typeof input.date === "string" && DATE_RE.test(input.date) ? input.date : ctx.today;
   const dept = typeof input.department === "string" ? input.department.trim() : undefined;
   const result = await fetchMissingSubmissions(ctx.supabase, ctx.factoryId, date, dept);
+  return result.error ? `(${result.error})` : result.summary;
+}
+
+/** get_dispatches([status],[po]) — dispatch (gate-out) requests, default pending. */
+export async function getDispatches(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  const status = typeof input.status === "string" && input.status.trim() ? input.status.trim().toLowerCase() : "pending";
+  const po = typeof input.po === "string" && input.po.trim() ? input.po.trim() : undefined;
+  const result = await fetchDispatches(ctx.supabase, ctx.factoryId, status, po);
+  return result.error ? `(${result.error})` : result.summary;
+}
+
+/** get_inventory([po]) — current storage bin-card balances. */
+export async function getInventory(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  if (!canSeeAnyProduction(ctx.role)) return DENY("inventory data");
+  const po = typeof input.po === "string" && input.po.trim() ? input.po.trim() : undefined;
+  const result = await fetchInventory(ctx.supabase, ctx.factoryId, po);
+  return result.error ? `(${result.error})` : result.summary;
+}
+
+/** get_voice_notes([po],[record_type],[record_id],[since_days],[limit]) — transcribed voice notes. */
+export async function getVoiceNotes(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  if (!canSeeAnyProduction(ctx.role)) return DENY("voice notes");
+  const po = typeof input.po === "string" && input.po.trim() ? input.po.trim() : undefined;
+  const recordType = typeof input.record_type === "string" && input.record_type.trim() ? input.record_type.trim() : undefined;
+  const recordId = typeof input.record_id === "string" && input.record_id.trim() ? input.record_id.trim() : undefined;
+  const sinceDays = typeof input.since_days === "number" && input.since_days > 0 ? input.since_days : (po || recordId ? undefined : 14);
+  const limit = typeof input.limit === "number" && input.limit > 0 ? input.limit : 5;
+  const result = await fetchVoiceNotes(ctx.supabase, ctx.factoryId, { po, recordType, recordId, sinceDays, limit });
   return result.error ? `(${result.error})` : result.summary;
 }
 

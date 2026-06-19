@@ -22,10 +22,10 @@ describe("registry", () => {
     const names = ALL_TOOLS.map((t) => t.name).sort();
     expect(names).toEqual([
       "archive_po", "assign_po_lines", "compare_periods", "create_po", "create_reminder", "find_anomalies",
-      "generate_report", "get_blockers", "get_financials", "get_lines", "get_metrics", "get_missing_submissions", "get_production_data", "get_qc_summary",
-      "get_custom_form", "get_custom_form_submissions", "get_work_orders", "notify_user", "propose_create_form", "propose_edit_form", "propose_update_form",
+      "generate_report", "get_blockers", "get_dispatches", "get_financials", "get_inventory", "get_lines", "get_metrics", "get_missing_submissions", "get_production_data", "get_qc_summary",
+      "get_custom_form", "get_custom_form_submissions", "get_voice_notes", "get_work_orders", "notify_user", "propose_create_form", "propose_edit_form", "propose_update_form",
       "raise_support_ticket", "record_production", "resolve_blocker", "search_knowledge",
-      "set_po_ex_factory", "set_po_status", "update_po",
+      "set_dispatch_status", "set_po_ex_factory", "set_po_status", "update_po",
     ].sort());
   });
 

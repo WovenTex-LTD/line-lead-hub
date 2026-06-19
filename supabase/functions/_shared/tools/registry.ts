@@ -7,10 +7,11 @@ import {
   getProductionData, getMetrics, getBlockers, getWorkOrders, getLines,
   getFinancials, comparePeriods, findAnomalies, searchKnowledge,
   raiseSupportTicket, generateReport, getQCSummary, getMissingSubmissions,
+  getDispatches, getInventory, getVoiceNotes,
 } from "./insights.ts";
 import {
   createPoTool, updatePoTool, assignPoLinesTool,
-  setPoStatusTool, setPoExFactoryTool, archivePoTool, recordProductionTool, resolveBlockerTool, notifyUserTool, createReminderTool,
+  setPoStatusTool, setPoExFactoryTool, archivePoTool, recordProductionTool, resolveBlockerTool, notifyUserTool, createReminderTool, setDispatchStatusTool,
   proposeCreateFormTool,
   proposeUpdateFormTool,
   proposeEditFormTool,
@@ -83,6 +84,47 @@ export const ALL_TOOLS: ToolDefinition[] = [
     },
     allowedRoles: "all",
     execute: getMissingSubmissions,
+  },
+  {
+    name: "get_dispatches",
+    description: "List dispatch (gate-out) requests and their status. Defaults to those PENDING approval. Call when the user asks about dispatches, gate passes, shipments, what's waiting for approval, or trucks leaving. Each result shows its reference number (DSP-…), PO, quantity, destination and status. Pass status (pending/approved/rejected/cancelled/all) or po to filter.",
+    input_schema: {
+      type: "object",
+      properties: {
+        status: { type: "string", enum: ["pending", "approved", "rejected", "cancelled", "all"], description: "Defaults to pending." },
+        po: { type: "string", description: "Optional: only dispatches for this PO." },
+      },
+    },
+    allowedRoles: ["admin", "owner", "superadmin"],
+    execute: getDispatches,
+  },
+  {
+    name: "get_inventory",
+    description: "Get current storage bin-card balances (fabric/material in storage). Call when the user asks how much material/fabric is in storage, stock levels, or the bin-card balance for a PO. Shows balance, total received and issued per PO/material. Pass po to focus on one order.",
+    input_schema: {
+      type: "object",
+      properties: {
+        po: { type: "string", description: "Optional: only this PO's storage." },
+      },
+    },
+    allowedRoles: "all",
+    execute: getInventory,
+  },
+  {
+    name: "get_voice_notes",
+    description: "Read back voice notes recorded on production/QC records — they are transcribed to text so you can summarize what was said. Call when the user asks what a voice note says, to summarize voice notes, or 'any voice notes on PO X / today?'. Filter by po (notes about that PO), record_type (e.g. finishing_daily_logs, sewing_actuals, qc_daily_sheet_item) and/or record_id. Transcription costs money and time, so keep limit small (default 5, max 8) and prefer a po/record filter over broad browsing.",
+    input_schema: {
+      type: "object",
+      properties: {
+        po: { type: "string", description: "Only voice notes about this PO." },
+        record_type: { type: "string", description: "Only notes on this record type (e.g. finishing_daily_logs, sewing_actuals, qc_daily_sheet_item)." },
+        record_id: { type: "string", description: "Only notes on this exact record id (UUID)." },
+        since_days: { type: "number", description: "Look back this many days when browsing (default 14)." },
+        limit: { type: "number", description: "Max notes to transcribe (default 5, max 8)." },
+      },
+    },
+    allowedRoles: "all",
+    execute: getVoiceNotes,
   },
   {
     name: "get_work_orders",
@@ -325,6 +367,21 @@ export const ALL_TOOLS: ToolDefinition[] = [
     },
     allowedRoles: "all",
     execute: createReminderTool,
+  },
+  {
+    name: "set_dispatch_status",
+    description: "Approve or reject a PENDING dispatch (gate-out) request, identified by its reference number (e.g. DSP-20260619-001). Admin/owner only. Rejecting requires a reason. Use get_dispatches first to find the reference number — a PO can have several dispatches, so always act on a specific reference. Note: approving here sets the status but does NOT generate the printable gate-pass PDF (do that in the app if needed). PROPOSES the change for approval.",
+    input_schema: {
+      type: "object",
+      properties: {
+        reference: { type: "string", description: "Dispatch reference number, e.g. DSP-20260619-001." },
+        decision: { type: "string", enum: ["approve", "reject"], description: "Approve or reject the dispatch." },
+        reason: { type: "string", description: "Required when rejecting: why it's rejected." },
+      },
+      required: ["reference", "decision"],
+    },
+    allowedRoles: ["admin", "owner", "superadmin"],
+    execute: setDispatchStatusTool,
   },
   {
     name: "propose_create_form",
