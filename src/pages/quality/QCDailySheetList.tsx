@@ -610,7 +610,7 @@ function EmptyState({
 // QC managers responsible for different phases all reach the same sheet by
 // choosing the same line + PO (the sheet is keyed by line+PO+date+shift, so a
 // second manager opens the existing sheet instead of creating a duplicate).
-function StartSheetPicker({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+export function StartSheetPicker({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const navigate = useNavigate();
   const { profile, user, factory } = useAuth();
   const timezone = factory?.timezone || "Asia/Dhaka";

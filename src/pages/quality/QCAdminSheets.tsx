@@ -35,7 +35,7 @@ import {
   InspectorCell,
   type SheetTrackerStatus,
 } from "@/components/quality/status-vis";
-import { NewSheetDialog } from "./QCDailySheetList";
+import { StartSheetPicker } from "./QCDailySheetList";
 import { DateFilter } from "@/components/quality/date-filter";
 import { downloadBulkSheetsPDF } from "@/lib/qc-pdf";
 import { searchNorm } from "@/lib/normalize-name";
@@ -499,10 +499,9 @@ export default function QCAdminSheets() {
         </p>
       )}
 
-      <NewSheetDialog
+      <StartSheetPicker
         open={newSheetOpen}
         onOpenChange={setNewSheetOpen}
-        onCreated={() => setNewSheetOpen(false)}
       />
     </div>
   );
