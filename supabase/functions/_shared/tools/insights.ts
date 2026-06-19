@@ -14,6 +14,7 @@ import {
   fetchDispatches,
   fetchInventory,
   fetchVoiceNotes,
+  fetchPoTimeline,
 } from "../live-data.ts";
 
 const DENY = (what: string) =>
@@ -171,6 +172,15 @@ export async function getVoiceNotes(ctx: ToolContext, input: Record<string, unkn
   const sinceDays = typeof input.since_days === "number" && input.since_days > 0 ? input.since_days : (po || recordId ? undefined : 14);
   const limit = typeof input.limit === "number" && input.limit > 0 ? input.limit : 5;
   const result = await fetchVoiceNotes(ctx.supabase, ctx.factoryId, { po, recordType, recordId, sinceDays, limit });
+  return result.error ? `(${result.error})` : result.summary;
+}
+
+/** get_po_timeline(po) — one PO's full activity log in date order. */
+export async function getPoTimeline(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  if (!canSeeAnyProduction(ctx.role)) return DENY("PO history");
+  const po = typeof input.po === "string" ? input.po.trim() : "";
+  if (!po) return "Which PO? Give me a PO number.";
+  const result = await fetchPoTimeline(ctx.supabase, ctx.factoryId, po);
   return result.error ? `(${result.error})` : result.summary;
 }
 

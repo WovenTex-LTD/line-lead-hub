@@ -7,7 +7,7 @@ import {
   getProductionData, getMetrics, getBlockers, getWorkOrders, getLines,
   getFinancials, comparePeriods, findAnomalies, searchKnowledge,
   raiseSupportTicket, generateReport, getQCSummary, getMissingSubmissions,
-  getDispatches, getInventory, getVoiceNotes,
+  getDispatches, getInventory, getVoiceNotes, getPoTimeline,
 } from "./insights.ts";
 import {
   createPoTool, updatePoTool, assignPoLinesTool,
@@ -125,6 +125,17 @@ export const ALL_TOOLS: ToolDefinition[] = [
     },
     allowedRoles: "all",
     execute: getVoiceNotes,
+  },
+  {
+    name: "get_po_timeline",
+    description: "Get a single PO's full activity log in date order — creation, cutting/sewing/finishing output, blockers, QC sheets and dispatches merged chronologically. Call when the user asks what happened with an order, its history, progress story, or 'walk me through PO X'. Requires a po number.",
+    input_schema: {
+      type: "object",
+      properties: { po: { type: "string", description: "The PO number to trace." } },
+      required: ["po"],
+    },
+    allowedRoles: "all",
+    execute: getPoTimeline,
   },
   {
     name: "get_work_orders",

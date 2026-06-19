@@ -22,7 +22,8 @@ export type LiveDataCategory =
   | "qc_summary"
   | "missing_submissions"
   | "dispatches"
-  | "voice_notes";
+  | "voice_notes"
+  | "po_timeline";
 
 export interface LiveDataResult {
   category: LiveDataCategory;
@@ -604,6 +605,63 @@ export async function fetchVoiceNotes(
     }
     return { category: "voice_notes", label, data: selected, summary: t, fetchedAt: new Date().toISOString() };
   } catch (err) { return errorResult("voice_notes", label, err); }
+}
+
+// A single PO's full activity log — creation, cutting/sewing/finishing output,
+// blockers, QC sheets and dispatches — merged in date order. Answers "what
+// happened with this order?".
+export async function fetchPoTimeline(
+  sb: SupabaseClient, factoryId: string, poHint: string,
+): Promise<LiveDataResult> {
+  const label = `PO Timeline (${poHint})`;
+  try {
+    const bare = poHint.replace(/^po[\s#:_-]*/i, "").trim();
+    const { data: wo } = await sb.from("work_orders")
+      .select("id, po_number, buyer, style, order_qty, status, created_at, planned_ex_factory, actual_ex_factory")
+      .eq("factory_id", factoryId)
+      .or(`po_number.ilike.%${bare}%,order_number.ilike.%${bare}%`)
+      .limit(1).maybeSingle();
+    if (!wo) return { category: "po_timeline", label, data: [], summary: `I couldn't find PO ${poHint}.`, fetchedAt: new Date().toISOString() };
+    const woId = (wo as any).id;
+    const byWo = (table: string, cols: string, extra?: (q: any) => any) => {
+      let q = sb.from(table).select(cols).eq("factory_id", factoryId).eq("work_order_id", woId).limit(MAX_ROWS);
+      if (extra) q = extra(q);
+      return q;
+    };
+
+    const [sew, fin, cut, qc, disp, blkS, blkF] = await Promise.all([
+      byWo("sewing_actuals", "production_date, good_today"),
+      byWo("finishing_daily_logs", "production_date, poly, log_type", (q) => q.eq("log_type", "OUTPUT")),
+      byWo("cutting_actuals", "production_date, day_cutting"),
+      byWo("qc_daily_sheets", "inspection_date, status", (q) => q.eq("factory_id", factoryId)),
+      byWo("dispatch_requests", "reference_number, status, dispatch_quantity, submitted_at"),
+      byWo("production_updates_sewing", "production_date, blocker_description, blocker_status", (q) => q.eq("has_blocker", true)),
+      byWo("production_updates_finishing", "production_date, blocker_description, blocker_status", (q) => q.eq("has_blocker", true)),
+    ]);
+
+    const events: { date: string; label: string }[] = [];
+    const d = (s: any) => String(s ?? "").slice(0, 10);
+    events.push({ date: d((wo as any).created_at), label: `PO created — ${(wo as any).order_qty ?? "?"} pcs, ${(wo as any).buyer || "?"} / ${(wo as any).style || "?"}` });
+    for (const r of (cut.data || [])) events.push({ date: d((r as any).production_date), label: `Cutting: ${(r as any).day_cutting} pcs` });
+    for (const r of (sew.data || [])) events.push({ date: d((r as any).production_date), label: `Sewing output: ${(r as any).good_today} pcs` });
+    for (const r of (fin.data || [])) events.push({ date: d((r as any).production_date), label: `Finishing output: ${(r as any).poly}` });
+    for (const r of (qc.data || [])) events.push({ date: d((r as any).inspection_date), label: `QC sheet — ${(r as any).status}` });
+    for (const r of (blkS.data || [])) events.push({ date: d((r as any).production_date), label: `⚠ Blocker (sewing, ${(r as any).blocker_status}): ${(r as any).blocker_description || "no description"}` });
+    for (const r of (blkF.data || [])) events.push({ date: d((r as any).production_date), label: `⚠ Blocker (finishing, ${(r as any).blocker_status}): ${(r as any).blocker_description || "no description"}` });
+    for (const r of (disp.data || [])) events.push({ date: d((r as any).submitted_at), label: `Dispatch ${(r as any).reference_number} — ${(r as any).status} (${(r as any).dispatch_quantity} pcs)` });
+
+    events.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+    const capped = events.slice(0, MAX_ROWS);
+
+    let t = `===== PO ${(wo as any).po_number} TIMELINE =====\n`;
+    t += `${(wo as any).buyer || "?"} / ${(wo as any).style || "?"} — ${(wo as any).order_qty ?? "?"} pcs — status: ${(wo as any).status || "?"}\n`;
+    t += `Planned ex-factory: ${(wo as any).planned_ex_factory || "—"} | Actual: ${(wo as any).actual_ex_factory || "—"}\n`;
+    t += `=========================================\n\n`;
+    if (!capped.length) t += "No activity recorded yet.";
+    else for (const e of capped) t += `${e.date}  ${e.label}\n`;
+    if (events.length > capped.length) t += `\n…and ${events.length - capped.length} earlier events (showing first ${capped.length}).`;
+    return { category: "po_timeline", label, data: capped, summary: t, fetchedAt: new Date().toISOString() };
+  } catch (err) { return errorResult("po_timeline", label, err); }
 }
 
 function computeBlockerAggregates(data: any[]): BlockerAggregates {
