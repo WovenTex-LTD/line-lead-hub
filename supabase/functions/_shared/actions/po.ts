@@ -5,6 +5,7 @@
 export type PoActionKind =
   | "create_po" | "update_po" | "assign_po_lines"
   | "set_po_status" | "set_po_ex_factory" | "archive_po"
+  | "record_production" | "resolve_blocker" | "notify_user" | "create_reminder"
   | "create_custom_form" | "update_custom_form";
 
 export interface ProposedAction {
@@ -146,4 +147,99 @@ export function validateArchivePo(input: Record<string, unknown>): ValidationRes
     ok: true,
     action: { kind: "archive_po", humanSummary: `Archive PO ${po_number} (soft-delete — production history is kept)`, payload: { po_number } },
   };
+}
+
+// Resolve (close) the open production blocker(s) on a PO. Marks every
+// open/in-progress blocker for that PO as resolved with today's date, optionally
+// recording what was done. Use after a blocker reported on a PO has been fixed.
+export function validateResolveBlocker(input: Record<string, unknown>): ValidationResult {
+  const po_number = str(input.po_number);
+  if (!po_number) return { ok: false, error: "Which PO's blocker should I resolve?" };
+  const resolution_note = str(input.resolution_note);
+  const payload: Record<string, unknown> = { po_number };
+  if (resolution_note) payload.resolution_note = resolution_note;
+  const summary = `Resolve open blocker(s) on PO ${po_number}${resolution_note ? ` — "${resolution_note}"` : ""} (marks them resolved as of today).`;
+  return { ok: true, action: { kind: "resolve_blocker", humanSummary: summary, payload } };
+}
+
+export const NOTIFY_ROLES = ["worker", "supervisor", "admin", "owner"];
+
+// Send an in-app notification to a person (by name), everyone assigned to a line,
+// and/or a whole role. At least one recipient target is required. The executor
+// resolves targets to user_ids and inserts one notification per recipient.
+export function validateNotifyUser(input: Record<string, unknown>): ValidationResult {
+  const message = str(input.message);
+  if (!message) return { ok: false, error: "What message should I send?" };
+  const to_user_name = str(input.to_user_name);
+  const to_line = str(input.to_line);
+  const to_role = str(input.to_role).toLowerCase();
+  if (!to_user_name && !to_line && !to_role) {
+    return { ok: false, error: "Who should I notify? Give a person's name, a line, or a role (worker / supervisor / admin / owner)." };
+  }
+  if (to_role && !NOTIFY_ROLES.includes(to_role)) {
+    return { ok: false, error: `Role must be one of: ${NOTIFY_ROLES.join(", ")}.` };
+  }
+  const title = str(input.title) || "Message from your team";
+  const payload: Record<string, unknown> = { title, message };
+  if (to_user_name) payload.to_user_name = to_user_name;
+  if (to_line) payload.to_line = to_line;
+  if (to_role) payload.to_role = to_role;
+  const who = [
+    to_user_name || null,
+    to_line ? `everyone on ${to_line}` : null,
+    to_role ? `all ${to_role}s` : null,
+  ].filter(Boolean).join(" and ");
+  const summary = `Send a notification to ${who}: "${message}".`;
+  return { ok: true, action: { kind: "notify_user", humanSummary: summary, payload } };
+}
+
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+// Create a personal follow-up reminder for the requesting user. due_date is the
+// calendar date (YYYY-MM-DD) in the factory's timezone; due_time is 24h HH:MM
+// (defaults to 09:00). Delivered as a notification once it's due.
+export function validateCreateReminder(input: Record<string, unknown>): ValidationResult {
+  const message = str(input.message);
+  if (!message) return { ok: false, error: "What should the reminder say?" };
+  const due_date = str(input.due_date);
+  if (!due_date || !DATE_RE.test(due_date)) return { ok: false, error: "When should I remind you? Give a date as YYYY-MM-DD." };
+  let due_time = str(input.due_time);
+  if (due_time && !TIME_RE.test(due_time)) return { ok: false, error: "Time must be 24-hour HH:MM, e.g. 09:00 or 17:30." };
+  if (!due_time) due_time = "09:00";
+  const title = str(input.title) || "Reminder";
+  const payload = { title, message, due_date, due_time };
+  const summary = `Set a reminder for ${due_date} at ${due_time}: "${message}".`;
+  return { ok: true, action: { kind: "create_reminder", humanSummary: summary, payload } };
+}
+
+// Record (backfill) end-of-day production output for a PO so its progress %
+// reflects reality — e.g. set a completed/legacy PO to 100%. Either `to_full`
+// (record the PO's full order quantity for sewing + finishing) or explicit
+// sewing_qty / finishing_qty. The executor resolves the line and writes real
+// production rows via the upsert_custom_production_row RPC.
+export function validateRecordProduction(input: Record<string, unknown>): ValidationResult {
+  const po_number = str(input.po_number);
+  if (!po_number) return { ok: false, error: "Which PO should I record production for?" };
+  const to_full = input.to_full === true;
+  const sewing_qty = num(input.sewing_qty);
+  const finishing_qty = num(input.finishing_qty);
+  const production_date = str(input.production_date);
+  if (!to_full && sewing_qty === undefined && finishing_qty === undefined) {
+    return { ok: false, error: "Tell me the quantities to record (sewing and/or finishing), or say to mark the PO fully complete." };
+  }
+  if (production_date && !DATE_RE.test(production_date)) {
+    return { ok: false, error: "Production date must be YYYY-MM-DD." };
+  }
+  if (sewing_qty !== undefined && sewing_qty < 0) return { ok: false, error: "Sewing quantity can't be negative." };
+  if (finishing_qty !== undefined && finishing_qty < 0) return { ok: false, error: "Finishing quantity can't be negative." };
+  const payload: Record<string, unknown> = { po_number, to_full };
+  if (sewing_qty !== undefined) payload.sewing_qty = sewing_qty;
+  if (finishing_qty !== undefined) payload.finishing_qty = finishing_qty;
+  if (production_date) payload.production_date = production_date;
+  const what = to_full
+    ? "full order quantity (sewing + finishing → 100%)"
+    : [sewing_qty !== undefined ? `sewing ${sewing_qty.toLocaleString()}` : null,
+       finishing_qty !== undefined ? `finishing ${finishing_qty.toLocaleString()}` : null].filter(Boolean).join(", ");
+  const summary = `Record production for PO ${po_number}: ${what}${production_date ? ` on ${production_date}` : ""} — backfills end-of-day data and updates the progress %.`;
+  return { ok: true, action: { kind: "record_production", humanSummary: summary, payload } };
 }

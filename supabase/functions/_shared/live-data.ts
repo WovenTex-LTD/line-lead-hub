@@ -17,7 +17,9 @@ export type LiveDataCategory =
   | "storage"
   | "lines"
   | "factory_summary"
-  | "financials";
+  | "financials"
+  | "qc_summary"
+  | "missing_submissions";
 
 export interface LiveDataResult {
   category: LiveDataCategory;
@@ -277,6 +279,155 @@ export async function fetchBlockers(
 
     return { category: "blockers", label: "Active Blockers", data: all, summary: fmtBlockers(all, agg), fetchedAt: new Date().toISOString() };
   } catch (err) { return errorResult("blockers", "Active Blockers", err); }
+}
+
+// QC pass/fail summary from daily inspection sheets + their checklist items.
+// Aggregates per-item pass/fail (no stored totals — counted like the app does),
+// rolls up by PO and by line, and lists the failed checks as actionable issues.
+export async function fetchQCSummary(
+  sb: SupabaseClient, factoryId: string,
+  startDate: string, endDate: string, poHint?: string, lineHint?: string,
+): Promise<LiveDataResult> {
+  const label = `QC Summary (${startDate === endDate ? startDate : `${startDate} → ${endDate}`})`;
+  try {
+    const { data: sheetsRaw, error: sErr } = await sb.from("qc_daily_sheets")
+      .select("id, inspection_date, shift, status, admin_review_status, target_qty, work_orders(po_number, buyer, style), lines(line_id, name)")
+      .eq("factory_id", factoryId)
+      .gte("inspection_date", startDate)
+      .lte("inspection_date", endDate)
+      .order("inspection_date", { ascending: false })
+      .limit(MAX_ROWS);
+    if (sErr) throw sErr;
+
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+    let sheets = sheetsRaw || [];
+    if (poHint) { const h = norm(poHint); sheets = sheets.filter((s: any) => norm(po(s)).includes(h)); }
+    if (lineHint) { const h = norm(lineHint); sheets = sheets.filter((s: any) => norm(ln(s)).includes(h)); }
+
+    if (!sheets.length) {
+      return { category: "qc_summary", label, data: [], summary: `No QC sheets found for ${label}.`, fetchedAt: new Date().toISOString() };
+    }
+
+    const sheetIds = sheets.map((s: any) => s.id);
+    const { data: items, error: iErr } = await sb.from("qc_daily_sheet_items")
+      .select("sheet_id, status, section_label, item_label, notes")
+      .in("sheet_id", sheetIds);
+    if (iErr) throw iErr;
+
+    const sheetById = new Map<string, any>(sheets.map((s: any) => [s.id, s]));
+    let pass = 0, fail = 0, na = 0, pending = 0;
+    const byPo = new Map<string, { pass: number; fail: number }>();
+    const byLine = new Map<string, { pass: number; fail: number }>();
+    const failed: any[] = [];
+    for (const it of items || []) {
+      const s = sheetById.get(it.sheet_id); if (!s) continue;
+      if (it.status === "pass") pass++;
+      else if (it.status === "fail") fail++;
+      else if (it.status === "na") na++;
+      else { pending++; continue; }
+      if (it.status === "pass" || it.status === "fail") {
+        const pk = po(s), lk = ln(s);
+        const pe = byPo.get(pk) ?? { pass: 0, fail: 0 }; pe[it.status as "pass" | "fail"]++; byPo.set(pk, pe);
+        const le = byLine.get(lk) ?? { pass: 0, fail: 0 }; le[it.status as "pass" | "fail"]++; byLine.set(lk, le);
+      }
+      if (it.status === "fail") failed.push({ po: po(s), line: ln(s), date: s.inspection_date, section: it.section_label, item: it.item_label, notes: it.notes });
+    }
+
+    const scored = pass + fail;
+    const failRate = scored ? ((fail / scored) * 100).toFixed(1) : "0.0";
+    const byStatus = { in_progress: 0, awaiting_signoff: 0, signed_off: 0 } as Record<string, number>;
+    for (const s of sheets) byStatus[s.status] = (byStatus[s.status] ?? 0) + 1;
+    const flagged = sheets.filter((s: any) => s.admin_review_status === "flagged").length;
+
+    const agg = { sheets: sheets.length, pass, fail, na, pending, failRate, byStatus, flagged, byPo, byLine };
+    return { category: "qc_summary", label, data: sheets, summary: fmtQCSummary(agg, failed), fetchedAt: new Date().toISOString() };
+  } catch (err) { return errorResult("qc_summary", label, err); }
+}
+
+function fmtQCSummary(agg: any, failed: any[]): string {
+  let t = `===== QC SUMMARY =====\n`;
+  t += `Sheets: ${agg.sheets} (in progress=${agg.byStatus.in_progress || 0}, awaiting sign-off=${agg.byStatus.awaiting_signoff || 0}, signed off=${agg.byStatus.signed_off || 0}${agg.flagged ? `, flagged for review=${agg.flagged}` : ""})\n`;
+  t += `Checks: ${agg.pass} pass, ${agg.fail} fail, ${agg.na} n/a, ${agg.pending} pending\n`;
+  t += `Fail rate: ${agg.failRate}% (of ${agg.pass + agg.fail} scored checks)\n`;
+  t += `======================\n\n`;
+
+  const poRows = [...agg.byPo.entries()].map(([k, v]: any) => ({ k, ...v, rate: v.pass + v.fail ? (v.fail / (v.pass + v.fail)) * 100 : 0 }))
+    .sort((a, b) => b.rate - a.rate);
+  if (poRows.length) {
+    t += `By PO (fail rate):\n`;
+    for (const r of poRows.slice(0, 15)) t += `  - ${r.k}: ${r.rate.toFixed(1)}% (${r.fail} fail / ${r.pass + r.fail})\n`;
+    t += `\n`;
+  }
+  const lineRows = [...agg.byLine.entries()].map(([k, v]: any) => ({ k, ...v, rate: v.pass + v.fail ? (v.fail / (v.pass + v.fail)) * 100 : 0 }))
+    .sort((a, b) => b.rate - a.rate);
+  if (lineRows.length) {
+    t += `By line (fail rate):\n`;
+    for (const r of lineRows.slice(0, 15)) t += `  - ${r.k}: ${r.rate.toFixed(1)}% (${r.fail} fail / ${r.pass + r.fail})\n`;
+    t += `\n`;
+  }
+  if (failed.length) {
+    t += `Failed checks (open QC issues, up to 25 of ${failed.length}):\n`;
+    for (const f of failed.slice(0, 25)) t += `  - ${f.line} / ${f.po} [${f.date}] ${f.section} → ${f.item}${f.notes ? `: ${f.notes}` : ""}\n`;
+  } else {
+    t += `No failed checks in this range.\n`;
+  }
+  return t;
+}
+
+// Which active lines have NOT submitted end-of-day production for a date.
+// Mirrors the late-submission notification logic: every active line is expected
+// to submit; a line counts as submitted if it has an end-of-day OUTPUT row in
+// sewing (sewing_actuals), finishing (finishing_daily_logs OUTPUT), or cutting
+// (cutting_actuals). `department` optionally narrows to one department's table.
+export async function fetchMissingSubmissions(
+  sb: SupabaseClient, factoryId: string, date: string, department?: string,
+): Promise<LiveDataResult> {
+  const label = `Missing Submissions (${date})`;
+  try {
+    const { data: lines, error: lErr } = await sb.from("lines")
+      .select("id, line_id, name, department")
+      .eq("factory_id", factoryId)
+      .eq("is_active", true);
+    if (lErr) throw lErr;
+    if (!lines || !lines.length) {
+      return { category: "missing_submissions", label, data: [], summary: "No active lines in this factory.", fetchedAt: new Date().toISOString() };
+    }
+
+    const idsFrom = async (table: string, extra?: (q: any) => any) => {
+      let q = sb.from(table).select("line_id").eq("factory_id", factoryId).eq("production_date", date);
+      if (extra) q = extra(q);
+      const { data, error } = await q;
+      if (error) throw error;
+      return new Set((data || []).map((r: any) => r.line_id).filter(Boolean));
+    };
+    const [sewSet, finSet, cutSet] = await Promise.all([
+      idsFrom("sewing_actuals"),
+      idsFrom("finishing_daily_logs", (q) => q.eq("log_type", "OUTPUT")),
+      idsFrom("cutting_actuals"),
+    ]);
+
+    const dept = (department || "").toLowerCase();
+    const lineLabel = (l: any) => l.name || l.line_id || "Unknown line";
+    const tag = (l: any) => l.department ? ` (${l.department})` : "";
+
+    if (dept === "sewing" || dept === "finishing" || dept === "cutting") {
+      const set = dept === "sewing" ? sewSet : dept === "finishing" ? finSet : cutSet;
+      const missing = lines.filter((l: any) => !set.has(l.id));
+      let t = `${lines.length - missing.length}/${lines.length} active lines submitted ${dept} output on ${date}.\n`;
+      if (!missing.length) t += `All active lines have submitted their ${dept} output. ✅`;
+      else { t += `Missing ${dept} output (${missing.length}):\n`; for (const l of missing) t += `  - ${lineLabel(l)}${tag(l)}\n`; }
+      return { category: "missing_submissions", label, data: missing, summary: t, fetchedAt: new Date().toISOString() };
+    }
+
+    // No department filter → lines that submitted NOTHING in any department.
+    const submittedAny = (l: any) => sewSet.has(l.id) || finSet.has(l.id) || cutSet.has(l.id);
+    const missing = lines.filter((l: any) => !submittedAny(l));
+    let t = `${lines.length - missing.length}/${lines.length} active lines have submitted production for ${date}.\n`;
+    t += `Submitted by department — sewing: ${[...sewSet].length}, finishing: ${[...finSet].length}, cutting: ${[...cutSet].length} lines.\n\n`;
+    if (!missing.length) t += `Every active line has submitted today. ✅`;
+    else { t += `Lines with NO submission yet (${missing.length}):\n`; for (const l of missing) t += `  - ${lineLabel(l)}${tag(l)}\n`; }
+    return { category: "missing_submissions", label, data: missing, summary: t, fetchedAt: new Date().toISOString() };
+  } catch (err) { return errorResult("missing_submissions", label, err); }
 }
 
 function computeBlockerAggregates(data: any[]): BlockerAggregates {

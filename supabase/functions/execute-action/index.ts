@@ -4,6 +4,7 @@ import { getCorsHeaders } from "../_shared/security.ts";
 import {
   validateCreatePo, validateUpdatePo, validateAssignPoLines,
   validateSetPoStatus, validateSetPoExFactory, validateArchivePo,
+  validateRecordProduction, validateResolveBlocker, validateNotifyUser, validateCreateReminder,
   type ProposedAction, type ValidationResult,
 } from "../_shared/actions/po.ts";
 import { validateCreateCustomForm, validateUpdateCustomForm } from "../_shared/actions/forms.ts";
@@ -18,6 +19,10 @@ function revalidate(kind: string, payload: Record<string, unknown>): ValidationR
     case "set_po_status": return validateSetPoStatus(payload);
     case "set_po_ex_factory": return validateSetPoExFactory(payload);
     case "archive_po": return validateArchivePo(payload);
+    case "record_production": return validateRecordProduction(payload);
+    case "resolve_blocker": return validateResolveBlocker(payload);
+    case "notify_user": return validateNotifyUser(payload);
+    case "create_reminder": return validateCreateReminder(payload);
     case "create_custom_form": return validateCreateCustomForm(payload);
     case "update_custom_form": return validateUpdateCustomForm(payload);
     default: return { ok: false, error: `Unknown action: ${kind}` };
@@ -179,16 +184,32 @@ serve(async (req) => {
       return json({ ok: true, summary: action.humanSummary, recordId: tpl.id });
     }
 
-    // Resolve PO id (factory-scoped) for non-create actions.
+    // Resolve PO id (factory-scoped) for non-create actions. Match flexibly:
+    // po_number is often stored as "PO 86538" while users/Lina pass the bare
+    // order number "86538", so try exact, then order_number, then prefix/contains.
     let poId: string | null = null;
     let oldRow: Record<string, unknown> | null = null;
-    if (kind !== "create_po") {
-      const { data: po } = await userClient
-        .from("work_orders").select("*")
-        .eq("factory_id", factoryId).eq("po_number", p.po_number as string).maybeSingle();
+    if (kind !== "create_po" && kind !== "notify_user" && kind !== "create_reminder") {
+      const raw = String(p.po_number ?? "").trim();
+      const bare = raw.replace(/^po[\s#:_-]*/i, "").trim();
+      const base = () => userClient.from("work_orders").select("*").eq("factory_id", factoryId);
+      const attempts = [
+        () => base().eq("po_number", raw),
+        () => base().ilike("po_number", raw),
+        () => base().eq("order_number", bare),
+        () => base().or(`po_number.ilike.PO ${bare},po_number.ilike.${bare},order_number.ilike.${bare}`),
+      ];
+      let po: Record<string, unknown> | null = null;
+      let ambiguous = false;
+      for (const run of attempts) {
+        const { data } = await run().limit(2);
+        if (data && data.length === 1) { po = data[0] as Record<string, unknown>; break; }
+        if (data && data.length > 1) { ambiguous = true; break; }
+      }
+      if (ambiguous) return json({ ok: false, error: `Several POs match "${p.po_number}". Please give the exact PO number.` });
       if (!po) return json({ ok: false, error: `I couldn't find PO ${p.po_number}.` });
       poId = po.id as string;
-      oldRow = po as Record<string, unknown>;
+      oldRow = po;
     }
 
     let summary = action.humanSummary;
@@ -265,6 +286,143 @@ serve(async (req) => {
       if (error) return json({ ok: false, error: rlsMsg(error) });
       if (!data?.length) return json({ ok: false, error: "You don't have permission to make that change." });
       newData = { is_active: false, status: "deleted" };
+    } else if (kind === "record_production") {
+      // Backfill end-of-day output so the PO's progress % reflects reality.
+      const orderQty = Number((oldRow as Record<string, unknown>)?.order_qty) || 0;
+      const toFull = p.to_full === true;
+      const prodDate = (typeof p.production_date === "string" && p.production_date) ? p.production_date : new Date().toISOString().slice(0, 10);
+      const sewQty = toFull ? orderQty : (typeof p.sewing_qty === "number" ? p.sewing_qty : undefined);
+      const finQty = toFull ? orderQty : (typeof p.finishing_qty === "number" ? p.finishing_qty : undefined);
+
+      // sewing_actuals.line_id is NOT NULL; finishing_daily_logs.line_id is nullable (dept-wide).
+      let lineId: string | null = null;
+      const { data: la } = await userClient.from("work_order_line_assignments")
+        .select("line_id").eq("factory_id", factoryId).eq("work_order_id", poId).limit(1);
+      lineId = (la?.[0]?.line_id as string) ?? null;
+      if (!lineId) {
+        const { data: wo2 } = await userClient.from("work_orders").select("line_id").eq("id", poId).maybeSingle();
+        lineId = (wo2?.line_id as string) ?? null;
+      }
+
+      const done: string[] = [];
+      if (finQty !== undefined) {
+        const { error } = await userClient.rpc("upsert_custom_production_row", {
+          p_table: "finishing_daily_logs", p_factory_id: factoryId, p_line_id: lineId, p_work_order_id: poId,
+          p_production_date: prodDate,
+          p_values: { log_type: "OUTPUT", poly: finQty, m_power_actual: 1, actual_hours: 1 },
+          p_custom_data: { source: "lina_backfill" },
+        });
+        if (error) return json({ ok: false, error: rlsMsg(error) || "Could not record finishing output." });
+        done.push(`finishing ${finQty.toLocaleString()}`);
+      }
+      if (sewQty !== undefined) {
+        if (!lineId) {
+          done.push("(sewing skipped — PO has no assigned line)");
+        } else {
+          const { error } = await userClient.rpc("upsert_custom_production_row", {
+            p_table: "sewing_actuals", p_factory_id: factoryId, p_line_id: lineId, p_work_order_id: poId,
+            p_production_date: prodDate,
+            p_values: { good_today: sewQty, manpower_actual: 1, hours_actual: 1, actual_stage_progress: 100 },
+            p_custom_data: { source: "lina_backfill" },
+          });
+          if (error) return json({ ok: false, error: rlsMsg(error) || "Could not record sewing output." });
+          done.push(`sewing ${sewQty.toLocaleString()}`);
+        }
+      }
+      if (!done.length) return json({ ok: false, error: "Nothing to record — give me a sewing and/or finishing quantity." });
+      summary = `Recorded production for PO ${p.po_number}: ${done.join(", ")} on ${prodDate}.`;
+      tableName = finQty !== undefined ? "finishing_daily_logs" : "sewing_actuals";
+      newData = { production_date: prodDate, recorded: done };
+    } else if (kind === "resolve_blocker") {
+      // Close every open/in-progress blocker on this PO across both update tables.
+      const today = new Date().toISOString().slice(0, 10);
+      const note = typeof p.resolution_note === "string" && p.resolution_note ? p.resolution_note : null;
+      const upd: Record<string, unknown> = { blocker_status: "resolved", blocker_resolution_date: today };
+      if (note) upd.action_taken_today = note;
+      let resolved = 0;
+      for (const table of ["production_updates_sewing", "production_updates_finishing"]) {
+        const { data, error } = await userClient.from(table)
+          .update(upd)
+          .eq("factory_id", factoryId)
+          .eq("work_order_id", poId)
+          .eq("has_blocker", true)
+          .in("blocker_status", ["open", "in_progress"])
+          .select("id");
+        if (error) return json({ ok: false, error: rlsMsg(error) });
+        resolved += data?.length ?? 0;
+      }
+      if (resolved === 0) return json({ ok: false, error: `No open blockers found for PO ${p.po_number}.` });
+      summary = `Resolved ${resolved} blocker${resolved === 1 ? "" : "s"} on PO ${p.po_number}${note ? ` — ${note}` : ""}.`;
+      tableName = "production_updates";
+      newData = upd;
+    } else if (kind === "notify_user") {
+      // Resolve recipients (factory-scoped) then insert one notification per user.
+      // Notifications have no INSERT RLS policy, so the service client must write.
+      const recipients = new Set<string>();
+      const toUserName = typeof p.to_user_name === "string" ? p.to_user_name.trim() : "";
+      const toLine = typeof p.to_line === "string" ? p.to_line.trim() : "";
+      const toRole = typeof p.to_role === "string" ? p.to_role.trim() : "";
+
+      if (toUserName) {
+        const { data } = await admin.from("profiles")
+          .select("id, full_name").eq("factory_id", factoryId)
+          .ilike("full_name", `%${toUserName}%`).limit(5);
+        if (!data || data.length === 0) return json({ ok: false, error: `I couldn't find anyone named "${toUserName}" in your factory.` });
+        if (data.length > 1) return json({ ok: false, error: `Several people match "${toUserName}" — give the exact full name.` });
+        recipients.add(data[0].id as string);
+      }
+
+      if (toLine) {
+        const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const n = norm(toLine);
+        const { data: lines } = await admin.from("lines")
+          .select("id, line_id, name").eq("factory_id", factoryId).eq("is_active", true);
+        const match = (lines ?? []).find((l: Record<string, unknown>) => {
+          const lid = norm(String(l.line_id ?? "")); const nm = norm(String(l.name ?? ""));
+          return lid === n || nm === n || (/^\d+$/.test(n) && (lid === `line${n}` || nm === `line${n}`));
+        });
+        if (!match) return json({ ok: false, error: `I couldn't find line "${toLine}".` });
+        const { data: assigned } = await admin.from("user_line_assignments")
+          .select("user_id").eq("factory_id", factoryId).eq("line_id", (match as Record<string, unknown>).id);
+        if (!assigned || assigned.length === 0) return json({ ok: false, error: `No one is assigned to ${String((match as Record<string, unknown>).name ?? toLine)} yet.` });
+        assigned.forEach((r: Record<string, unknown>) => recipients.add(r.user_id as string));
+      }
+
+      if (toRole) {
+        const { data: roles } = await admin.from("user_roles")
+          .select("user_id").eq("factory_id", factoryId).eq("role", toRole);
+        if (!roles || roles.length === 0) return json({ ok: false, error: `There are no ${toRole}s in your factory.` });
+        roles.forEach((r: Record<string, unknown>) => recipients.add(r.user_id as string));
+      }
+
+      if (recipients.size === 0) return json({ ok: false, error: "I couldn't resolve any recipients." });
+
+      const rows = Array.from(recipients).map((uid) => ({
+        factory_id: factoryId, user_id: uid, type: "message",
+        title: p.title ?? "Message from your team", message: p.message,
+        data: { from_action: "notify_user", sent_by: user.id }, is_read: false,
+      }));
+      const { error: nErr } = await admin.from("notifications").insert(rows);
+      if (nErr) return json({ ok: false, error: rlsMsg(nErr) });
+
+      summary = `Sent "${p.title}" to ${recipients.size} recipient${recipients.size === 1 ? "" : "s"}.`;
+      recordId = null;
+      tableName = "notifications";
+      newData = { recipients: recipients.size };
+    } else if (kind === "create_reminder") {
+      // Store via the SECURITY DEFINER RPC, which resolves the factory timezone
+      // and writes a reminder for auth.uid(). The 5-min cron delivers it when due.
+      const { data, error } = await userClient.rpc("create_reminder", {
+        p_title: p.title ?? "Reminder",
+        p_message: p.message,
+        p_due_date: p.due_date,
+        p_due_time: p.due_time ?? "09:00",
+      });
+      if (error) return json({ ok: false, error: rlsMsg(error) });
+      summary = `Reminder set for ${p.due_date} at ${p.due_time ?? "09:00"}: "${p.message}".`;
+      recordId = (typeof data === "string" ? data : null);
+      tableName = "reminders";
+      newData = { due_date: p.due_date, due_time: p.due_time ?? "09:00" };
     }
 
     // Audit via service client (audit_log RLS is admin-read; service bypasses).

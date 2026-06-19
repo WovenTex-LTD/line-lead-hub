@@ -6,11 +6,11 @@ import { isToolAllowed } from "./types.ts";
 import {
   getProductionData, getMetrics, getBlockers, getWorkOrders, getLines,
   getFinancials, comparePeriods, findAnomalies, searchKnowledge,
-  raiseSupportTicket, generateReport,
+  raiseSupportTicket, generateReport, getQCSummary, getMissingSubmissions,
 } from "./insights.ts";
 import {
   createPoTool, updatePoTool, assignPoLinesTool,
-  setPoStatusTool, setPoExFactoryTool, archivePoTool,
+  setPoStatusTool, setPoExFactoryTool, archivePoTool, recordProductionTool, resolveBlockerTool, notifyUserTool, createReminderTool,
   proposeCreateFormTool,
   proposeUpdateFormTool,
   proposeEditFormTool,
@@ -55,6 +55,34 @@ export const ALL_TOOLS: ToolDefinition[] = [
     input_schema: { type: "object", properties: {} },
     allowedRoles: "all",
     execute: getBlockers,
+  },
+  {
+    name: "get_qc_summary",
+    description: "Get quality-control results from QC daily inspection sheets: pass/fail rates, fail rate by PO and by line, sheet sign-off status, and the list of failed checks (open QC issues). Call this when the user asks about quality, QC, defects, pass/fail rates, inspections, or which POs/lines have quality problems. Defaults to today; pass start_date/end_date (YYYY-MM-DD) for a range, or po/line to focus.",
+    input_schema: {
+      type: "object",
+      properties: {
+        start_date: { type: "string", description: "Range start YYYY-MM-DD. Defaults to today." },
+        end_date: { type: "string", description: "Range end YYYY-MM-DD. Defaults to today." },
+        po: { type: "string", description: "Optional: only this PO number." },
+        line: { type: "string", description: "Optional: only this line (name or number)." },
+      },
+    },
+    allowedRoles: "all",
+    execute: getQCSummary,
+  },
+  {
+    name: "get_missing_submissions",
+    description: "List the active production lines that have NOT submitted their end-of-day production for a date (defaults to today). Call this when the user asks who hasn't submitted, which lines are missing/late, pending submissions, or 'who still needs to report'. With no department it returns lines that submitted nothing in any department; pass department (sewing/finishing/cutting) to check that department's output specifically. Optional date YYYY-MM-DD.",
+    input_schema: {
+      type: "object",
+      properties: {
+        department: { type: "string", enum: ["sewing", "finishing", "cutting"], description: "Optional: check only this department's end-of-day output." },
+        date: { type: "string", description: "Optional date YYYY-MM-DD. Defaults to today." },
+      },
+    },
+    allowedRoles: "all",
+    execute: getMissingSubmissions,
   },
   {
     name: "get_work_orders",
@@ -233,6 +261,70 @@ export const ALL_TOOLS: ToolDefinition[] = [
     input_schema: { type: "object", properties: { po_number: { type: "string" } }, required: ["po_number"] },
     allowedRoles: ["admin", "owner", "superadmin"],
     execute: archivePoTool,
+  },
+  {
+    name: "record_production",
+    description: "Record / backfill end-of-day production OUTPUT for a PO so its sewing & finishing progress %% reflects reality. Admin/owner only. Use this for completed or legacy POs that show 0% because no end-of-day data was ever entered — e.g. to mark a finished PO 100%. Set to_full:true to record the PO's full order quantity for BOTH sewing and finishing (the simplest way to bring a completed PO to 100%), or pass explicit sewing_qty and/or finishing_qty. Optional production_date (YYYY-MM-DD, defaults to today). This PROPOSES the change for approval, then writes real production records (progress updates automatically). Finishing output is what drives the completion %.",
+    input_schema: {
+      type: "object",
+      properties: {
+        po_number: { type: "string" },
+        to_full: { type: "boolean", description: "Record the PO's full order quantity for sewing + finishing (marks it 100%)." },
+        sewing_qty: { type: "number", description: "Sewing good output to record (ignored if to_full)." },
+        finishing_qty: { type: "number", description: "Finishing output to record — this drives the completion % (ignored if to_full)." },
+        production_date: { type: "string", description: "YYYY-MM-DD; defaults to today." },
+      },
+      required: ["po_number"],
+    },
+    allowedRoles: ["admin", "owner", "superadmin"],
+    execute: recordProductionTool,
+  },
+  {
+    name: "resolve_blocker",
+    description: "Resolve (close) the open production blocker(s) on a PO. Admin/owner only. Use when a blocker reported on a PO has been fixed — marks every open/in-progress blocker for that PO as resolved with today's date. Optionally pass resolution_note describing what was done. Call get_blockers first to see which POs have open blockers. PROPOSES the change for approval.",
+    input_schema: {
+      type: "object",
+      properties: {
+        po_number: { type: "string" },
+        resolution_note: { type: "string", description: "Optional: what was done to resolve the blocker." },
+      },
+      required: ["po_number"],
+    },
+    allowedRoles: ["admin", "owner", "superadmin"],
+    execute: resolveBlockerTool,
+  },
+  {
+    name: "notify_user",
+    description: "Send an in-app notification to people in the factory. Admin/owner only. Use when the user wants to alert or message someone — e.g. 'tell Line 3 to fix the machine', 'notify the supervisors about the delay', 'message Sarah that the order shipped'. Target at least one of: to_user_name (a specific person), to_line (everyone assigned to that line), to_role (everyone with that role). Provide a short message (and optional title). PROPOSES the notification for approval before sending.",
+    input_schema: {
+      type: "object",
+      properties: {
+        message: { type: "string", description: "The notification body — what to tell them." },
+        title: { type: "string", description: "Optional short title/subject. Defaults to a generic one." },
+        to_user_name: { type: "string", description: "Full name of a specific person to notify." },
+        to_line: { type: "string", description: "Line name/number — notifies everyone assigned to that line." },
+        to_role: { type: "string", enum: ["worker", "supervisor", "admin", "owner"], description: "Notify everyone with this role." },
+      },
+      required: ["message"],
+    },
+    allowedRoles: ["admin", "owner", "superadmin"],
+    execute: notifyUserTool,
+  },
+  {
+    name: "create_reminder",
+    description: "Set a personal follow-up reminder for the user. Available to all roles. Use when the user says 'remind me to…', 'follow up tomorrow', 'don't let me forget…'. Resolve relative dates to an absolute due_date (YYYY-MM-DD) using today's date from context (e.g. tomorrow, next Monday). due_time is optional 24h HH:MM (defaults to 09:00, the factory's local time). The reminder is delivered as a notification when it comes due. PROPOSES it for approval.",
+    input_schema: {
+      type: "object",
+      properties: {
+        message: { type: "string", description: "What to remind the user about." },
+        due_date: { type: "string", description: "Absolute date YYYY-MM-DD (compute from today for relative phrasing)." },
+        due_time: { type: "string", description: "Optional 24h HH:MM in the factory's timezone. Defaults to 09:00." },
+        title: { type: "string", description: "Optional short title. Defaults to 'Reminder'." },
+      },
+      required: ["message", "due_date"],
+    },
+    allowedRoles: "all",
+    execute: createReminderTool,
   },
   {
     name: "propose_create_form",

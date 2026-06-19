@@ -9,6 +9,8 @@ import {
   fetchFinishing,
   fetchBlockers,
   fetchWorkOrders,
+  fetchQCSummary,
+  fetchMissingSubmissions,
 } from "../live-data.ts";
 
 const DENY = (what: string) =>
@@ -119,6 +121,25 @@ export async function getMetrics(ctx: ToolContext, input: Record<string, unknown
 export async function getBlockers(ctx: ToolContext, _input: Record<string, unknown>): Promise<string> {
   if (!canSeeProductionFloor(ctx.role)) return DENY("blocker data");
   const result = await fetchBlockers(ctx.supabase, ctx.factoryId);
+  return result.error ? `(${result.error})` : result.summary;
+}
+
+/** get_qc_summary([start_date],[end_date],[po],[line]) — QC pass/fail rates + open issues. */
+export async function getQCSummary(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  const start = typeof input.start_date === "string" && DATE_RE.test(input.start_date) ? input.start_date : ctx.today;
+  const end = typeof input.end_date === "string" && DATE_RE.test(input.end_date) ? input.end_date : ctx.today;
+  const po = typeof input.po === "string" && input.po.trim() ? input.po.trim() : undefined;
+  const line = typeof input.line === "string" && input.line.trim() ? input.line.trim() : undefined;
+  const result = await fetchQCSummary(ctx.supabase, ctx.factoryId, start, end, po, line);
+  return result.error ? `(${result.error})` : result.summary;
+}
+
+/** get_missing_submissions([department],[date]) — active lines with no end-of-day production submitted. */
+export async function getMissingSubmissions(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  if (!canSeeAnyProduction(ctx.role)) return DENY("production submission status");
+  const date = typeof input.date === "string" && DATE_RE.test(input.date) ? input.date : ctx.today;
+  const dept = typeof input.department === "string" ? input.department.trim() : undefined;
+  const result = await fetchMissingSubmissions(ctx.supabase, ctx.factoryId, date, dept);
   return result.error ? `(${result.error})` : result.summary;
 }
 
