@@ -6,11 +6,12 @@ import { isToolAllowed } from "./types.ts";
 import {
   getProductionData, getMetrics, getBlockers, getWorkOrders, getLines,
   getFinancials, comparePeriods, findAnomalies, searchKnowledge,
-  raiseSupportTicket, generateReport,
+  raiseSupportTicket, generateReport, getQCSummary, getMissingSubmissions,
+  getDispatches, getInventory, getVoiceNotes, getPoTimeline,
 } from "./insights.ts";
 import {
   createPoTool, updatePoTool, assignPoLinesTool,
-  setPoStatusTool, setPoExFactoryTool, archivePoTool, recordProductionTool,
+  setPoStatusTool, setPoExFactoryTool, archivePoTool, recordProductionTool, resolveBlockerTool, notifyUserTool, createReminderTool, setDispatchStatusTool,
   proposeCreateFormTool,
   proposeUpdateFormTool,
   proposeEditFormTool,
@@ -55,6 +56,86 @@ export const ALL_TOOLS: ToolDefinition[] = [
     input_schema: { type: "object", properties: {} },
     allowedRoles: "all",
     execute: getBlockers,
+  },
+  {
+    name: "get_qc_summary",
+    description: "Get quality-control results from QC daily inspection sheets: pass/fail rates, fail rate by PO and by line, sheet sign-off status, and the list of failed checks (open QC issues). Call this when the user asks about quality, QC, defects, pass/fail rates, inspections, or which POs/lines have quality problems. Defaults to today; pass start_date/end_date (YYYY-MM-DD) for a range, or po/line to focus.",
+    input_schema: {
+      type: "object",
+      properties: {
+        start_date: { type: "string", description: "Range start YYYY-MM-DD. Defaults to today." },
+        end_date: { type: "string", description: "Range end YYYY-MM-DD. Defaults to today." },
+        po: { type: "string", description: "Optional: only this PO number." },
+        line: { type: "string", description: "Optional: only this line (name or number)." },
+      },
+    },
+    allowedRoles: "all",
+    execute: getQCSummary,
+  },
+  {
+    name: "get_missing_submissions",
+    description: "List the active production lines that have NOT submitted their end-of-day production for a date (defaults to today). Call this when the user asks who hasn't submitted, which lines are missing/late, pending submissions, or 'who still needs to report'. With no department it returns lines that submitted nothing in any department; pass department (sewing/finishing/cutting) to check that department's output specifically. Optional date YYYY-MM-DD.",
+    input_schema: {
+      type: "object",
+      properties: {
+        department: { type: "string", enum: ["sewing", "finishing", "cutting"], description: "Optional: check only this department's end-of-day output." },
+        date: { type: "string", description: "Optional date YYYY-MM-DD. Defaults to today." },
+      },
+    },
+    allowedRoles: "all",
+    execute: getMissingSubmissions,
+  },
+  {
+    name: "get_dispatches",
+    description: "List dispatch (gate-out) requests and their status. Defaults to those PENDING approval. Call when the user asks about dispatches, gate passes, shipments, what's waiting for approval, or trucks leaving. Each result shows its reference number (DSP-…), PO, quantity, destination and status. Pass status (pending/approved/rejected/cancelled/all) or po to filter.",
+    input_schema: {
+      type: "object",
+      properties: {
+        status: { type: "string", enum: ["pending", "approved", "rejected", "cancelled", "all"], description: "Defaults to pending." },
+        po: { type: "string", description: "Optional: only dispatches for this PO." },
+      },
+    },
+    allowedRoles: ["admin", "owner", "superadmin"],
+    execute: getDispatches,
+  },
+  {
+    name: "get_inventory",
+    description: "Get current storage bin-card balances (fabric/material in storage). Call when the user asks how much material/fabric is in storage, stock levels, or the bin-card balance for a PO. Shows balance, total received and issued per PO/material. Pass po to focus on one order.",
+    input_schema: {
+      type: "object",
+      properties: {
+        po: { type: "string", description: "Optional: only this PO's storage." },
+      },
+    },
+    allowedRoles: "all",
+    execute: getInventory,
+  },
+  {
+    name: "get_voice_notes",
+    description: "Read back voice notes recorded on production/QC records — they are transcribed to text so you can summarize what was said. Call when the user asks what a voice note says, to summarize voice notes, or 'any voice notes on PO X / today?'. Filter by po (notes about that PO), record_type (e.g. finishing_daily_logs, sewing_actuals, qc_daily_sheet_item) and/or record_id. Transcription costs money and time, so keep limit small (default 5, max 8) and prefer a po/record filter over broad browsing.",
+    input_schema: {
+      type: "object",
+      properties: {
+        po: { type: "string", description: "Only voice notes about this PO." },
+        record_type: { type: "string", description: "Only notes on this record type (e.g. finishing_daily_logs, sewing_actuals, qc_daily_sheet_item)." },
+        record_id: { type: "string", description: "Only notes on this exact record id (UUID)." },
+        since_days: { type: "number", description: "Look back this many days when browsing (default 14)." },
+        limit: { type: "number", description: "Max notes to transcribe (default 5, max 8)." },
+      },
+    },
+    allowedRoles: ["admin", "owner", "superadmin"],
+    execute: getVoiceNotes,
+  },
+  {
+    name: "get_po_timeline",
+    description: "Get a single PO's full activity log in date order — creation, cutting/sewing/finishing output, blockers, QC sheets and dispatches merged chronologically. Call when the user asks what happened with an order, its history, progress story, or 'walk me through PO X'. Requires a po number.",
+    input_schema: {
+      type: "object",
+      properties: { po: { type: "string", description: "The PO number to trace." } },
+      required: ["po"],
+    },
+    allowedRoles: "all",
+    execute: getPoTimeline,
   },
   {
     name: "get_work_orders",
@@ -250,6 +331,68 @@ export const ALL_TOOLS: ToolDefinition[] = [
     },
     allowedRoles: ["admin", "owner", "superadmin"],
     execute: recordProductionTool,
+  },
+  {
+    name: "resolve_blocker",
+    description: "Resolve (close) the open production blocker(s) on a PO. Admin/owner only. Use when a blocker reported on a PO has been fixed — marks every open/in-progress blocker for that PO as resolved with today's date. Optionally pass resolution_note describing what was done. Call get_blockers first to see which POs have open blockers. PROPOSES the change for approval.",
+    input_schema: {
+      type: "object",
+      properties: {
+        po_number: { type: "string" },
+        resolution_note: { type: "string", description: "Optional: what was done to resolve the blocker." },
+      },
+      required: ["po_number"],
+    },
+    allowedRoles: ["admin", "owner", "superadmin"],
+    execute: resolveBlockerTool,
+  },
+  {
+    name: "notify_user",
+    description: "Send an in-app notification to people in the factory. Admin/owner only. Use when the user wants to alert or message someone — e.g. 'tell Line 3 to fix the machine', 'notify the supervisors about the delay', 'message Sarah that the order shipped'. Target at least one of: to_user_name (a specific person), to_line (everyone assigned to that line), to_role (everyone with that role). Provide a short message (and optional title). PROPOSES the notification for approval before sending.",
+    input_schema: {
+      type: "object",
+      properties: {
+        message: { type: "string", description: "The notification body — what to tell them." },
+        title: { type: "string", description: "Optional short title/subject. Defaults to a generic one." },
+        to_user_name: { type: "string", description: "Full name of a specific person to notify." },
+        to_line: { type: "string", description: "Line name/number — notifies everyone assigned to that line." },
+        to_role: { type: "string", enum: ["worker", "supervisor", "admin", "owner"], description: "Notify everyone with this role." },
+      },
+      required: ["message"],
+    },
+    allowedRoles: ["admin", "owner", "superadmin"],
+    execute: notifyUserTool,
+  },
+  {
+    name: "create_reminder",
+    description: "Set a personal follow-up reminder for the user. Available to all roles. Use when the user says 'remind me to…', 'follow up tomorrow', 'don't let me forget…'. Resolve relative dates to an absolute due_date (YYYY-MM-DD) using today's date from context (e.g. tomorrow, next Monday). due_time is optional 24h HH:MM (defaults to 09:00, the factory's local time). The reminder is delivered as a notification when it comes due. PROPOSES it for approval.",
+    input_schema: {
+      type: "object",
+      properties: {
+        message: { type: "string", description: "What to remind the user about." },
+        due_date: { type: "string", description: "Absolute date YYYY-MM-DD (compute from today for relative phrasing)." },
+        due_time: { type: "string", description: "Optional 24h HH:MM in the factory's timezone. Defaults to 09:00." },
+        title: { type: "string", description: "Optional short title. Defaults to 'Reminder'." },
+      },
+      required: ["message", "due_date"],
+    },
+    allowedRoles: "all",
+    execute: createReminderTool,
+  },
+  {
+    name: "set_dispatch_status",
+    description: "Approve or reject a PENDING dispatch (gate-out) request, identified by its reference number (e.g. DSP-20260619-001). Admin/owner only. Rejecting requires a reason. Use get_dispatches first to find the reference number — a PO can have several dispatches, so always act on a specific reference. Note: approving here sets the status but does NOT generate the printable gate-pass PDF (do that in the app if needed). PROPOSES the change for approval.",
+    input_schema: {
+      type: "object",
+      properties: {
+        reference: { type: "string", description: "Dispatch reference number, e.g. DSP-20260619-001." },
+        decision: { type: "string", enum: ["approve", "reject"], description: "Approve or reject the dispatch." },
+        reason: { type: "string", description: "Required when rejecting: why it's rejected." },
+      },
+      required: ["reference", "decision"],
+    },
+    allowedRoles: ["admin", "owner", "superadmin"],
+    execute: setDispatchStatusTool,
   },
   {
     name: "propose_create_form",

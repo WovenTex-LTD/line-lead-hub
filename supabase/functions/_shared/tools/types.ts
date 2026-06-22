@@ -49,13 +49,16 @@ export function isToolAllowed(def: ToolDefinition, role: UserRole): boolean {
   return def.allowedRoles.includes(role);
 }
 
-/** Which production departments a role may see. Mirrors the role boundaries
- *  in the existing system prompt: workers see sewing + finishing, cutting role
- *  sees cutting, storage sees none, admin/owner see all. */
+/** Which production departments a role may see. admin/owner/superadmin and
+ *  supervisors see all production; workers see sewing + finishing; the cutting
+ *  role sees cutting; storage and everyone else see none. (Financials, voice
+ *  notes, dispatch and write actions are gated separately — not by this map.) */
 export function allowedDepartmentsForRole(role: UserRole): Department[] {
   switch (role) {
     case "admin":
     case "owner":
+    case "superadmin":
+    case "supervisor":
       return ["sewing", "cutting", "finishing"];
     case "worker":
       return ["sewing", "finishing"];

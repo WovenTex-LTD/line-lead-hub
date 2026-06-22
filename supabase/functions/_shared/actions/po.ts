@@ -5,7 +5,8 @@
 export type PoActionKind =
   | "create_po" | "update_po" | "assign_po_lines"
   | "set_po_status" | "set_po_ex_factory" | "archive_po"
-  | "record_production"
+  | "record_production" | "resolve_blocker" | "notify_user" | "create_reminder"
+  | "set_dispatch_status"
   | "create_custom_form" | "update_custom_form";
 
 export interface ProposedAction {
@@ -147,6 +148,88 @@ export function validateArchivePo(input: Record<string, unknown>): ValidationRes
     ok: true,
     action: { kind: "archive_po", humanSummary: `Archive PO ${po_number} (soft-delete — production history is kept)`, payload: { po_number } },
   };
+}
+
+// Resolve (close) the open production blocker(s) on a PO. Marks every
+// open/in-progress blocker for that PO as resolved with today's date, optionally
+// recording what was done. Use after a blocker reported on a PO has been fixed.
+export function validateResolveBlocker(input: Record<string, unknown>): ValidationResult {
+  const po_number = str(input.po_number);
+  if (!po_number) return { ok: false, error: "Which PO's blocker should I resolve?" };
+  const resolution_note = str(input.resolution_note);
+  const payload: Record<string, unknown> = { po_number };
+  if (resolution_note) payload.resolution_note = resolution_note;
+  const summary = `Resolve open blocker(s) on PO ${po_number}${resolution_note ? ` — "${resolution_note}"` : ""} (marks them resolved as of today).`;
+  return { ok: true, action: { kind: "resolve_blocker", humanSummary: summary, payload } };
+}
+
+export const NOTIFY_ROLES = ["worker", "supervisor", "admin", "owner"];
+
+// Send an in-app notification to a person (by name), everyone assigned to a line,
+// and/or a whole role. At least one recipient target is required. The executor
+// resolves targets to user_ids and inserts one notification per recipient.
+export function validateNotifyUser(input: Record<string, unknown>): ValidationResult {
+  const message = str(input.message);
+  if (!message) return { ok: false, error: "What message should I send?" };
+  const to_user_name = str(input.to_user_name);
+  const to_line = str(input.to_line);
+  const to_role = str(input.to_role).toLowerCase();
+  if (!to_user_name && !to_line && !to_role) {
+    return { ok: false, error: "Who should I notify? Give a person's name, a line, or a role (worker / supervisor / admin / owner)." };
+  }
+  if (to_role && !NOTIFY_ROLES.includes(to_role)) {
+    return { ok: false, error: `Role must be one of: ${NOTIFY_ROLES.join(", ")}.` };
+  }
+  const title = str(input.title) || "Message from your team";
+  const payload: Record<string, unknown> = { title, message };
+  if (to_user_name) payload.to_user_name = to_user_name;
+  if (to_line) payload.to_line = to_line;
+  if (to_role) payload.to_role = to_role;
+  const who = [
+    to_user_name || null,
+    to_line ? `everyone on ${to_line}` : null,
+    to_role ? `all ${to_role}s` : null,
+  ].filter(Boolean).join(" and ");
+  const summary = `Send a notification to ${who}: "${message}".`;
+  return { ok: true, action: { kind: "notify_user", humanSummary: summary, payload } };
+}
+
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+// Create a personal follow-up reminder for the requesting user. due_date is the
+// calendar date (YYYY-MM-DD) in the factory's timezone; due_time is 24h HH:MM
+// (defaults to 09:00). Delivered as a notification once it's due.
+export function validateCreateReminder(input: Record<string, unknown>): ValidationResult {
+  const message = str(input.message);
+  if (!message) return { ok: false, error: "What should the reminder say?" };
+  const due_date = str(input.due_date);
+  if (!due_date || !DATE_RE.test(due_date)) return { ok: false, error: "When should I remind you? Give a date as YYYY-MM-DD." };
+  let due_time = str(input.due_time);
+  if (due_time && !TIME_RE.test(due_time)) return { ok: false, error: "Time must be 24-hour HH:MM, e.g. 09:00 or 17:30." };
+  if (!due_time) due_time = "09:00";
+  const title = str(input.title) || "Reminder";
+  const payload = { title, message, due_date, due_time };
+  const summary = `Set a reminder for ${due_date} at ${due_time}: "${message}".`;
+  return { ok: true, action: { kind: "create_reminder", humanSummary: summary, payload } };
+}
+
+// Approve or reject a pending dispatch (gate-out) request, identified by its
+// reference number (DSP-…). Rejecting requires a reason.
+export function validateSetDispatchStatus(input: Record<string, unknown>): ValidationResult {
+  const reference = str(input.reference);
+  if (!reference) return { ok: false, error: "Which dispatch? Give its reference number (e.g. DSP-20260619-001)." };
+  const decision = str(input.decision).toLowerCase();
+  if (decision !== "approve" && decision !== "reject") {
+    return { ok: false, error: "Should I approve or reject it? Set decision to 'approve' or 'reject'." };
+  }
+  const reason = str(input.reason);
+  if (decision === "reject" && !reason) return { ok: false, error: "Give a reason for rejecting the dispatch." };
+  const payload: Record<string, unknown> = { reference, decision };
+  if (reason) payload.reason = reason;
+  const summary = decision === "approve"
+    ? `Approve dispatch ${reference}.`
+    : `Reject dispatch ${reference} — "${reason}".`;
+  return { ok: true, action: { kind: "set_dispatch_status", humanSummary: summary, payload } };
 }
 
 // Record (backfill) end-of-day production output for a PO so its progress %

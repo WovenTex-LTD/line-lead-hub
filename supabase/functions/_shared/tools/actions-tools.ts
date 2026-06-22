@@ -4,7 +4,7 @@
 import type { ToolContext } from "./types.ts";
 import {
   validateCreatePo, validateUpdatePo, validateAssignPoLines,
-  validateSetPoStatus, validateSetPoExFactory, validateArchivePo, validateRecordProduction,
+  validateSetPoStatus, validateSetPoExFactory, validateArchivePo, validateRecordProduction, validateResolveBlocker, validateNotifyUser, validateCreateReminder, validateSetDispatchStatus,
   UUID_RE, type ValidationResult,
 } from "../actions/po.ts";
 import {
@@ -119,6 +119,22 @@ export async function archivePoTool(ctx: ToolContext, input: Record<string, unkn
 export async function recordProductionTool(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
   if (!gate(ctx)) return DENY;
   return propose(ctx, validateRecordProduction(input));
+}
+export async function resolveBlockerTool(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  if (!gate(ctx)) return DENY;
+  return propose(ctx, validateResolveBlocker(input));
+}
+export async function notifyUserTool(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  if (!gate(ctx)) return DENY;
+  return propose(ctx, validateNotifyUser(input));
+}
+// Personal reminders are self-targeted and harmless — any role may set one.
+export async function createReminderTool(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  return propose(ctx, validateCreateReminder(input));
+}
+export async function setDispatchStatusTool(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  if (!gate(ctx)) return DENY;
+  return propose(ctx, validateSetDispatchStatus(input));
 }
 
 export async function proposeCreateFormTool(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {

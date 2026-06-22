@@ -9,6 +9,12 @@ import {
   fetchFinishing,
   fetchBlockers,
   fetchWorkOrders,
+  fetchQCSummary,
+  fetchMissingSubmissions,
+  fetchDispatches,
+  fetchInventory,
+  fetchVoiceNotes,
+  fetchPoTimeline,
 } from "../live-data.ts";
 
 const DENY = (what: string) =>
@@ -119,6 +125,65 @@ export async function getMetrics(ctx: ToolContext, input: Record<string, unknown
 export async function getBlockers(ctx: ToolContext, _input: Record<string, unknown>): Promise<string> {
   if (!canSeeProductionFloor(ctx.role)) return DENY("blocker data");
   const result = await fetchBlockers(ctx.supabase, ctx.factoryId);
+  return result.error ? `(${result.error})` : result.summary;
+}
+
+/** get_qc_summary([start_date],[end_date],[po],[line]) — QC pass/fail rates + open issues. */
+export async function getQCSummary(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  if (!canSeeAnyProduction(ctx.role)) return DENY("QC data");
+  const start = typeof input.start_date === "string" && DATE_RE.test(input.start_date) ? input.start_date : ctx.today;
+  const end = typeof input.end_date === "string" && DATE_RE.test(input.end_date) ? input.end_date : ctx.today;
+  const po = typeof input.po === "string" && input.po.trim() ? input.po.trim() : undefined;
+  const line = typeof input.line === "string" && input.line.trim() ? input.line.trim() : undefined;
+  const result = await fetchQCSummary(ctx.supabase, ctx.factoryId, start, end, po, line);
+  return result.error ? `(${result.error})` : result.summary;
+}
+
+/** get_missing_submissions([department],[date]) — active lines with no end-of-day production submitted. */
+export async function getMissingSubmissions(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  if (!canSeeAnyProduction(ctx.role)) return DENY("production submission status");
+  const date = typeof input.date === "string" && DATE_RE.test(input.date) ? input.date : ctx.today;
+  const dept = typeof input.department === "string" ? input.department.trim() : undefined;
+  const result = await fetchMissingSubmissions(ctx.supabase, ctx.factoryId, date, dept);
+  return result.error ? `(${result.error})` : result.summary;
+}
+
+/** get_dispatches([status],[po]) — dispatch (gate-out) requests, default pending. */
+export async function getDispatches(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  const status = typeof input.status === "string" && input.status.trim() ? input.status.trim().toLowerCase() : "pending";
+  const po = typeof input.po === "string" && input.po.trim() ? input.po.trim() : undefined;
+  const result = await fetchDispatches(ctx.supabase, ctx.factoryId, status, po);
+  return result.error ? `(${result.error})` : result.summary;
+}
+
+/** get_inventory([po]) — current storage bin-card balances. */
+export async function getInventory(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  if (!canSeeAnyProduction(ctx.role)) return DENY("inventory data");
+  const po = typeof input.po === "string" && input.po.trim() ? input.po.trim() : undefined;
+  const result = await fetchInventory(ctx.supabase, ctx.factoryId, po);
+  return result.error ? `(${result.error})` : result.summary;
+}
+
+/** get_voice_notes([po],[record_type],[record_id],[since_days],[limit]) — transcribed voice notes. */
+export async function getVoiceNotes(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  // Voice notes are free-form recordings that can contain anything — keep them
+  // to admin/owner only (defense-in-depth alongside the tool's allowedRoles).
+  if (!["admin", "owner", "superadmin"].includes(ctx.role)) return DENY("voice notes");
+  const po = typeof input.po === "string" && input.po.trim() ? input.po.trim() : undefined;
+  const recordType = typeof input.record_type === "string" && input.record_type.trim() ? input.record_type.trim() : undefined;
+  const recordId = typeof input.record_id === "string" && input.record_id.trim() ? input.record_id.trim() : undefined;
+  const sinceDays = typeof input.since_days === "number" && input.since_days > 0 ? input.since_days : (po || recordId ? undefined : 14);
+  const limit = typeof input.limit === "number" && input.limit > 0 ? input.limit : 5;
+  const result = await fetchVoiceNotes(ctx.supabase, ctx.factoryId, { po, recordType, recordId, sinceDays, limit });
+  return result.error ? `(${result.error})` : result.summary;
+}
+
+/** get_po_timeline(po) — one PO's full activity log in date order. */
+export async function getPoTimeline(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  if (!canSeeAnyProduction(ctx.role)) return DENY("PO history");
+  const po = typeof input.po === "string" ? input.po.trim() : "";
+  if (!po) return "Which PO? Give me a PO number.";
+  const result = await fetchPoTimeline(ctx.supabase, ctx.factoryId, po);
   return result.error ? `(${result.error})` : result.summary;
 }
 
