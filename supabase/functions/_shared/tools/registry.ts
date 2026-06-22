@@ -123,7 +123,7 @@ export const ALL_TOOLS: ToolDefinition[] = [
         limit: { type: "number", description: "Max notes to transcribe (default 5, max 8)." },
       },
     },
-    allowedRoles: "all",
+    allowedRoles: ["admin", "owner", "superadmin"],
     execute: getVoiceNotes,
   },
   {

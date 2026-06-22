@@ -55,6 +55,19 @@ serve(async (req) => {
     const kind = String(body.kind ?? "");
     const rawPayload = (body.payload ?? {}) as Record<string, unknown>;
 
+    // Authorization: every write action requires admin/owner/superadmin, EXCEPT
+    // personal reminders (self-targeted). The chatbot tool layer gates this, but
+    // this endpoint is callable directly with any valid JWT — so enforce the
+    // caller's role here too. Never trust the client.
+    const PUBLIC_ACTION_KINDS = new Set(["create_reminder"]);
+    if (!PUBLIC_ACTION_KINDS.has(kind)) {
+      const { data: roleRows } = await admin.from("user_roles").select("role").eq("user_id", user.id);
+      const isAdminOrHigher = (roleRows || []).some((r: { role: string }) => r.role === "admin" || r.role === "owner" || r.role === "superadmin");
+      if (!isAdminOrHigher) {
+        return json({ ok: false, error: "You don't have permission to perform that action — it requires an admin or owner role." }, 403);
+      }
+    }
+
     // Record the approved change back into the chat so Lina knows it is done and
     // never re-proposes it on the next turn. Ownership-checked; failures are non-fatal.
     const recordApproval = async (summary: string) => {

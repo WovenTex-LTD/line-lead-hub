@@ -130,6 +130,7 @@ export async function getBlockers(ctx: ToolContext, _input: Record<string, unkno
 
 /** get_qc_summary([start_date],[end_date],[po],[line]) — QC pass/fail rates + open issues. */
 export async function getQCSummary(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
+  if (!canSeeAnyProduction(ctx.role)) return DENY("QC data");
   const start = typeof input.start_date === "string" && DATE_RE.test(input.start_date) ? input.start_date : ctx.today;
   const end = typeof input.end_date === "string" && DATE_RE.test(input.end_date) ? input.end_date : ctx.today;
   const po = typeof input.po === "string" && input.po.trim() ? input.po.trim() : undefined;
@@ -165,7 +166,9 @@ export async function getInventory(ctx: ToolContext, input: Record<string, unkno
 
 /** get_voice_notes([po],[record_type],[record_id],[since_days],[limit]) — transcribed voice notes. */
 export async function getVoiceNotes(ctx: ToolContext, input: Record<string, unknown>): Promise<string> {
-  if (!canSeeAnyProduction(ctx.role)) return DENY("voice notes");
+  // Voice notes are free-form recordings that can contain anything — keep them
+  // to admin/owner only (defense-in-depth alongside the tool's allowedRoles).
+  if (!["admin", "owner", "superadmin"].includes(ctx.role)) return DENY("voice notes");
   const po = typeof input.po === "string" && input.po.trim() ? input.po.trim() : undefined;
   const recordType = typeof input.record_type === "string" && input.record_type.trim() ? input.record_type.trim() : undefined;
   const recordId = typeof input.record_id === "string" && input.record_id.trim() ? input.record_id.trim() : undefined;
