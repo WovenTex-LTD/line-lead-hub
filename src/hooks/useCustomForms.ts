@@ -115,7 +115,9 @@ async function writeProductionRow(
 
   const [{ data: lineRows }, { data: poRow }] = await Promise.all([
     supabase.from("lines").select("id, line_id, name").eq("factory_id", factoryId).eq("is_active", true),
-    supabase.from("work_orders").select("id").eq("factory_id", factoryId).eq("po_number", poNumber).maybeSingle(),
+    // A PO number can now map to several orders — prefer an active one and take
+    // the first so maybeSingle() doesn't throw on multiple matches.
+    supabase.from("work_orders").select("id").eq("factory_id", factoryId).eq("po_number", poNumber).order("is_active", { ascending: false }).limit(1).maybeSingle(),
   ]);
   const line = ((lineRows as { id: string; line_id: string | null; name: string | null }[]) || [])
     .find((l) => l.name === lineName || l.line_id === lineName);
